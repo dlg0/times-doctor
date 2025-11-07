@@ -30,13 +30,24 @@ def list_openai_models() -> list[str]:
     if not key:
         return []
     
-    # Only GPT-5 chat models (filter out search, codex, audio, etc.)
-    return [
-        "gpt-5",
-        "gpt-5-pro",
-        "gpt-5-mini",
-        "gpt-5-nano"
-    ]
+    # GPT-5 reasoning models with effort levels
+    reasoning_models = ["gpt-5", "gpt-5-pro", "gpt-5-mini", "gpt-5-nano"]
+    effort_levels = ["minimal", "low", "medium", "high"]
+    
+    models = []
+    # Add reasoning models with effort combinations
+    for base in reasoning_models:
+        for effort in effort_levels:
+            models.append(f"{base} (reasoning/{effort})")
+    
+    # Add non-reasoning chat variants
+    models.extend([
+        "gpt-5-chat (non-reasoning)",
+        "gpt-5-mini-chat (non-reasoning)",
+        "gpt-5-nano-chat (non-reasoning)"
+    ])
+    
+    return models
 
 def list_anthropic_models() -> list[str]:
     """List available Anthropic models."""
@@ -79,10 +90,22 @@ def _call_openai_api(prompt: str, model: str = "", stream_callback=None) -> tupl
     if not model:
         model = os.environ.get("OPENAI_MODEL","gpt-5-mini")
     
+    # Parse model string to extract base model and reasoning effort
+    base_model = model
+    reasoning_effort = None
+    
+    if " (reasoning/" in model:
+        # Extract: "gpt-5-mini (reasoning/medium)" -> base="gpt-5-mini", effort="medium"
+        base_model = model.split(" (reasoning/")[0]
+        reasoning_effort = model.split(" (reasoning/")[1].rstrip(")")
+    elif " (non-reasoning)" in model:
+        # Extract: "gpt-5-chat (non-reasoning)" -> base="gpt-5-chat"
+        base_model = model.split(" (non-reasoning)")[0]
+    
     url = "https://api.openai.com/v1/chat/completions"
     headers = {"Authorization": f"Bearer {key}"}
     payload = {
-        "model": model, 
+        "model": base_model, 
         "messages": [
             {"role": "system", "content": "You are a concise LP solver expert."},
             {"role": "user", "content": prompt}
@@ -90,15 +113,19 @@ def _call_openai_api(prompt: str, model: str = "", stream_callback=None) -> tupl
         "stream": True if stream_callback else False
     }
     
+    # Add reasoning parameter for reasoning models
+    if reasoning_effort:
+        payload["reasoning"] = {"effort": reasoning_effort}
+    
     # GPT-5 models only support temperature=1 (default), don't include it
     # Older models support configurable temperature
-    if not model.startswith("gpt-5"):
+    if not base_model.startswith("gpt-5"):
         temperature = float(os.environ.get("OPENAI_TEMPERATURE", "0.2"))
         payload["temperature"] = temperature
     
     try:
         # Longer timeout for reasoning models (GPT-5, etc.)
-        timeout_seconds = 300 if model.startswith("gpt-5") or "pro" in model else 120
+        timeout_seconds = 300 if base_model.startswith("gpt-5") or "pro" in base_model else 120
         
         if stream_callback:
             # Try streaming mode first
@@ -163,13 +190,15 @@ def _call_openai_api(prompt: str, model: str = "", stream_callback=None) -> tupl
             
             metadata = {
                 "model": model,
-                "temperature": 1.0 if model.startswith("gpt-5") else float(os.environ.get("OPENAI_TEMPERATURE", "0.2")),
+                "temperature": 1.0 if base_model.startswith("gpt-5") else float(os.environ.get("OPENAI_TEMPERATURE", "0.2")),
                 "provider": "openai",
                 "input_tokens": input_tokens,
                 "output_tokens": output_tokens,
                 "total_tokens": input_tokens + output_tokens,
                 "cost_usd": input_cost + output_cost
             }
+            if reasoning_effort:
+                metadata["reasoning_effort"] = reasoning_effort
             
             return full_text.strip(), metadata
         else:
@@ -201,13 +230,15 @@ def _call_openai_api(prompt: str, model: str = "", stream_callback=None) -> tupl
                 
                 metadata = {
                     "model": model,
-                    "temperature": 1.0 if model.startswith("gpt-5") else float(os.environ.get("OPENAI_TEMPERATURE", "0.2")),
+                    "temperature": 1.0 if base_model.startswith("gpt-5") else float(os.environ.get("OPENAI_TEMPERATURE", "0.2")),
                     "provider": "openai",
                     "input_tokens": usage.get("prompt_tokens", 0),
                     "output_tokens": usage.get("completion_tokens", 0),
                     "total_tokens": usage.get("total_tokens", 0),
                     "cost_usd": input_cost + output_cost
                 }
+                if reasoning_effort:
+                    metadata["reasoning_effort"] = reasoning_effort
                 
                 return data["choices"][0]["message"]["content"].strip(), metadata
             else:
