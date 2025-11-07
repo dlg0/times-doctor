@@ -1,4 +1,4 @@
-import os, re, shutil, subprocess, csv
+import os, re, shutil, subprocess, csv, sys
 from pathlib import Path
 import typer
 from rich import print
@@ -379,6 +379,12 @@ def scan(
 @app.command()
 def update():
     """Update times-doctor to the latest version using uv tool upgrade."""
+    if sys.platform == "win32":
+        print("[yellow]On Windows, times-doctor cannot update itself while running.[/yellow]")
+        print("[yellow]Please run this command in PowerShell instead:[/yellow]")
+        print("[bold cyan]uv tool upgrade times-doctor[/bold cyan]")
+        raise typer.Exit(0)
+    
     print("[yellow]Updating times-doctor to the latest version...[/yellow]")
     try:
         subprocess.run(
