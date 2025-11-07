@@ -113,9 +113,9 @@ def run_gams_with_progress(cmd: list[str], cwd: str, max_lines: int = 4) -> int:
     console.print(f"[dim]Working directory: {cwd}[/dim]")
     console.print(f"[dim]Command: {' '.join(cmd)}[/dim]")
     
-    # Find the .lst file that will be created
+    # Find the _run_log.txt file that will be created
     cwd_path = Path(cwd)
-    lst_files_before = set(cwd_path.glob("*.lst"))
+    log_files_before = set(cwd_path.glob("*_run_log.txt"))
     
     try:
         proc = subprocess.Popen(
@@ -137,7 +137,7 @@ def run_gams_with_progress(cmd: list[str], cwd: str, max_lines: int = 4) -> int:
     
     lines = []
     log_file_lines = []
-    current_lst_file = None
+    current_log_file = None
     display_text = Text("Starting GAMS...", style="dim")
     
     def read_output():
@@ -166,22 +166,22 @@ def run_gams_with_progress(cmd: list[str], cwd: str, max_lines: int = 4) -> int:
         while proc.poll() is None:
             iterations += 1
             
-            # Try to find and tail the .lst file if no stdout
+            # Try to find and tail the _run_log.txt file if no stdout
             if not lines and iterations - last_log_check > 4:  # Check every 2 seconds
                 last_log_check = iterations
-                if not current_lst_file:
-                    lst_files_after = set(cwd_path.glob("*.lst"))
-                    new_files = lst_files_after - lst_files_before
+                if not current_log_file:
+                    log_files_after = set(cwd_path.glob("*_run_log.txt"))
+                    new_files = log_files_after - log_files_before
                     if new_files:
-                        current_lst_file = max(new_files, key=lambda p: p.stat().st_mtime)
+                        current_log_file = max(new_files, key=lambda p: p.stat().st_mtime)
                         live.stop()
-                        console.print(f"[dim]Monitoring log file: {current_lst_file}[/dim]")
+                        console.print(f"[dim]Monitoring log file: {current_log_file}[/dim]")
                         live.start()
                 
                 # Read from log file if available
-                if current_lst_file and current_lst_file.exists():
+                if current_log_file and current_log_file.exists():
                     try:
-                        with open(current_lst_file, 'r', encoding='utf-8', errors='ignore') as f:
+                        with open(current_log_file, 'r', encoding='utf-8', errors='ignore') as f:
                             new_content = f.readlines()
                             if len(new_content) > len(log_file_lines):
                                 log_file_lines = new_content
