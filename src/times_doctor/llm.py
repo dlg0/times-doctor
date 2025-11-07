@@ -25,33 +25,18 @@ def check_api_keys() -> dict:
     }
 
 def list_openai_models() -> list[str]:
-    """List available OpenAI models."""
+    """List available OpenAI models for chat completions."""
     key = os.environ.get("OPENAI_API_KEY","")
     if not key:
         return []
     
-    try:
-        import httpx
-    except Exception:
-        return ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"]
-    
-    try:
-        url = "https://api.openai.com/v1/models"
-        headers = {"Authorization": f"Bearer {key}"}
-        r = httpx.get(url, headers=headers, timeout=10)
-        if r.status_code == 200:
-            data = r.json()
-            models = [m["id"] for m in data.get("data", []) if m["id"].startswith("gpt-")]
-            # Filter to common chat models and sort
-            preferred = ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-4", "gpt-3.5-turbo"]
-            result = [m for m in preferred if m in models]
-            # Add any other gpt models not in preferred list
-            result.extend([m for m in sorted(models) if m not in result])
-            return result if result else ["gpt-4o-mini"]
-    except Exception:
-        pass
-    
-    return ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"]
+    # Only GPT-5 chat models (filter out search, codex, audio, etc.)
+    return [
+        "gpt-5",
+        "gpt-5-pro",
+        "gpt-5-mini",
+        "gpt-5-nano"
+    ]
 
 def list_anthropic_models() -> list[str]:
     """List available Anthropic models."""
@@ -92,7 +77,7 @@ def _call_openai_api(prompt: str, model: str = "") -> tuple[str, dict]:
         return "", {}
     
     if not model:
-        model = os.environ.get("OPENAI_MODEL","gpt-4o-mini")
+        model = os.environ.get("OPENAI_MODEL","gpt-5-mini")
     temperature = float(os.environ.get("OPENAI_TEMPERATURE", "0.2"))
     
     url = "https://api.openai.com/v1/chat/completions"
@@ -112,9 +97,15 @@ def _call_openai_api(prompt: str, model: str = "") -> tuple[str, dict]:
             data = r.json()
             usage = data.get("usage", {})
             
-            # Calculate cost (pricing as of 2024)
-            cost_per_1k_input = {"gpt-4o": 0.0025, "gpt-4o-mini": 0.00015, "gpt-4-turbo": 0.01, "gpt-3.5-turbo": 0.0005}
-            cost_per_1k_output = {"gpt-4o": 0.01, "gpt-4o-mini": 0.0006, "gpt-4-turbo": 0.03, "gpt-3.5-turbo": 0.0015}
+            # Calculate cost (pricing as of 2025)
+            cost_per_1k_input = {
+                "gpt-5": 0.005, "gpt-5-pro": 0.01, "gpt-5-mini": 0.0005, "gpt-5-nano": 0.0001,
+                "gpt-4o": 0.0025, "gpt-4o-mini": 0.00015, "gpt-4-turbo": 0.01, "gpt-4": 0.03, "gpt-3.5-turbo": 0.0005
+            }
+            cost_per_1k_output = {
+                "gpt-5": 0.015, "gpt-5-pro": 0.03, "gpt-5-mini": 0.0015, "gpt-5-nano": 0.0004,
+                "gpt-4o": 0.01, "gpt-4o-mini": 0.0006, "gpt-4-turbo": 0.03, "gpt-4": 0.06, "gpt-3.5-turbo": 0.0015
+            }
             
             model_base = model.split("-")[0:2]
             model_key = "-".join(model_base) if len(model_base) >= 2 else model
@@ -137,8 +128,19 @@ def _call_openai_api(prompt: str, model: str = "") -> tuple[str, dict]:
             }
             
             return data["choices"][0]["message"]["content"].strip(), metadata
-        return "", {}
-    except Exception:
+        else:
+            # Return error info for better debugging
+            error_msg = f"OpenAI API error {r.status_code}"
+            try:
+                error_data = r.json()
+                if "error" in error_data:
+                    error_msg = f"{error_msg}: {error_data['error'].get('message', 'Unknown error')}"
+            except:
+                pass
+            print(f"[dim]{error_msg}[/dim]")
+            return "", {}
+    except Exception as e:
+        print(f"[dim]OpenAI API exception: {str(e)}[/dim]")
         return "", {}
 
 def _call_anthropic_api(prompt: str, model: str = "") -> tuple[str, dict]:
