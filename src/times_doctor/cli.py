@@ -107,6 +107,7 @@ def ensure_out(run_dir: Path) -> Path:
 def run_gams_with_progress(cmd: list[str], cwd: str, max_lines: int = 30) -> int:
     """Run GAMS and show live tail of output."""
     import threading
+    import signal
     from pathlib import Path
     
     # Log the command being run
@@ -153,7 +154,20 @@ def run_gams_with_progress(cmd: list[str], cwd: str, max_lines: int = 30) -> int
     reader = threading.Thread(target=read_output, daemon=True)
     reader.start()
     
-    with Live(display_text, console=console, refresh_per_second=2) as live:
+    def handle_interrupt(signum, frame):
+        console.print("\n[yellow]Received CTRL-C, terminating GAMS process...[/yellow]")
+        proc.terminate()
+        try:
+            proc.wait(timeout=3)
+        except subprocess.TimeoutExpired:
+            console.print("[red]Process did not terminate, killing...[/red]")
+            proc.kill()
+        raise KeyboardInterrupt()
+    
+    old_handler = signal.signal(signal.SIGINT, handle_interrupt)
+    
+    try:
+        with Live(display_text, console=console, refresh_per_second=2) as live:
         import time
         try:
             import psutil
@@ -232,11 +246,13 @@ def run_gams_with_progress(cmd: list[str], cwd: str, max_lines: int = 30) -> int
                     live.update(display_text)
             time.sleep(0.5)
         
-        # One final update after process ends
-        if lines:
-            display_lines = lines[-max_lines:]
-            display_text = Text("\n".join(display_lines))
-            live.update(display_text)
+            # One final update after process ends
+            if lines:
+                display_lines = lines[-max_lines:]
+                display_text = Text("\n".join(display_lines))
+                live.update(display_text)
+    finally:
+        signal.signal(signal.SIGINT, old_handler)
     
     reader.join(timeout=1)
     console.print(f"[dim]GAMS process exited with code: {proc.returncode}[/dim]")

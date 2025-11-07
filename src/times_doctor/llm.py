@@ -557,7 +557,7 @@ def compress_qa_check(file_content: str, log_dir: Path = None, progress_callback
             meta = {}
             
             if api_keys["openai"]:
-                text, meta = _call_openai_responses_api(prompt, model="gpt-5-nano", reasoning_effort="medium")
+                text, meta = _call_openai_responses_api(prompt, model="gpt-5-nano", reasoning_effort="minimal")
             elif api_keys["anthropic"]:
                 text, meta = _call_anthropic_api(prompt, model="claude-3-5-haiku-20241022")
             else:
@@ -586,7 +586,7 @@ def compress_qa_check(file_content: str, log_dir: Path = None, progress_callback
         meta = {}
         
         if api_keys["openai"]:
-            text, meta = _call_openai_responses_api(prompt, model="gpt-5-nano", reasoning_effort="medium")
+            text, meta = _call_openai_responses_api(prompt, model="gpt-5-nano", reasoning_effort="minimal")
         elif api_keys["anthropic"]:
             text, meta = _call_anthropic_api(prompt, model="claude-3-5-haiku-20241022")
         else:
