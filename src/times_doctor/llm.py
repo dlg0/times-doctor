@@ -567,6 +567,51 @@ def summarize(diagnostics: dict, provider: str = "auto") -> LLMResult:
 
     return done("none", "")
 
+def _filter_run_log(file_content: str, progress_callback=None) -> dict:
+    """Filter run_log.txt to keep only useful diagnostic content.
+    
+    Filtering rules:
+    - Skip everything before "starting execution" or "Restarting execution"
+    - Drop lines containing "DMoves" or "PMoves"
+    - Drop lines starting with "Iteration:"
+    - Drop lines starting with "Elapsed time ="
+    
+    Returns dict with "filtered_content" key containing the filtered text.
+    """
+    lines = file_content.split('\n')
+    
+    # Find the start line
+    start_idx = 0
+    for i, line in enumerate(lines):
+        if "starting execution" in line.lower() or "Restarting execution" in line:
+            start_idx = i
+            break
+    
+    # Filter lines
+    filtered_lines = []
+    for i in range(start_idx, len(lines)):
+        line = lines[i]
+        
+        # Skip lines matching filter rules
+        if ("DMoves" in line or "PMoves" in line or 
+            line.startswith("Iteration:") or 
+            line.startswith("Elapsed time =")):
+            continue
+        
+        filtered_lines.append(line)
+    
+    if progress_callback:
+        orig_lines = len(lines)
+        filtered_count = len(filtered_lines)
+        progress_callback(1, 1, f"Filtered run_log: {orig_lines} → {filtered_count} lines")
+    
+    # Return filtered content directly
+    return {
+        "filtered_content": '\n'.join(filtered_lines),
+        "sections": []  # Empty sections since we're returning filtered content
+    }
+
+
 def _extract_lst_pages(file_content: str, progress_callback=None) -> dict:
     """Extract specific pages from GAMS .lst file.
     
@@ -649,88 +694,39 @@ def chunk_text_by_lines(text: str, max_chars: int = 100000, overlap_lines: int =
     
     return chunks
 
-def compress_qa_check(file_content: str, log_dir: Path = None, progress_callback=None) -> str:
-    """Compress QA_CHECK.LOG into grouped warnings/errors.
+def condense_qa_check(file_content: str, progress_callback=None) -> str:
+    """Condense QA_CHECK.LOG using rule-based parsing (no LLM required).
+    
+    Uses structured parsing to extract and deduplicate events by severity,
+    message, and index sets. Similar to how LST and run_log files are processed.
     
     Args:
         file_content: Full QA_CHECK.LOG content
-        log_dir: Directory to save LLM call logs
         progress_callback: Optional callback for progress updates
     
     Returns:
-        Compressed text with grouped warnings/errors
-    
-    Raises:
-        RuntimeError: If compression fails
+        Formatted condensed text with grouped warnings/errors
     """
-    from .prompts import build_qa_check_compress_prompt
+    from .qa_check_parser import iter_events, condense_events, format_condensed_output
     
-    # Check if chunking is needed (300k chars ~= 75k tokens, staying well under 400k token limit)
-    needs_chunking = len(file_content) > 300000
+    if progress_callback:
+        progress_callback(0, 2, "Parsing QA_CHECK.LOG events")
     
-    if needs_chunking:
-        chunks = chunk_text_by_lines(file_content, max_chars=300000, overlap_lines=50)
-        if progress_callback:
-            progress_callback(0, len(chunks), f"Processing {len(chunks)} chunks")
-        
-        compressed_parts = []
-        
-        for i, (chunk_text, start_line, end_line) in enumerate(chunks, 1):
-            if progress_callback:
-                progress_callback(i, len(chunks), f"Chunk {i}/{len(chunks)} (lines {start_line}-{end_line})")
-            
-            prompt = build_qa_check_compress_prompt(chunk_text)
-            
-            # Call LLM
-            api_keys = check_api_keys()
-            text = ""
-            meta = {}
-            
-            if api_keys["openai"]:
-                text, meta = _call_openai_responses_api(prompt, model="gpt-5-nano", reasoning_effort="minimal")
-            elif api_keys["anthropic"]:
-                text, meta = _call_anthropic_api(prompt, model="claude-3-5-haiku-20241022")
-            else:
-                error_msg = "No OpenAI or Anthropic API key found"
-                log_llm_call(f"compress_qa_check_chunk{i}", prompt, "", {"error": error_msg}, log_dir)
-                raise RuntimeError(error_msg)
-            
-            log_llm_call(f"compress_qa_check_chunk{i}", prompt, text, meta, log_dir)
-            print(f"[dim]    Chunk {i} completed in {meta.get('duration_seconds', 0):.1f}s[/dim]")
-            
-            if text:
-                # Remove the "See QA_CHECK.LOG for full detail" footer from chunks
-                text = text.replace("---\nSee QA_CHECK.LOG for full detail", "").strip()
-                compressed_parts.append(text)
-        
-        # Combine all compressed parts
-        result = "\n\n".join(compressed_parts)
-        result += "\n\n---\nSee QA_CHECK.LOG for full detail"
-        return result
+    # Parse events from the file content (as lines)
+    lines = file_content.split('\n')
+    events = iter_events(lines, index_allow=None, min_severity="INFO")
     
-    else:
-        # Single call for small files
-        prompt = build_qa_check_compress_prompt(file_content)
-        
-        api_keys = check_api_keys()
-        text = ""
-        meta = {}
-        
-        if api_keys["openai"]:
-            text, meta = _call_openai_responses_api(prompt, model="gpt-5-nano", reasoning_effort="minimal")
-        elif api_keys["anthropic"]:
-            text, meta = _call_anthropic_api(prompt, model="claude-3-5-haiku-20241022")
-        else:
-            error_msg = "No OpenAI or Anthropic API key found"
-            log_llm_call("compress_qa_check", prompt, "", {"error": error_msg}, log_dir)
-            raise RuntimeError(error_msg)
-        
-        log_llm_call("compress_qa_check", prompt, text, meta, log_dir)
-        
-        if not text:
-            raise RuntimeError("Failed to compress QA_CHECK.LOG. LLM returned empty response.")
-        
-        return text
+    if progress_callback:
+        progress_callback(1, 2, "Condensing events")
+    
+    # Condense events
+    summary_rows, message_counts, all_index_keys = condense_events(events)
+    
+    if progress_callback:
+        progress_callback(2, 2, f"Found {len(summary_rows)} unique event patterns")
+    
+    # Format output
+    return format_condensed_output(summary_rows, message_counts, all_index_keys)
 
 def extract_useful_sections(file_content: str, file_type: str, log_dir: Path = None, progress_callback=None) -> dict:
     """Extract useful diagnostic sections from a log file using fast LLM.
@@ -753,6 +749,10 @@ def extract_useful_sections(file_content: str, file_type: str, log_dir: Path = N
     # Special handling for .lst files - they're already paginated
     if file_type == "lst":
         return _extract_lst_pages(file_content, progress_callback)
+    
+    # Special handling for run_log - simple filtering rules
+    if file_type == "run_log":
+        return _filter_run_log(file_content, progress_callback)
     
     # Check if chunking is needed (300k chars ~= 75k tokens, staying well under 400k token limit)
     needs_chunking = len(file_content) > 300000
