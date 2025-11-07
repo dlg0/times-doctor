@@ -37,6 +37,11 @@ times-doctor --help
 ```bash
 git clone https://github.com/dlg0/times-doctor.git
 cd times-doctor
+uv run times-doctor --help
+```
+
+Or install in editable mode:
+```bash
 uv pip install -e .
 times-doctor --help
 ```

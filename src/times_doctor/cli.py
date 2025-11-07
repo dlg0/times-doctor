@@ -167,7 +167,6 @@ def run_gams_with_progress(cmd: list[str], cwd: str, max_lines: int = 30) -> int
     old_handler = signal.signal(signal.SIGINT, handle_interrupt)
     
     try:
-        with Live(display_text, console=console, refresh_per_second=2) as live:
         import time
         try:
             import psutil
@@ -175,77 +174,78 @@ def run_gams_with_progress(cmd: list[str], cwd: str, max_lines: int = 30) -> int
         except ImportError:
             has_psutil = False
         
-        iterations = 0
-        last_log_check = 0
-        while proc.poll() is None:
-            iterations += 1
-            
-            # Try to find and tail log files if no stdout
-            if iterations - last_log_check > 4:  # Check every 2 seconds
-                last_log_check = iterations
-                if not current_log_file:
-                    # Try _run_log.txt first, then .lst files as fallback
-                    log_files_after = set(cwd_path.glob("*_run_log.txt"))
-                    new_files = log_files_after - log_files_before
-                    if not new_files:
-                        # Fallback to .lst files
-                        log_files_after = set(cwd_path.glob("*.lst"))
-                        new_files = log_files_after - set()  # All .lst files
-                    
-                    if new_files:
-                        current_log_file = max(new_files, key=lambda p: p.stat().st_mtime)
-                        live.stop()
-                        console.print(f"[dim]Monitoring log file: {current_log_file}[/dim]")
-                        live.start()
+        with Live(display_text, console=console, refresh_per_second=2) as live:
+            iterations = 0
+            last_log_check = 0
+            while proc.poll() is None:
+                iterations += 1
                 
-                # Read from log file if available
-                if current_log_file and current_log_file.exists():
-                    try:
-                        with open(current_log_file, 'r', encoding='utf-8', errors='ignore') as f:
-                            new_content = f.readlines()
-                            if len(new_content) > len(log_file_lines):
-                                log_file_lines = new_content
-                                # Show last N non-empty lines
-                                lines = [l.rstrip() for l in new_content if l.strip()]
-                    except Exception as e:
-                        pass
-            
-            if lines:
-                display_lines = lines[-max_lines:]
-                display_text = Text("\n".join(display_lines))
-                live.update(display_text)
-            else:
-                # Show periodic heartbeat if no output
-                if iterations % 10 == 0:
-                    elapsed = iterations * 0.5
-                    # Check if process is actually doing work (including child processes)
-                    if has_psutil:
+                # Try to find and tail log files if no stdout
+                if iterations - last_log_check > 4:  # Check every 2 seconds
+                    last_log_check = iterations
+                    if not current_log_file:
+                        # Try _run_log.txt first, then .lst files as fallback
+                        log_files_after = set(cwd_path.glob("*_run_log.txt"))
+                        new_files = log_files_after - log_files_before
+                        if not new_files:
+                            # Fallback to .lst files
+                            log_files_after = set(cwd_path.glob("*.lst"))
+                            new_files = log_files_after - set()  # All .lst files
+                        
+                        if new_files:
+                            current_log_file = max(new_files, key=lambda p: p.stat().st_mtime)
+                            live.stop()
+                            console.print(f"[dim]Monitoring log file: {current_log_file}[/dim]")
+                            live.start()
+                    
+                    # Read from log file if available
+                    if current_log_file and current_log_file.exists():
                         try:
-                            p = psutil.Process(proc.pid)
-                            cpu_percent = p.cpu_percent(interval=0.1)
-                            mem_mb = p.memory_info().rss / 1024 / 1024
-                            
-                            # Check for child processes (GAMS spawns gmsgennx.exe on Windows)
-                            children = p.children(recursive=True)
-                            child_info = ""
-                            if children:
-                                child_cpu = sum(c.cpu_percent(interval=0.1) for c in children)
-                                child_mem = sum(c.memory_info().rss for c in children) / 1024 / 1024
-                                # Calculate approximate core usage (CPU% / 100)
-                                cores_used = child_cpu / 100
-                                child_info = f" + {len(children)} worker(s) using ~{cores_used:.1f} cores, {child_mem:.0f}MB"
-                            
-                            display_text = Text(
-                                f"GAMS running... ({elapsed:.0f}s{child_info})",
-                                style="dim yellow"
-                            )
-                        except:
-                            display_text = Text(f"Waiting for GAMS output... ({elapsed:.0f}s, {len(lines)} lines)", style="dim yellow")
-                    else:
-                        display_text = Text(f"Waiting for GAMS output... ({elapsed:.0f}s, {len(lines)} lines)", style="dim yellow")
+                            with open(current_log_file, 'r', encoding='utf-8', errors='ignore') as f:
+                                new_content = f.readlines()
+                                if len(new_content) > len(log_file_lines):
+                                    log_file_lines = new_content
+                                    # Show last N non-empty lines
+                                    lines = [l.rstrip() for l in new_content if l.strip()]
+                        except Exception as e:
+                            pass
+                
+                if lines:
+                    display_lines = lines[-max_lines:]
+                    display_text = Text("\n".join(display_lines))
                     live.update(display_text)
-            time.sleep(0.5)
-        
+                else:
+                    # Show periodic heartbeat if no output
+                    if iterations % 10 == 0:
+                        elapsed = iterations * 0.5
+                        # Check if process is actually doing work (including child processes)
+                        if has_psutil:
+                            try:
+                                p = psutil.Process(proc.pid)
+                                cpu_percent = p.cpu_percent(interval=0.1)
+                                mem_mb = p.memory_info().rss / 1024 / 1024
+                                
+                                # Check for child processes (GAMS spawns gmsgennx.exe on Windows)
+                                children = p.children(recursive=True)
+                                child_info = ""
+                                if children:
+                                    child_cpu = sum(c.cpu_percent(interval=0.1) for c in children)
+                                    child_mem = sum(c.memory_info().rss for c in children) / 1024 / 1024
+                                    # Calculate approximate core usage (CPU% / 100)
+                                    cores_used = child_cpu / 100
+                                    child_info = f" + {len(children)} worker(s) using ~{cores_used:.1f} cores, {child_mem:.0f}MB"
+                                
+                                display_text = Text(
+                                    f"GAMS running... ({elapsed:.0f}s{child_info})",
+                                    style="dim yellow"
+                                )
+                            except:
+                                display_text = Text(f"Waiting for GAMS output... ({elapsed:.0f}s, {len(lines)} lines)", style="dim yellow")
+                        else:
+                            display_text = Text(f"Waiting for GAMS output... ({elapsed:.0f}s, {len(lines)} lines)", style="dim yellow")
+                        live.update(display_text)
+                time.sleep(0.5)
+            
             # One final update after process ends
             if lines:
                 display_lines = lines[-max_lines:]

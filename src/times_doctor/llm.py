@@ -114,6 +114,7 @@ def _call_cli(cli: str, prompt: str) -> str:
 
 def _call_openai_responses_api(prompt: str, model: str = "gpt-5-nano", reasoning_effort: str = "medium") -> tuple[str, dict]:
     """Call OpenAI GPT-5 Responses API (different from chat completions)."""
+    start_time = time.time()
     key = os.environ.get("OPENAI_API_KEY","")
     if not key:
         return "", {}
@@ -167,7 +168,8 @@ def _call_openai_responses_api(prompt: str, model: str = "gpt-5-nano", reasoning
                 "input_tokens": usage.get("input_tokens", 0),
                 "output_tokens": usage.get("output_tokens", 0),
                 "total_tokens": usage.get("total_tokens", 0),
-                "cost_usd": input_cost + output_cost
+                "cost_usd": input_cost + output_cost,
+                "duration_seconds": round(time.time() - start_time, 2)
             }
             
             # Extract text from response
@@ -369,6 +371,7 @@ def _call_openai_api(prompt: str, model: str = "", stream_callback=None) -> tupl
 
 def _call_anthropic_api(prompt: str, model: str = "") -> tuple[str, dict]:
     """Call Anthropic API directly."""
+    start_time = time.time()
     key = os.environ.get("ANTHROPIC_API_KEY","")
     if not key:
         return "", {}
@@ -423,7 +426,8 @@ def _call_anthropic_api(prompt: str, model: str = "") -> tuple[str, dict]:
                 "input_tokens": usage.get("input_tokens", 0),
                 "output_tokens": usage.get("output_tokens", 0),
                 "total_tokens": usage.get("input_tokens", 0) + usage.get("output_tokens", 0),
-                "cost_usd": input_cost + output_cost
+                "cost_usd": input_cost + output_cost,
+                "duration_seconds": round(time.time() - start_time, 2)
             }
             
             content = data.get("content", [])
@@ -546,7 +550,6 @@ def compress_qa_check(file_content: str, log_dir: Path = None, progress_callback
         compressed_parts = []
         
         for i, (chunk_text, start_line, end_line) in enumerate(chunks, 1):
-            chunk_start = time.time()
             if progress_callback:
                 progress_callback(i, len(chunks), f"Chunk {i}/{len(chunks)} (lines {start_line}-{end_line})")
             
@@ -557,7 +560,6 @@ def compress_qa_check(file_content: str, log_dir: Path = None, progress_callback
             text = ""
             meta = {}
             
-            llm_start = time.time()
             if api_keys["openai"]:
                 text, meta = _call_openai_responses_api(prompt, model="gpt-5-nano", reasoning_effort="minimal")
             elif api_keys["anthropic"]:
@@ -566,12 +568,9 @@ def compress_qa_check(file_content: str, log_dir: Path = None, progress_callback
                 error_msg = "No OpenAI or Anthropic API key found"
                 log_llm_call(f"compress_qa_check_chunk{i}", prompt, "", {"error": error_msg}, log_dir)
                 raise RuntimeError(error_msg)
-            llm_duration = time.time() - llm_start
             
-            meta["llm_duration_seconds"] = round(llm_duration, 2)
-            meta["chunk_duration_seconds"] = round(time.time() - chunk_start, 2)
             log_llm_call(f"compress_qa_check_chunk{i}", prompt, text, meta, log_dir)
-            print(f"[dim]    Chunk {i} completed in {llm_duration:.1f}s[/dim]")
+            print(f"[dim]    Chunk {i} completed in {meta.get('duration_seconds', 0):.1f}s[/dim]")
             
             if text:
                 # Remove the "See QA_CHECK.LOG for full detail" footer from chunks
@@ -651,7 +650,7 @@ def extract_useful_sections(file_content: str, file_type: str, log_dir: Path = N
             meta = {}
             
             if api_keys["openai"]:
-                text, meta = _call_openai_responses_api(prompt, model="gpt-5-nano", reasoning_effort="medium")
+                text, meta = _call_openai_responses_api(prompt, model="gpt-5-nano", reasoning_effort="minimal")
             elif api_keys["anthropic"]:
                 text, meta = _call_anthropic_api(prompt, model="claude-3-5-haiku-20241022")
             else:
@@ -698,7 +697,7 @@ def extract_useful_sections(file_content: str, file_type: str, log_dir: Path = N
         error_msg = ""
         
         if api_keys["openai"]:
-            text, meta = _call_openai_responses_api(prompt, model="gpt-5-nano", reasoning_effort="medium")
+            text, meta = _call_openai_responses_api(prompt, model="gpt-5-nano", reasoning_effort="minimal")
         elif api_keys["anthropic"]:
             text, meta = _call_anthropic_api(prompt, model="claude-3-5-haiku-20241022")
         else:
