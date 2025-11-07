@@ -166,12 +166,18 @@ def run_gams_with_progress(cmd: list[str], cwd: str, max_lines: int = 4) -> int:
         while proc.poll() is None:
             iterations += 1
             
-            # Try to find and tail the _run_log.txt file if no stdout
-            if not lines and iterations - last_log_check > 4:  # Check every 2 seconds
+            # Try to find and tail log files if no stdout
+            if iterations - last_log_check > 4:  # Check every 2 seconds
                 last_log_check = iterations
                 if not current_log_file:
+                    # Try _run_log.txt first, then .lst files
                     log_files_after = set(cwd_path.glob("*_run_log.txt"))
                     new_files = log_files_after - log_files_before
+                    if not new_files:
+                        # Fallback to .lst files
+                        log_files_after = set(cwd_path.glob("*.lst"))
+                        new_files = log_files_after - set()  # All .lst files
+                    
                     if new_files:
                         current_log_file = max(new_files, key=lambda p: p.stat().st_mtime)
                         live.stop()
@@ -185,8 +191,9 @@ def run_gams_with_progress(cmd: list[str], cwd: str, max_lines: int = 4) -> int:
                             new_content = f.readlines()
                             if len(new_content) > len(log_file_lines):
                                 log_file_lines = new_content
+                                # Show last N non-empty lines
                                 lines = [l.rstrip() for l in new_content if l.strip()]
-                    except:
+                    except Exception as e:
                         pass
             
             if lines:
