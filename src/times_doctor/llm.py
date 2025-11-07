@@ -210,14 +210,12 @@ def _call_openai_responses_api(prompt: str, model: str = "gpt-5-nano", reasoning
             window_pct = (in_tok / 400000 * 100) if model.startswith("gpt-5") else (in_tok / 200000 * 100)
             print(f"[dim]LLM: {model} | {in_tok:,}→{out_tok:,} tok ({window_pct:.1f}% window) | {dur:.1f}s | ${cost:.4f}[/dim]")
             
-            # Extract text from response
-            text_content = data.get("text", {}).get("value", "")
-            
-            # Debug: if empty, log the response structure
-            if not text_content:
-                print(f"[dim red]Warning: Empty response from GPT-5. Response keys: {list(data.keys())}[/dim red]")
-                if "text" in data:
-                    print(f"[dim red]Text field keys: {list(data['text'].keys() if isinstance(data['text'], dict) else 'not a dict')}[/dim red]")
+            # Extract text from response - GPT-5 Responses API uses 'output' field
+            output = data.get("output", [])
+            if output and isinstance(output, list) and len(output) > 0:
+                text_content = output[0].get("content", [{}])[0].get("text", "")
+            else:
+                text_content = ""
             
             return text_content, metadata
         else:
