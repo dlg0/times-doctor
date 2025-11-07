@@ -4,6 +4,8 @@ import typer
 from rich import print
 from rich.table import Table
 from rich.console import Console
+from rich.live import Live
+from rich.text import Text
 from . import llm as llm_mod
 from . import __version__
 
@@ -101,6 +103,32 @@ def ensure_out(run_dir: Path) -> Path:
     out = run_dir / "times_doctor_out"
     out.mkdir(exist_ok=True)
     return out
+
+def run_gams_with_progress(cmd: list[str], cwd: str, max_lines: int = 4) -> int:
+    """Run GAMS and show live tail of output."""
+    proc = subprocess.Popen(
+        cmd,
+        cwd=cwd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1
+    )
+    
+    lines = []
+    with Live(Text("Starting GAMS..."), console=console, refresh_per_second=4) as live:
+        for line in proc.stdout:
+            line = line.rstrip()
+            if line:
+                lines.append(line)
+                # Keep only last max_lines
+                display_lines = lines[-max_lines:]
+                display_text = Text("\n".join(display_lines))
+                live.update(display_text)
+        
+        proc.wait()
+    
+    return proc.returncode
 
 def parse_range_stats(text: str) -> dict:
     sec = re.search(r"RANGE STATISTICS.*?(RHS.*?)(?:\n\n|\r\n\r\n)", text, flags=re.S|re.I)
@@ -201,7 +229,7 @@ def diagnose(
         gdx_file = gdx_dir / f"{tmp.name}.gdx"
         
         print(f"[yellow]Running GAMS datacheck with {threads} threads (this may take several minutes)...[/yellow]")
-        subprocess.run([
+        run_gams_with_progress([
             gams_cmd, tmp_driver.name,
             f"r={restart_file}",
             f"idir1={tmp}",
@@ -212,8 +240,8 @@ def diagnose(
             "LP=CPLEX",
             "OPTFILE=1",
             "LOGOPTION=2",
-            f"--GDXPATH={gdx_dir}/",  # Path for loading GDX files
-            "--ERR_ABORT=NO"  # Bypass TIMES error abort checks
+            f"--GDXPATH={gdx_dir}/",
+            "--ERR_ABORT=NO"
         ], cwd=str(tmp))
         
         print("[green]GAMS datacheck complete[/green]")
@@ -325,7 +353,7 @@ def scan(
         wdir_gdx_file = wdir_gdx_dir / f"{wdir.name}.gdx"
         
         print(f"[yellow]Running profile '{p}' (this may take several minutes)...[/yellow]")
-        subprocess.run([
+        run_gams_with_progress([
             gams_cmd, wdir_driver.name,
             f"r={restart_file}",
             f"idir1={wdir}",
@@ -337,7 +365,7 @@ def scan(
             "OPTFILE=1",
             "LOGOPTION=2",
             f"--GDXPATH={wdir_gdx_dir}/",
-            "--ERR_ABORT=NO"  # Bypass TIMES error abort checks
+            "--ERR_ABORT=NO"
         ], cwd=str(wdir))
 
         lst = latest_lst(wdir)
