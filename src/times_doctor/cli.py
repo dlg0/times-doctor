@@ -648,38 +648,10 @@ def review(
         print(f"[yellow]Check {llm_log_dir} for detailed logs[/yellow]")
         raise typer.Exit(1)
     
-    # Now select reasoning model
-    api_keys = llm_mod.check_api_keys()
-    provider_status = []
-    if api_keys["openai"]: provider_status.append("OpenAI")
-    if api_keys["anthropic"]: provider_status.append("Anthropic")
-    if api_keys["amp"]: provider_status.append("Amp")
+    # Determine reasoning model
+    reasoning_model = "gpt-5 (high effort)" if api_keys["openai"] else ("claude-3-5-sonnet-20241022" if api_keys["anthropic"] else "unknown")
     
-    print(f"\n[dim]Available providers for reasoning: {', '.join(provider_status) if provider_status else 'none'}[/dim]")
-    
-    # Interactive model selection if not specified
-    selected_model = model
-    if not selected_model and llm.lower() in ("openai", "anthropic"):
-        models = []
-        if llm.lower() == "openai" and api_keys["openai"]:
-            models = llm_mod.list_openai_models()
-        elif llm.lower() == "anthropic" and api_keys["anthropic"]:
-            models = llm_mod.list_anthropic_models()
-        
-        if models:
-            print(f"\n[bold]Available {llm.upper()} models:[/bold]")
-            for i, m in enumerate(models, 1):
-                print(f"  {i}. {m}")
-            
-            choice = typer.prompt(f"\nSelect model (1-{len(models)})", type=int, default=1)
-            if 1 <= choice <= len(models):
-                selected_model = models[choice - 1]
-                print(f"[green]Selected: {selected_model}[/green]")
-            else:
-                selected_model = models[0]
-                print(f"[yellow]Invalid choice, using default: {selected_model}[/yellow]")
-    
-    print(f"\n[bold cyan]Sending useful sections to reasoning LLM:[/bold cyan]")
+    print(f"\n[bold cyan]Sending useful sections to reasoning LLM ({reasoning_model}):[/bold cyan]")
     if qa_check_useful:
         print(f"  • QA_CHECK_useful.md")
     if run_log_useful:
@@ -689,27 +661,14 @@ def review(
     
     print(f"\n[bold green]LLM Review:[/bold green]")
     
-    # Stream the response and display it live
-    from rich.console import Console
-    from rich.markdown import Markdown
-    console_out = Console()
-    accumulated_text = ""
-    
-    def stream_handler(chunk: str):
-        nonlocal accumulated_text
-        accumulated_text += chunk
-        # Print chunk directly for live streaming
-        print(chunk, end="", flush=True)
-    
-    result = llm_mod.review_files(qa_check_useful, run_log_useful, lst_useful, provider=llm, model=selected_model, stream_callback=stream_handler, log_dir=llm_log_dir)
+    result = llm_mod.review_files(qa_check_useful, run_log_useful, lst_useful, provider=llm, model=model, log_dir=llm_log_dir)
     
     if not result.used:
         print(f"[red]Failed to get LLM response. Check API keys and connectivity.[/red]")
         raise typer.Exit(1)
     
-    # If no text was streamed (fallback to non-streaming), print the full result now
-    if not accumulated_text and result.text:
-        print(result.text)
+    # Print the result
+    print(result.text)
     
     print("\n")  # New line after output
     

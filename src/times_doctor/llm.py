@@ -612,11 +612,14 @@ def review_files(qa_check: str, run_log: str, lst_content: str, provider: str = 
         return done("none", "")
 
     if prov in ("auto","openai"):
-        t, meta = _call_openai_api(prompt, model=model, stream_callback=stream_callback)
+        # Use GPT-5 with high reasoning effort for review
+        t, meta = _call_openai_responses_api(prompt, model="gpt-5", reasoning_effort="high")
         if t: return done("openai", t, meta)
 
     if prov in ("auto","anthropic"):
-        # Try API first, fall back to CLI
+        # Use Sonnet for review (best balance of quality/cost)
+        if not model:
+            model = "claude-3-5-sonnet-20241022"
         t, meta = _call_anthropic_api(prompt, model=model)
         if t: return done("anthropic", t, meta)
         
