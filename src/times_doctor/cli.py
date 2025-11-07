@@ -465,18 +465,34 @@ def review(
     if run_log: print(f"  ✓ {run_log_path.name} ({len(run_log)} chars)")
     if lst_text: print(f"  ✓ {lst.name} ({len(lst_text)} chars)")
     
-    print(f"\n[yellow]Sending to LLM for review (provider: {llm})...[/yellow]")
+    api_keys = llm_mod.check_api_keys()
+    provider_status = []
+    if api_keys["openai"]: provider_status.append("OpenAI")
+    if api_keys["anthropic"]: provider_status.append("Anthropic")
+    if api_keys["amp"]: provider_status.append("Amp")
+    
+    print(f"\n[dim]Available providers: {', '.join(provider_status) if provider_status else 'none'}[/dim]")
+    print(f"[yellow]Sending to LLM for review...[/yellow]")
+    
     result = llm_mod.review_files(qa_check, run_log, lst_text, provider=llm)
     
     if not result.used:
         print(f"[red]Failed to get LLM response. Check API keys and connectivity.[/red]")
         raise typer.Exit(1)
     
+    print(f"\n[bold cyan]LLM Provider:[/bold cyan] {result.provider}")
+    if result.model:
+        print(f"[bold cyan]Model:[/bold cyan] {result.model}")
+    if result.input_tokens > 0:
+        print(f"[bold cyan]Tokens:[/bold cyan] {result.input_tokens:,} in + {result.output_tokens:,} out = {result.input_tokens + result.output_tokens:,} total")
+    if result.cost_usd > 0:
+        print(f"[bold cyan]Cost:[/bold cyan] ${result.cost_usd:.4f} USD")
+    
     out = ensure_out(rd)
     review_path = out / "llm_review.md"
     review_path.write_text(result.text, encoding="utf-8")
     
-    print(f"\n[bold green]LLM Review ({result.provider}):[/bold green]")
+    print(f"\n[bold green]LLM Review:[/bold green]")
     print(result.text)
     print(f"\n[green]Saved to {review_path}[/green]")
 
