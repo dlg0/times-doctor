@@ -585,11 +585,11 @@ def compress_qa_check(file_content: str, log_dir: Path = None, progress_callback
     """
     from .prompts import build_qa_check_compress_prompt
     
-    # Check if chunking is needed
-    needs_chunking = len(file_content) > 100000
+    # Check if chunking is needed (increased to 800k since we're only using ~10% of 400k token window at 100k chars)
+    needs_chunking = len(file_content) > 800000
     
     if needs_chunking:
-        chunks = chunk_text_by_lines(file_content, max_chars=100000, overlap_lines=50)
+        chunks = chunk_text_by_lines(file_content, max_chars=800000, overlap_lines=50)
         if progress_callback:
             progress_callback(0, len(chunks), f"Processing {len(chunks)} chunks")
         
@@ -670,11 +670,11 @@ def extract_useful_sections(file_content: str, file_type: str, log_dir: Path = N
     from .prompts import build_extraction_prompt
     import re
     
-    # Check if chunking is needed (>100k chars)
-    needs_chunking = len(file_content) > 100000
+    # Check if chunking is needed (increased to 800k since we're only using ~10% of 400k token window at 100k chars)
+    needs_chunking = len(file_content) > 800000
     
     if needs_chunking:
-        chunks = chunk_text_by_lines(file_content, max_chars=100000, overlap_lines=50)
+        chunks = chunk_text_by_lines(file_content, max_chars=800000, overlap_lines=50)
         if progress_callback:
             progress_callback(0, len(chunks), f"Processing {len(chunks)} chunks")
         
