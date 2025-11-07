@@ -110,7 +110,8 @@ def _call_openai_api(prompt: str, model: str = "", stream_callback=None) -> tupl
                 with httpx.stream("POST", url, headers=headers, json=payload, timeout=timeout_seconds) as r:
                     if r.status_code != 200:
                         # Fall back to non-streaming on error
-                        print(f"[dim]Streaming not available, using non-streaming mode...[/dim]")
+                        from rich import print as rprint
+                        rprint("\n[yellow]⚠ Streaming not available (requires org verification), falling back to non-streaming mode...[/yellow]")
                         payload["stream"] = False
                         return _call_openai_api(prompt, model=model, stream_callback=None)
                 
@@ -136,7 +137,8 @@ def _call_openai_api(prompt: str, model: str = "", stream_callback=None) -> tupl
                                 continue
             except Exception as e:
                 # Fall back to non-streaming on any error
-                print(f"[dim]Streaming error, falling back to non-streaming mode...[/dim]")
+                from rich import print as rprint
+                rprint(f"\n[yellow]⚠ Streaming error, falling back to non-streaming mode...[/yellow]")
                 payload["stream"] = False
                 return _call_openai_api(prompt, model=model, stream_callback=None)
             
