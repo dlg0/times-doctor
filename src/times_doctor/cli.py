@@ -375,11 +375,11 @@ def scan(
 
 @app.command()
 def update():
-    """Update times-doctor to the latest version using uv tool install."""
+    """Update times-doctor to the latest version using uv tool upgrade."""
     print("[yellow]Updating times-doctor to the latest version...[/yellow]")
     try:
         subprocess.run(
-            ["uv", "tool", "install", "--upgrade", "times-doctor"],
+            ["uv", "tool", "upgrade", "times-doctor"],
             check=True
         )
         print("[green]✓ times-doctor updated successfully[/green]")
