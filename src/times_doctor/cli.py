@@ -5,9 +5,28 @@ from rich import print
 from rich.table import Table
 from rich.console import Console
 from . import llm as llm_mod
+from . import __version__
 
 app = typer.Typer(add_completion=False)
 console = Console()
+
+def version_callback(value: bool):
+    if value:
+        print(f"times-doctor version {__version__}")
+        raise typer.Exit()
+
+@app.callback()
+def main(
+    version: bool = typer.Option(
+        None,
+        "--version",
+        "-v",
+        help="Show version and exit",
+        callback=version_callback,
+        is_eager=True
+    )
+):
+    pass
 
 def detect_times_version(lst_path: Path | None) -> str | None:
     """Detect TIMES version from existing .lst file."""
@@ -353,3 +372,21 @@ def scan(
             (out / "scan_llm_advice.md").write_text(res.text, encoding="utf-8")
 
     print(f"[green]Wrote[/green] {csvp}")
+
+@app.command()
+def update():
+    """Update times-doctor to the latest version using uv tool install."""
+    print("[yellow]Updating times-doctor to the latest version...[/yellow]")
+    try:
+        subprocess.run(
+            ["uv", "tool", "install", "--upgrade", "times-doctor"],
+            check=True
+        )
+        print("[green]✓ times-doctor updated successfully[/green]")
+    except subprocess.CalledProcessError as e:
+        print(f"[red]Failed to update times-doctor: {e}[/red]")
+        raise typer.Exit(1)
+    except FileNotFoundError:
+        print("[red]Error: 'uv' command not found. Please install uv first.[/red]")
+        print("Visit: https://docs.astral.sh/uv/getting-started/installation/")
+        raise typer.Exit(1)
