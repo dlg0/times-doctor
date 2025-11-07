@@ -610,7 +610,7 @@ def review(
     
     # Determine which fast model will be used
     api_keys = llm_mod.check_api_keys()
-    fast_model = "gpt-5-mini-chat" if api_keys["openai"] else ("claude-3-5-haiku-20241022" if api_keys["anthropic"] else "unknown")
+    fast_model = "gpt-5-nano" if api_keys["openai"] else ("claude-3-5-haiku-20241022" if api_keys["anthropic"] else "unknown")
     
     print(f"\n[bold yellow]Extracting useful sections with fast LLM ({fast_model})...[/bold yellow]")
     print(f"[dim](LLM calls logged to {llm_log_dir})[/dim]")

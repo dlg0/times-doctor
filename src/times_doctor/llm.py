@@ -112,6 +112,81 @@ def _call_cli(cli: str, prompt: str) -> str:
     except Exception:
         return ""
 
+def _call_openai_responses_api(prompt: str, model: str = "gpt-5-nano", reasoning_effort: str = "medium") -> tuple[str, dict]:
+    """Call OpenAI GPT-5 Responses API (different from chat completions)."""
+    key = os.environ.get("OPENAI_API_KEY","")
+    if not key:
+        return "", {}
+    
+    try:
+        import httpx
+    except Exception:
+        return "", {}
+    
+    url = "https://api.openai.com/v1/responses"
+    headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
+    payload = {
+        "model": model,
+        "input": [{"role": "user", "content": prompt}],
+        "text": {
+            "format": {"type": "text"},
+            "verbosity": "medium"
+        },
+        "reasoning": {
+            "effort": reasoning_effort,
+            "summary": "auto"
+        },
+        "store": True
+    }
+    
+    try:
+        timeout_seconds = 300
+        r = httpx.post(url, headers=headers, json=payload, timeout=timeout_seconds)
+        if r.status_code == 200:
+            data = r.json()
+            usage = data.get("usage", {})
+            
+            # GPT-5 responses API pricing
+            cost_per_1k_input = {"gpt-5": 0.005, "gpt-5-pro": 0.01, "gpt-5-mini": 0.0005, "gpt-5-nano": 0.0001}
+            cost_per_1k_output = {"gpt-5": 0.015, "gpt-5-pro": 0.03, "gpt-5-mini": 0.0015, "gpt-5-nano": 0.0004}
+            
+            model_key = model.split("-")[0:2]
+            model_key = "-".join(model_key) if len(model_key) >= 2 else model
+            for key_prefix in cost_per_1k_input.keys():
+                if model.startswith(key_prefix):
+                    model_key = key_prefix
+                    break
+            
+            input_cost = usage.get("input_tokens", 0) / 1000 * cost_per_1k_input.get(model_key, 0.0001)
+            output_cost = usage.get("output_tokens", 0) / 1000 * cost_per_1k_output.get(model_key, 0.0004)
+            
+            metadata = {
+                "model": model,
+                "provider": "openai",
+                "reasoning_effort": reasoning_effort,
+                "input_tokens": usage.get("input_tokens", 0),
+                "output_tokens": usage.get("output_tokens", 0),
+                "total_tokens": usage.get("total_tokens", 0),
+                "cost_usd": input_cost + output_cost
+            }
+            
+            # Extract text from response
+            text_content = data.get("text", {}).get("value", "")
+            return text_content, metadata
+        else:
+            error_msg = f"OpenAI Responses API error {r.status_code}"
+            try:
+                error_data = r.json()
+                if "error" in error_data:
+                    error_msg = f"{error_msg}: {error_data['error'].get('message', 'Unknown error')}"
+            except:
+                pass
+            print(f"[dim]{error_msg}[/dim]")
+            return "", {}
+    except Exception as e:
+        print(f"[dim]OpenAI Responses API exception: {str(e)}[/dim]")
+        return "", {}
+
 def _call_openai_api(prompt: str, model: str = "", stream_callback=None) -> tuple[str, dict]:
     key = os.environ.get("OPENAI_API_KEY","")
     if not key:
@@ -436,8 +511,8 @@ def extract_useful_sections(file_content: str, file_type: str, log_dir: Path = N
     error_msg = ""
     
     if api_keys["openai"]:
-        # Use fast GPT-5 chat model (non-reasoning)
-        text, meta = _call_openai_api(prompt, model="gpt-5-mini-chat")
+        # Use GPT-5 nano with medium reasoning effort for fast extraction
+        text, meta = _call_openai_responses_api(prompt, model="gpt-5-nano", reasoning_effort="medium")
     elif api_keys["anthropic"]:
         # Use Haiku (fastest Anthropic model)
         text, meta = _call_anthropic_api(prompt, model="claude-3-5-haiku-20241022")
