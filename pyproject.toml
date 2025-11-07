@@ -29,6 +29,14 @@ dependencies = [
   "psutil",
 ]
 
+[project.optional-dependencies]
+dev = [
+  "pytest>=7.0",
+  "pytest-cov>=4.0",
+  "pytest-mock>=3.10",
+  "pytest-env>=0.8",
+]
+
 [project.scripts]
 times-doctor = "times_doctor.cli:app"
 
@@ -46,3 +54,10 @@ packages = ["src/times_doctor"]
 
 [[tool.uv.index]]
 url = "https://pypi.org/simple"
+
+[tool.uv]
+dev-dependencies = [
+  "pytest>=7.0",
+  "pytest-cov>=4.0",
+  "pytest-mock>=3.10",
+]

@@ -212,11 +212,20 @@ def _call_openai_responses_api(prompt: str, model: str = "gpt-5-nano", reasoning
             
             # Extract text from response - GPT-5 Responses API uses 'output' field
             output = data.get("output", [])
+            print(f"[dim]DEBUG: output type={type(output)}, len={len(output) if isinstance(output, list) else 'N/A'}[/dim]")
             if output and isinstance(output, list) and len(output) > 0:
-                text_content = output[0].get("content", [{}])[0].get("text", "")
+                print(f"[dim]DEBUG: output[0] keys={list(output[0].keys()) if isinstance(output[0], dict) else 'not dict'}[/dim]")
+                content = output[0].get("content", [])
+                print(f"[dim]DEBUG: content type={type(content)}, len={len(content) if isinstance(content, list) else 'N/A'}[/dim]")
+                if content and isinstance(content, list) and len(content) > 0:
+                    print(f"[dim]DEBUG: content[0]={content[0]}[/dim]")
+                    text_content = content[0].get("text", "")
+                else:
+                    text_content = ""
             else:
                 text_content = ""
             
+            print(f"[dim]DEBUG: text_content length={len(text_content)}[/dim]")
             return text_content, metadata
         else:
             error_msg = f"OpenAI Responses API error {r.status_code}"

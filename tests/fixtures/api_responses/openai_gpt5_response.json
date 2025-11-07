@@ -1,0 +1,33 @@
+{
+  "id": "resp_abc123",
+  "object": "response",
+  "created_at": 1699564800,
+  "model": "gpt-5-nano",
+  "output": [
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "**Grouped QA_CHECK Warnings/Errors:**\n\n## SEVERE ERROR - Auto-relaxed constraints\n\n### Region: NT, Process: IT_Coa_Min\n- Years 2026-2060: SUM values ranging from 0.11200 to 0.84000\n- Issue: Multiple constraint violations across all years\n\n### Region: NT, Process: IT_Pet_Ref  \n- Years 2026-2060: SUM values ranging from 0.07600 to 0.61000\n\n---\nSee QA_CHECK.LOG for full detail"
+        }
+      ]
+    }
+  ],
+  "usage": {
+    "input_tokens": 116283,
+    "output_tokens": 546,
+    "total_tokens": 116829
+  },
+  "status": "completed",
+  "text": {
+    "format": {
+      "type": "text"
+    },
+    "verbosity": "medium"
+  },
+  "reasoning": {
+    "effort": "minimal",
+    "summary": null
+  }
+}
