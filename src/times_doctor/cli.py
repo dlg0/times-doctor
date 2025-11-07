@@ -140,7 +140,7 @@ def suggest_fixes(status: dict, ranges: dict, mixed_cur_files: list[str], used_b
 @app.command()
 def diagnose(
     run_dir: str,
-    gams: str = typer.Option("", help="Path to gams.exe (optional if only parsing existing .lst)"),
+    gams_path: str | None = typer.Option(None, "--gams-path", help="Path to gams.exe (defaults to 'gams' in PATH)"),
     datacheck: bool = typer.Option(False, help="Run a short CPLEX 'datacheck 2' pass"),
     threads: int = typer.Option(7, help="Threads for diagnostics rerun"),
     llm: str = typer.Option("none", help="LLM provider: auto|openai|anthropic|amp|none")
@@ -153,7 +153,8 @@ def diagnose(
 
     used_barrier_noXO = bool(re.search(r"lpmethod\s*4", lst_text, re.I) and re.search(r"solutiontype\s*2", lst_text, re.I))
 
-    if datacheck and gams:
+    if datacheck:
+        gams_cmd = gams_path if gams_path else "gams"
         times_version = detect_times_version(lst)
         times_src = get_times_source(version=times_version)
         driver = pick_driver_gms(rd)
@@ -181,7 +182,7 @@ def diagnose(
         gdx_file = gdx_dir / f"{tmp.name}.gdx"
         
         subprocess.run([
-            gams, tmp_driver.name,
+            gams_cmd, tmp_driver.name,
             f"r={restart_file}",
             f"idir1={tmp}",
             f"idir2={times_src}",
@@ -260,12 +261,14 @@ def diagnose(
 @app.command()
 def scan(
     run_dir: str,
-    gams: str = typer.Option(..., help="Path to gams.exe"),
+    gams_path: str | None = typer.Option(None, "--gams-path", help="Path to gams.exe (defaults to 'gams' in PATH)"),
     profiles: list[str] = typer.Option(["dual","sift","bar_nox"], help="Profiles: dual|sift|bar_nox"),
     threads: int = typer.Option(7),
     llm: str = typer.Option("none", help="LLM provider: auto|openai|anthropic|amp|none")
 ):
     rd = Path(run_dir).resolve()
+    
+    gams_cmd = gams_path if gams_path else "gams"
     
     # Detect TIMES version from existing run
     lst = latest_lst(rd)
@@ -301,7 +304,7 @@ def scan(
         wdir_gdx_file = wdir_gdx_dir / f"{wdir.name}.gdx"
         
         subprocess.run([
-            gams, wdir_driver.name,
+            gams_cmd, wdir_driver.name,
             f"r={restart_file}",
             f"idir1={wdir}",
             f"idir2={times_src}",
