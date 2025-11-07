@@ -32,10 +32,10 @@ def log_llm_call(call_type: str, prompt: str, response: str, metadata: dict, log
     
     # Model context window sizes
     context_windows = {
-        "gpt-5-nano": 200000,
-        "gpt-5-mini": 200000,
-        "gpt-5": 200000,
-        "gpt-5-pro": 200000,
+        "gpt-5-nano": 400000,
+        "gpt-5-mini": 400000,
+        "gpt-5": 400000,
+        "gpt-5-pro": 400000,
         "claude-3-5-sonnet-20241022": 200000,
         "claude-3-5-haiku-20241022": 200000,
         "claude-3-opus-20240229": 200000,
