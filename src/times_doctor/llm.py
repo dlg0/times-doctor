@@ -78,7 +78,6 @@ def _call_openai_api(prompt: str, model: str = "") -> tuple[str, dict]:
     
     if not model:
         model = os.environ.get("OPENAI_MODEL","gpt-5-mini")
-    temperature = float(os.environ.get("OPENAI_TEMPERATURE", "0.2"))
     
     url = "https://api.openai.com/v1/chat/completions"
     headers = {"Authorization": f"Bearer {key}"}
@@ -87,9 +86,14 @@ def _call_openai_api(prompt: str, model: str = "") -> tuple[str, dict]:
         "messages": [
             {"role": "system", "content": "You are a concise LP solver expert."},
             {"role": "user", "content": prompt}
-        ], 
-        "temperature": temperature
+        ]
     }
+    
+    # GPT-5 models only support temperature=1 (default), don't include it
+    # Older models support configurable temperature
+    if not model.startswith("gpt-5"):
+        temperature = float(os.environ.get("OPENAI_TEMPERATURE", "0.2"))
+        payload["temperature"] = temperature
     
     try:
         r = httpx.post(url, headers=headers, json=payload, timeout=60)
@@ -119,7 +123,7 @@ def _call_openai_api(prompt: str, model: str = "") -> tuple[str, dict]:
             
             metadata = {
                 "model": model,
-                "temperature": temperature,
+                "temperature": 1.0 if model.startswith("gpt-5") else float(os.environ.get("OPENAI_TEMPERATURE", "0.2")),
                 "provider": "openai",
                 "input_tokens": usage.get("prompt_tokens", 0),
                 "output_tokens": usage.get("completion_tokens", 0),
