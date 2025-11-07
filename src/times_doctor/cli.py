@@ -174,7 +174,9 @@ def run_gams_with_progress(cmd: list[str], cwd: str, max_lines: int = 4) -> int:
                     new_files = lst_files_after - lst_files_before
                     if new_files:
                         current_lst_file = max(new_files, key=lambda p: p.stat().st_mtime)
-                        console.print(f"[dim]Found log file: {current_lst_file.name}[/dim]")
+                        live.stop()
+                        console.print(f"[dim]Monitoring log file: {current_lst_file}[/dim]")
+                        live.start()
                 
                 # Read from log file if available
                 if current_lst_file and current_lst_file.exists():
@@ -208,10 +210,12 @@ def run_gams_with_progress(cmd: list[str], cwd: str, max_lines: int = 4) -> int:
                             if children:
                                 child_cpu = sum(c.cpu_percent(interval=0.1) for c in children)
                                 child_mem = sum(c.memory_info().rss for c in children) / 1024 / 1024
-                                child_info = f" + {len(children)} child(s) (CPU: {child_cpu:.1f}%, Mem: {child_mem:.0f}MB)"
+                                # Calculate approximate core usage (CPU% / 100)
+                                cores_used = child_cpu / 100
+                                child_info = f" + {len(children)} worker(s) using ~{cores_used:.1f} cores, {child_mem:.0f}MB"
                             
                             display_text = Text(
-                                f"GAMS running... ({elapsed:.0f}s, Parent CPU: {cpu_percent:.1f}%, Mem: {mem_mb:.0f}MB{child_info})",
+                                f"GAMS running... ({elapsed:.0f}s{child_info})",
                                 style="dim yellow"
                             )
                         except:
