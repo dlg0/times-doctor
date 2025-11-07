@@ -104,7 +104,7 @@ def ensure_out(run_dir: Path) -> Path:
     out.mkdir(exist_ok=True)
     return out
 
-def run_gams_with_progress(cmd: list[str], cwd: str, max_lines: int = 4) -> int:
+def run_gams_with_progress(cmd: list[str], cwd: str, max_lines: int = 10) -> int:
     """Run GAMS and show live tail of output."""
     import threading
     from pathlib import Path
