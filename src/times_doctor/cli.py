@@ -113,9 +113,9 @@ def run_gams_with_progress(cmd: list[str], cwd: str, max_lines: int = 4) -> int:
     console.print(f"[dim]Working directory: {cwd}[/dim]")
     console.print(f"[dim]Command: {' '.join(cmd)}[/dim]")
     
-    # Find the _run_log.txt file that will be created
+    # Find the .log file that will be created
     cwd_path = Path(cwd)
-    log_files_before = set(cwd_path.glob("*_run_log.txt"))
+    log_files_before = set(cwd_path.glob("*.log"))
     
     try:
         proc = subprocess.Popen(
@@ -170,8 +170,8 @@ def run_gams_with_progress(cmd: list[str], cwd: str, max_lines: int = 4) -> int:
             if iterations - last_log_check > 4:  # Check every 2 seconds
                 last_log_check = iterations
                 if not current_log_file:
-                    # Try _run_log.txt first, then .lst files
-                    log_files_after = set(cwd_path.glob("*_run_log.txt"))
+                    # Try .log first, then .lst files as fallback
+                    log_files_after = set(cwd_path.glob("*.log"))
                     new_files = log_files_after - log_files_before
                     if not new_files:
                         # Fallback to .lst files
