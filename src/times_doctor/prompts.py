@@ -23,6 +23,49 @@ def build_llm_prompt(diagnostics: dict) -> str:
     lines.append("Constraints: Focus on practical steps (e.g., switch to dual simplex, unify currency to AUD25, fix tiny coefficients).")
     return "\n".join(lines)
 
+def build_extraction_prompt(file_content: str, file_type: str) -> str:
+    """Build prompt for fast LLM to extract useful line ranges from log files.
+    
+    Args:
+        file_content: The full file content with line numbers
+        file_type: One of 'qa_check', 'run_log', 'lst'
+    """
+    lines = []
+    lines.append(f"You are analyzing a TIMES/Veda {file_type.upper()} file to identify ONLY the useful diagnostic sections.")
+    lines.append("")
+    lines.append("Your task:")
+    lines.append("1. Identify line ranges containing useful diagnostic information")
+    lines.append("2. Return a JSON object mapping section names to line ranges")
+    lines.append("")
+    lines.append("INCLUDE line ranges for:")
+    lines.append("- Error messages and warnings")
+    lines.append("- Solver status and termination information")
+    lines.append("- Range statistics (min/max values, matrix statistics)")
+    lines.append("- Infeasibility or optimality information")
+    lines.append("- Unusual solver output or failures")
+    lines.append("- Summary sections at start or end")
+    lines.append("")
+    lines.append("EXCLUDE line ranges for:")
+    lines.append("- Routine progress messages")
+    lines.append("- Repetitive iteration logs")
+    lines.append("- Verbose table dumps")
+    lines.append("- License/copyright boilerplate")
+    lines.append("- Duplicate information")
+    lines.append("")
+    lines.append("Return ONLY valid JSON in this exact format:")
+    lines.append("{")
+    lines.append('  "sections": [')
+    lines.append('    {"name": "Error Messages", "start_line": 45, "end_line": 52},')
+    lines.append('    {"name": "Range Statistics", "start_line": 234, "end_line": 256}')
+    lines.append("  ]")
+    lines.append("}")
+    lines.append("")
+    lines.append("File content:")
+    lines.append("```")
+    lines.append(file_content)
+    lines.append("```")
+    return "\n".join(lines)
+
 def build_review_prompt(qa_check: str, run_log: str, lst_content: str) -> str:
     lines = []
     lines.append("You are an expert TIMES/Veda energy model diagnostician. Review the following files from a TIMES run and provide:")

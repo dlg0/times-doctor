@@ -635,13 +635,48 @@ def review(
                 selected_model = models[0]
                 print(f"[yellow]Invalid choice, using default: {selected_model}[/yellow]")
     
-    print(f"\n[bold cyan]Sending to LLM:[/bold cyan]")
-    if qa_check_path and qa_check_path.exists():
-        print(f"  • {qa_check_path}")
-    if run_log_path and run_log_path.exists():
-        print(f"  • {run_log_path}")
-    if lst and lst.exists():
-        print(f"  • {lst}")
+    # Extract useful sections first
+    print(f"\n[bold yellow]Extracting useful sections with fast LLM...[/bold yellow]")
+    
+    qa_check_useful = ""
+    run_log_useful = ""
+    lst_useful = ""
+    
+    try:
+        if qa_check:
+            print(f"[dim]  Extracting from QA_CHECK.LOG...[/dim]")
+            sections = llm_mod.extract_useful_sections(qa_check, "qa_check")
+            qa_check_useful = llm_mod.create_useful_markdown(qa_check.split('\n'), sections["sections"], "qa_check")
+            qa_check_useful_path = rd / "QA_CHECK_useful.md"
+            qa_check_useful_path.write_text(qa_check_useful, encoding="utf-8")
+            print(f"[green]  ✓ Saved {qa_check_useful_path}[/green]")
+        
+        if run_log:
+            print(f"[dim]  Extracting from {run_log_path.name}...[/dim]")
+            sections = llm_mod.extract_useful_sections(run_log, "run_log")
+            run_log_useful = llm_mod.create_useful_markdown(run_log.split('\n'), sections["sections"], "run_log")
+            run_log_useful_path = rd / f"{run_log_path.stem}_useful.md"
+            run_log_useful_path.write_text(run_log_useful, encoding="utf-8")
+            print(f"[green]  ✓ Saved {run_log_useful_path}[/green]")
+        
+        if lst_text:
+            print(f"[dim]  Extracting from {lst.name}...[/dim]")
+            sections = llm_mod.extract_useful_sections(lst_text, "lst")
+            lst_useful = llm_mod.create_useful_markdown(lst_text.split('\n'), sections["sections"], "lst")
+            lst_useful_path = rd / f"{lst.stem}_useful.md"
+            lst_useful_path.write_text(lst_useful, encoding="utf-8")
+            print(f"[green]  ✓ Saved {lst_useful_path}[/green]")
+    except Exception as e:
+        print(f"[red]Error during extraction: {e}[/red]")
+        raise typer.Exit(1)
+    
+    print(f"\n[bold cyan]Sending useful sections to reasoning LLM:[/bold cyan]")
+    if qa_check_useful:
+        print(f"  • QA_CHECK_useful.md")
+    if run_log_useful:
+        print(f"  • {run_log_path.stem}_useful.md")
+    if lst_useful:
+        print(f"  • {lst.stem}_useful.md")
     
     print(f"\n[bold green]LLM Review:[/bold green]")
     
@@ -657,7 +692,7 @@ def review(
         # Print chunk directly for live streaming
         print(chunk, end="", flush=True)
     
-    result = llm_mod.review_files(qa_check, run_log, lst_text, provider=llm, model=selected_model, stream_callback=stream_handler)
+    result = llm_mod.review_files(qa_check_useful, run_log_useful, lst_useful, provider=llm, model=selected_model, stream_callback=stream_handler)
     
     if not result.used:
         print(f"[red]Failed to get LLM response. Check API keys and connectivity.[/red]")

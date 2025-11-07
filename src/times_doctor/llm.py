@@ -369,6 +369,105 @@ def summarize(diagnostics: dict, provider: str = "auto") -> LLMResult:
 
     return done("none", "")
 
+def extract_useful_sections(file_content: str, file_type: str) -> dict:
+    """Extract useful diagnostic sections from a log file using fast LLM.
+    
+    Args:
+        file_content: Full file content
+        file_type: One of 'qa_check', 'run_log', 'lst'
+    
+    Returns:
+        dict with 'sections' list of {name, start_line, end_line}
+    
+    Raises:
+        RuntimeError: If extraction fails
+    """
+    from .prompts import build_extraction_prompt
+    
+    # Add line numbers to content
+    lines = file_content.split('\n')
+    numbered_content = '\n'.join(f"{i+1}: {line}" for i, line in enumerate(lines))
+    
+    prompt = build_extraction_prompt(numbered_content, file_type)
+    
+    # Determine which fast model to use
+    api_keys = check_api_keys()
+    
+    text = ""
+    meta = {}
+    
+    if api_keys["openai"]:
+        # Use fastest GPT-5 chat model (non-reasoning)
+        text, meta = _call_openai_api(prompt, model="gpt-5-nano-chat")
+    elif api_keys["anthropic"]:
+        # Use Haiku (fastest Anthropic model)
+        text, meta = _call_anthropic_api(prompt, model="claude-3-5-haiku-20241022")
+    else:
+        raise RuntimeError("No OpenAI or Anthropic API key found. Extraction requires OPENAI_API_KEY or ANTHROPIC_API_KEY in .env file")
+    
+    if not text:
+        raise RuntimeError(f"Failed to extract useful sections from {file_type}. LLM returned empty response.")
+    
+    # Parse JSON response
+    import json
+    import re
+    
+    # Try to extract JSON from response (in case LLM wrapped it in markdown)
+    json_match = re.search(r'\{[\s\S]*"sections"[\s\S]*\}', text)
+    if json_match:
+        json_str = json_match.group(0)
+    else:
+        json_str = text
+    
+    try:
+        result = json.loads(json_str)
+        if "sections" not in result or not isinstance(result["sections"], list):
+            raise ValueError("Invalid JSON structure")
+        return result
+    except Exception as e:
+        raise RuntimeError(f"Failed to parse extraction JSON from {file_type}: {e}\nLLM response: {text[:500]}")
+
+def create_useful_markdown(file_lines: list[str], sections: list[dict], file_type: str) -> str:
+    """Create markdown file with extracted useful sections.
+    
+    Args:
+        file_lines: Original file content as list of lines
+        sections: List of {name, start_line, end_line} dicts
+        file_type: One of 'qa_check', 'run_log', 'lst'
+    
+    Returns:
+        Markdown formatted string
+    """
+    md_lines = []
+    
+    # Title
+    file_name_map = {
+        'qa_check': 'QA_CHECK.LOG',
+        'run_log': 'Run Log',
+        'lst': 'LST File'
+    }
+    md_lines.append(f"# {file_name_map.get(file_type, file_type)} - Useful Sections")
+    md_lines.append("")
+    
+    for section in sections:
+        name = section.get("name", "Unknown Section")
+        start = section.get("start_line", 1)
+        end = section.get("end_line", 1)
+        
+        md_lines.append(f"## {name} (Lines {start}-{end})")
+        md_lines.append("")
+        md_lines.append("```")
+        
+        # Extract lines (convert to 0-indexed)
+        for i in range(start - 1, min(end, len(file_lines))):
+            if i >= 0 and i < len(file_lines):
+                md_lines.append(file_lines[i])
+        
+        md_lines.append("```")
+        md_lines.append("")
+    
+    return "\n".join(md_lines)
+
 def review_files(qa_check: str, run_log: str, lst_content: str, provider: str = "auto", model: str = "", stream_callback=None) -> LLMResult:
     from .prompts import build_review_prompt
     prompt = build_review_prompt(qa_check, run_log, lst_content)
