@@ -427,7 +427,8 @@ def scan(
 @app.command()
 def review(
     run_dir: str,
-    llm: str = typer.Option("auto", help="LLM provider: auto|openai|anthropic|amp|none")
+    llm: str = typer.Option("auto", help="LLM provider: auto|openai|anthropic|amp|none"),
+    model: str = typer.Option("", help="Specific model to use (will prompt if not specified)")
 ):
     """Review QA_CHECK.LOG, run log, and LST files using LLM for human-readable diagnostics."""
     rd = Path(run_dir).resolve()
@@ -472,9 +473,32 @@ def review(
     if api_keys["amp"]: provider_status.append("Amp")
     
     print(f"\n[dim]Available providers: {', '.join(provider_status) if provider_status else 'none'}[/dim]")
+    
+    # Interactive model selection if not specified
+    selected_model = model
+    if not selected_model and llm.lower() in ("openai", "anthropic"):
+        models = []
+        if llm.lower() == "openai" and api_keys["openai"]:
+            models = llm_mod.list_openai_models()
+        elif llm.lower() == "anthropic" and api_keys["anthropic"]:
+            models = llm_mod.list_anthropic_models()
+        
+        if models:
+            print(f"\n[bold]Available {llm.upper()} models:[/bold]")
+            for i, m in enumerate(models, 1):
+                print(f"  {i}. {m}")
+            
+            choice = typer.prompt(f"\nSelect model (1-{len(models)})", type=int, default=1)
+            if 1 <= choice <= len(models):
+                selected_model = models[choice - 1]
+                print(f"[green]Selected: {selected_model}[/green]")
+            else:
+                selected_model = models[0]
+                print(f"[yellow]Invalid choice, using default: {selected_model}[/yellow]")
+    
     print(f"[yellow]Sending to LLM for review...[/yellow]")
     
-    result = llm_mod.review_files(qa_check, run_log, lst_text, provider=llm)
+    result = llm_mod.review_files(qa_check, run_log, lst_text, provider=llm, model=selected_model)
     
     if not result.used:
         print(f"[red]Failed to get LLM response. Check API keys and connectivity.[/red]")

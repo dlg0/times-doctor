@@ -24,6 +24,45 @@ def check_api_keys() -> dict:
         "amp": bool(os.environ.get("AMP_API_KEY") or which(os.environ.get("AMP_CLI", "amp")))
     }
 
+def list_openai_models() -> list[str]:
+    """List available OpenAI models."""
+    key = os.environ.get("OPENAI_API_KEY","")
+    if not key:
+        return []
+    
+    try:
+        import httpx
+    except Exception:
+        return ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"]
+    
+    try:
+        url = "https://api.openai.com/v1/models"
+        headers = {"Authorization": f"Bearer {key}"}
+        r = httpx.get(url, headers=headers, timeout=10)
+        if r.status_code == 200:
+            data = r.json()
+            models = [m["id"] for m in data.get("data", []) if m["id"].startswith("gpt-")]
+            # Filter to common chat models and sort
+            preferred = ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-4", "gpt-3.5-turbo"]
+            result = [m for m in preferred if m in models]
+            # Add any other gpt models not in preferred list
+            result.extend([m for m in sorted(models) if m not in result])
+            return result if result else ["gpt-4o-mini"]
+    except Exception:
+        pass
+    
+    return ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"]
+
+def list_anthropic_models() -> list[str]:
+    """List available Anthropic models."""
+    return [
+        "claude-3-5-sonnet-20241022",
+        "claude-3-5-haiku-20241022", 
+        "claude-3-opus-20240229",
+        "claude-3-sonnet-20240229",
+        "claude-3-haiku-20240307"
+    ]
+
 class LLMResult:
     def __init__(self, text: str, provider: str, used: bool, model: str = "", input_tokens: int = 0, output_tokens: int = 0, cost_usd: float = 0.0):
         self.text = text
@@ -41,7 +80,7 @@ def _call_cli(cli: str, prompt: str) -> str:
     except Exception:
         return ""
 
-def _call_openai_api(prompt: str) -> tuple[str, dict]:
+def _call_openai_api(prompt: str, model: str = "") -> tuple[str, dict]:
     key = os.environ.get("OPENAI_API_KEY","")
     if not key:
         return "", {}
@@ -52,7 +91,8 @@ def _call_openai_api(prompt: str) -> tuple[str, dict]:
             return _call_cli("openai", prompt), {"model": "openai-cli", "provider": "openai-cli"}
         return "", {}
     
-    model = os.environ.get("OPENAI_MODEL","gpt-4o-mini")
+    if not model:
+        model = os.environ.get("OPENAI_MODEL","gpt-4o-mini")
     temperature = float(os.environ.get("OPENAI_TEMPERATURE", "0.2"))
     
     url = "https://api.openai.com/v1/chat/completions"
@@ -97,6 +137,70 @@ def _call_openai_api(prompt: str) -> tuple[str, dict]:
             }
             
             return data["choices"][0]["message"]["content"].strip(), metadata
+        return "", {}
+    except Exception:
+        return "", {}
+
+def _call_anthropic_api(prompt: str, model: str = "") -> tuple[str, dict]:
+    """Call Anthropic API directly."""
+    key = os.environ.get("ANTHROPIC_API_KEY","")
+    if not key:
+        return "", {}
+    
+    try:
+        import httpx
+    except Exception:
+        return "", {}
+    
+    if not model:
+        model = "claude-3-5-sonnet-20241022"
+    temperature = float(os.environ.get("ANTHROPIC_TEMPERATURE", "0.2"))
+    
+    url = "https://api.anthropic.com/v1/messages"
+    headers = {
+        "x-api-key": key,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json"
+    }
+    payload = {
+        "model": model,
+        "max_tokens": 4096,
+        "temperature": temperature,
+        "messages": [{"role": "user", "content": prompt}]
+    }
+    
+    try:
+        r = httpx.post(url, headers=headers, json=payload, timeout=60)
+        if r.status_code == 200:
+            data = r.json()
+            usage = data.get("usage", {})
+            
+            # Anthropic pricing (as of 2024)
+            pricing = {
+                "claude-3-5-sonnet-20241022": (0.003, 0.015),
+                "claude-3-5-haiku-20241022": (0.0008, 0.004),
+                "claude-3-opus-20240229": (0.015, 0.075),
+                "claude-3-sonnet-20240229": (0.003, 0.015),
+                "claude-3-haiku-20240307": (0.00025, 0.00125)
+            }
+            
+            cost_per_1k_input, cost_per_1k_output = pricing.get(model, (0.003, 0.015))
+            input_cost = usage.get("input_tokens", 0) / 1000 * cost_per_1k_input
+            output_cost = usage.get("output_tokens", 0) / 1000 * cost_per_1k_output
+            
+            metadata = {
+                "model": model,
+                "temperature": temperature,
+                "provider": "anthropic",
+                "input_tokens": usage.get("input_tokens", 0),
+                "output_tokens": usage.get("output_tokens", 0),
+                "total_tokens": usage.get("input_tokens", 0) + usage.get("output_tokens", 0),
+                "cost_usd": input_cost + output_cost
+            }
+            
+            content = data.get("content", [])
+            if content and len(content) > 0:
+                return content[0].get("text", ""), metadata
         return "", {}
     except Exception:
         return "", {}
@@ -148,7 +252,7 @@ def summarize(diagnostics: dict, provider: str = "auto") -> LLMResult:
 
     return done("none", "")
 
-def review_files(qa_check: str, run_log: str, lst_content: str, provider: str = "auto") -> LLMResult:
+def review_files(qa_check: str, run_log: str, lst_content: str, provider: str = "auto", model: str = "") -> LLMResult:
     from .prompts import build_review_prompt
     prompt = build_review_prompt(qa_check, run_log, lst_content)
 
@@ -170,10 +274,14 @@ def review_files(qa_check: str, run_log: str, lst_content: str, provider: str = 
         return done("none", "")
 
     if prov in ("auto","openai"):
-        t, meta = _call_openai_api(prompt)
+        t, meta = _call_openai_api(prompt, model=model)
         if t: return done("openai", t, meta)
 
     if prov in ("auto","anthropic"):
+        # Try API first, fall back to CLI
+        t, meta = _call_anthropic_api(prompt, model=model)
+        if t: return done("anthropic", t, meta)
+        
         t = _call_anthropic_cli(prompt)
         if t: return done("anthropic_cli", t, {"model": "claude-cli", "provider": "anthropic"})
 
