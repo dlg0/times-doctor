@@ -24,6 +24,28 @@ def log_llm_call(call_type: str, prompt: str, response: str, metadata: dict, log
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-3]  # milliseconds
     log_file = log_dir / f"{timestamp}_{call_type}.json"
     
+    # Calculate context window stats
+    model = metadata.get("model", "")
+    input_tokens = metadata.get("input_tokens", 0)
+    output_tokens = metadata.get("output_tokens", 0)
+    cost = metadata.get("cost_usd", 0)
+    
+    # Model context window sizes
+    context_windows = {
+        "gpt-5-nano": 200000,
+        "gpt-5-mini": 200000,
+        "gpt-5": 200000,
+        "gpt-5-pro": 200000,
+        "claude-3-5-sonnet-20241022": 200000,
+        "claude-3-5-haiku-20241022": 200000,
+        "claude-3-opus-20240229": 200000,
+        "claude-3-sonnet-20240229": 200000,
+        "claude-3-haiku-20240307": 200000,
+    }
+    
+    window_size = context_windows.get(model, 128000)  # default to 128k
+    window_usage_pct = (input_tokens / window_size * 100) if window_size > 0 else 0
+    
     log_data = {
         "timestamp": datetime.now().isoformat(),
         "call_type": call_type,
@@ -31,7 +53,15 @@ def log_llm_call(call_type: str, prompt: str, response: str, metadata: dict, log
         "prompt": prompt,
         "response": response,
         "prompt_length": len(prompt),
-        "response_length": len(response)
+        "response_length": len(response),
+        "tokens": {
+            "input": input_tokens,
+            "output": output_tokens,
+            "total": input_tokens + output_tokens,
+            "window_size": window_size,
+            "window_usage_pct": round(window_usage_pct, 1)
+        },
+        "cost_usd": round(cost, 6)
     }
     
     try:
