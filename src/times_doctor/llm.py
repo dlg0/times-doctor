@@ -212,6 +212,13 @@ def _call_openai_responses_api(prompt: str, model: str = "gpt-5-nano", reasoning
             
             # Extract text from response
             text_content = data.get("text", {}).get("value", "")
+            
+            # Debug: if empty, log the response structure
+            if not text_content:
+                print(f"[dim red]Warning: Empty response from GPT-5. Response keys: {list(data.keys())}[/dim red]")
+                if "text" in data:
+                    print(f"[dim red]Text field keys: {list(data['text'].keys() if isinstance(data['text'], dict) else 'not a dict')}[/dim red]")
+            
             return text_content, metadata
         else:
             error_msg = f"OpenAI Responses API error {r.status_code}"
