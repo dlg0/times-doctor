@@ -106,28 +106,48 @@ def ensure_out(run_dir: Path) -> Path:
 
 def run_gams_with_progress(cmd: list[str], cwd: str, max_lines: int = 4) -> int:
     """Run GAMS and show live tail of output."""
+    import threading
+    
     proc = subprocess.Popen(
         cmd,
         cwd=cwd,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
-        text=True,
-        bufsize=1
+        text=False,
+        bufsize=0
     )
     
     lines = []
-    with Live(Text("Starting GAMS..."), console=console, refresh_per_second=4) as live:
-        for line in proc.stdout:
-            line = line.rstrip()
-            if line:
-                lines.append(line)
-                # Keep only last max_lines
+    display_text = Text("Starting GAMS...", style="dim")
+    
+    def read_output():
+        for line in iter(proc.stdout.readline, b''):
+            try:
+                line_str = line.decode('utf-8', errors='ignore').rstrip()
+                if line_str:
+                    lines.append(line_str)
+            except Exception:
+                pass
+    
+    reader = threading.Thread(target=read_output, daemon=True)
+    reader.start()
+    
+    with Live(display_text, console=console, refresh_per_second=2) as live:
+        while proc.poll() is None:
+            if lines:
                 display_lines = lines[-max_lines:]
                 display_text = Text("\n".join(display_lines))
                 live.update(display_text)
+            import time
+            time.sleep(0.5)
         
-        proc.wait()
+        # One final update after process ends
+        if lines:
+            display_lines = lines[-max_lines:]
+            display_text = Text("\n".join(display_lines))
+            live.update(display_text)
     
+    reader.join(timeout=1)
     return proc.returncode
 
 def parse_range_stats(text: str) -> dict:
