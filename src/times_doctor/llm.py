@@ -96,7 +96,9 @@ def _call_openai_api(prompt: str, model: str = "") -> tuple[str, dict]:
         payload["temperature"] = temperature
     
     try:
-        r = httpx.post(url, headers=headers, json=payload, timeout=60)
+        # Longer timeout for reasoning models (GPT-5, etc.)
+        timeout_seconds = 300 if model.startswith("gpt-5") or "pro" in model else 120
+        r = httpx.post(url, headers=headers, json=payload, timeout=timeout_seconds)
         if r.status_code == 200:
             data = r.json()
             usage = data.get("usage", {})
@@ -176,7 +178,9 @@ def _call_anthropic_api(prompt: str, model: str = "") -> tuple[str, dict]:
     }
     
     try:
-        r = httpx.post(url, headers=headers, json=payload, timeout=60)
+        # Longer timeout for reasoning models
+        timeout_seconds = 300 if "opus" in model or "sonnet" in model else 120
+        r = httpx.post(url, headers=headers, json=payload, timeout=timeout_seconds)
         if r.status_code == 200:
             data = r.json()
             usage = data.get("usage", {})
