@@ -215,18 +215,38 @@ def _call_openai_responses_api(prompt: str, model: str = "gpt-5-nano", reasoning
             # Extract text from response - GPT-5 Responses API uses 'output' field
             output = data.get("output", [])
             print(f"[dim]DEBUG: output type={type(output)}, len={len(output) if isinstance(output, list) else 'N/A'}[/dim]")
-            if output and isinstance(output, list) and len(output) > 0:
-                print(f"[dim]DEBUG: output[0] keys={list(output[0].keys()) if isinstance(output[0], dict) else 'not dict'}[/dim]")
-                content = output[0].get("content", [])
-                print(f"[dim]DEBUG: content type={type(content)}, len={len(content) if isinstance(content, list) else 'N/A'}[/dim]")
-                if content and isinstance(content, list) and len(content) > 0:
-                    print(f"[dim]DEBUG: content[0]={content[0]}[/dim]")
-                    text_content = content[0].get("text", "")
-                else:
+            
+            # Try to find the message with actual content (skip reasoning messages)
+            text_content = ""
+            if output and isinstance(output, list):
+                for i, item in enumerate(output):
+                    if not isinstance(item, dict):
+                        continue
+                    
+                    # Skip reasoning-only messages
+                    item_type = item.get("type", "")
+                    if item_type == "reasoning":
+                        continue
+                    
+                    if i == 0:
+                        print(f"[dim]DEBUG: output[{i}] keys={list(item.keys())}[/dim]")
+                    
+                    content = item.get("content", [])
+                    if i == 0:
+                        print(f"[dim]DEBUG: content type={type(content)}, len={len(content) if isinstance(content, list) else 'N/A'}[/dim]")
+                    
+                    if content and isinstance(content, list) and len(content) > 0:
+                        if i == 0:
+                            print(f"[dim]DEBUG: content[0]={content[0]}[/dim]")
+                        text_content = content[0].get("text", "")
+                        if text_content:
+                            break
+                    
                     # Fall back to summary field when content is empty
-                    text_content = output[0].get("summary", "")
-            else:
-                text_content = ""
+                    summary = item.get("summary", "")
+                    if summary:
+                        text_content = summary
+                        break
             
             print(f"[dim]DEBUG: text_content length={len(text_content)}[/dim]")
             return text_content, metadata
