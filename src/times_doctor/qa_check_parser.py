@@ -135,8 +135,8 @@ def iter_events(
     current_section = ""
     try:
         for raw in lines:
-            line = raw.rstrip("\n")
-            if not line.strip():
+            line = raw.strip()
+            if not line:
                 continue
 
             # Section headers

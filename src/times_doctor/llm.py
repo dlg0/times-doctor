@@ -172,7 +172,22 @@ def _call_openai_responses_api(prompt: str, model: str = "gpt-5-nano", reasoning
     
     try:
         timeout_seconds = 300
+        
+        # Log raw request
+        log_dir = Path.cwd() / "_llm_calls"
+        log_dir.mkdir(parents=True, exist_ok=True)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+        request_log = log_dir / f"{timestamp}_request.json"
+        with open(request_log, 'w', encoding='utf-8') as f:
+            json.dump({"url": url, "headers": {k: v for k, v in headers.items() if k != "Authorization"}, "payload": payload}, f, indent=2)
+        
         r = httpx.post(url, headers=headers, json=payload, timeout=timeout_seconds)
+        
+        # Log raw response
+        response_log = log_dir / f"{timestamp}_response.json"
+        with open(response_log, 'w', encoding='utf-8') as f:
+            json.dump({"status_code": r.status_code, "headers": dict(r.headers), "body": r.json() if r.status_code == 200 else r.text}, f, indent=2)
+        
         if r.status_code == 200:
             data = r.json()
             usage = data.get("usage", {})
@@ -391,7 +406,22 @@ def _call_openai_api(prompt: str, model: str = "", stream_callback=None) -> tupl
             return full_text.strip(), metadata
         else:
             # Non-streaming mode (original behavior)
+            
+            # Log raw request
+            log_dir = Path.cwd() / "_llm_calls"
+            log_dir.mkdir(parents=True, exist_ok=True)
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+            request_log = log_dir / f"{timestamp}_request.json"
+            with open(request_log, 'w', encoding='utf-8') as f:
+                json.dump({"url": url, "headers": {k: v for k, v in headers.items() if k != "Authorization"}, "payload": payload}, f, indent=2)
+            
             r = httpx.post(url, headers=headers, json=payload, timeout=timeout_seconds)
+            
+            # Log raw response
+            response_log = log_dir / f"{timestamp}_response.json"
+            with open(response_log, 'w', encoding='utf-8') as f:
+                json.dump({"status_code": r.status_code, "headers": dict(r.headers), "body": r.json() if r.status_code == 200 else r.text}, f, indent=2)
+            
             if r.status_code == 200:
                 data = r.json()
                 usage = data.get("usage", {})

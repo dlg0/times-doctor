@@ -44,9 +44,10 @@ class TestOpenAIResponsesAPI:
         mock_env.return_value = "sk-test-key"
         
         # Setup HTTP mock
-        mock_response = Mock()
+        mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = mock_gpt5_response
+        mock_response.headers = {}
         mock_post.return_value = mock_response
         
         # Make API call
@@ -69,12 +70,13 @@ class TestOpenAIResponsesAPI:
         
         mock_env.return_value = "sk-test-key"
         
-        mock_response = Mock()
+        mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
             "output": [],
             "usage": {"input_tokens": 100, "output_tokens": 0, "total_tokens": 100}
         }
+        mock_response.headers = {}
         mock_post.return_value = mock_response
         
         text, metadata = _call_openai_responses_api("test prompt")
@@ -96,7 +98,7 @@ class TestOpenAIResponsesAPI:
         
         mock_env.return_value = "sk-test-key"
         
-        mock_response = Mock()
+        mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
             "id": "resp_456",
@@ -118,6 +120,7 @@ class TestOpenAIResponsesAPI:
             },
             "status": "completed"
         }
+        mock_response.headers = {}
         mock_post.return_value = mock_response
         
         text, metadata = _call_openai_responses_api("test prompt", model="gpt-5-nano")
@@ -135,9 +138,10 @@ class TestOpenAIResponsesAPI:
         
         mock_env.return_value = "sk-test-key"
         
-        mock_response = Mock()
+        mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = mock_gpt5_response
+        mock_response.headers = {}
         mock_post.return_value = mock_response
         
         text, metadata = _call_openai_responses_api("test prompt", model="gpt-5-nano")

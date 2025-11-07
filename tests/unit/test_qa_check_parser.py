@@ -140,12 +140,24 @@ class TestEventIteration:
             "Some random text",
             "*01 ERROR - Real error R=NSW",
             "Another random line",
-            "  *02 WARNING - Bad indent"  # Won't match due to leading spaces
         ]
         
         events = list(iter_events(lines))
         assert len(events) == 1
         assert events[0][0] == "ERROR"
+    
+    def test_handle_leading_whitespace(self):
+        """Leading whitespace should be stripped (real QA_CHECK.LOG files have it)."""
+        lines = [
+            "*** Test Section",
+            " *01 WARNING - With leading space R=NSW",
+            "  *02 ERROR - With more leading space R=VIC",
+        ]
+        
+        events = list(iter_events(lines))
+        assert len(events) == 2
+        assert events[0][0] == "WARNING"
+        assert events[1][0] == "ERROR"
 
 
 class TestCondensation:

@@ -1,0 +1,26 @@
+{
+  "url": "https://api.openai.com/v1/responses",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "payload": {
+    "model": "gpt-5-nano",
+    "input": [
+      {
+        "role": "user",
+        "content": "test prompt"
+      }
+    ],
+    "text": {
+      "format": {
+        "type": "text"
+      },
+      "verbosity": "medium"
+    },
+    "reasoning": {
+      "effort": "medium",
+      "summary": "auto"
+    },
+    "store": true
+  }
+}
