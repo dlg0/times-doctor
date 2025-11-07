@@ -169,7 +169,6 @@ def run_gams_with_progress(cmd: list[str], cwd: str, max_lines: int = 4) -> int:
             # Try to find and tail the .lst file if no stdout
             if not lines and iterations - last_log_check > 4:  # Check every 2 seconds
                 last_log_check = iterations
-                nonlocal current_lst_file
                 if not current_lst_file:
                     lst_files_after = set(cwd_path.glob("*.lst"))
                     new_files = lst_files_after - lst_files_before
