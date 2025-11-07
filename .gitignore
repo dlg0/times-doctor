@@ -37,6 +37,9 @@ env/
 .DS_Store
 Thumbs.db
 
+# Environment variables
+.env
+
 # TIMES Doctor outputs
 times_doctor_out/
 _td_datacheck/

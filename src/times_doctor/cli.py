@@ -425,6 +425,62 @@ def scan(
     print(f"[green]Wrote[/green] {csvp}")
 
 @app.command()
+def review(
+    run_dir: str,
+    llm: str = typer.Option("auto", help="LLM provider: auto|openai|anthropic|amp|none")
+):
+    """Review QA_CHECK.LOG, run log, and LST files using LLM for human-readable diagnostics."""
+    rd = Path(run_dir).resolve()
+    
+    api_keys = llm_mod.check_api_keys()
+    has_any_key = any(api_keys.values())
+    
+    if llm.lower() != "none" and not has_any_key:
+        print("[yellow]No API keys found. Please configure one of the following in a .env file:[/yellow]")
+        print("  OPENAI_API_KEY=sk-...")
+        print("  ANTHROPIC_API_KEY=sk-ant-...")
+        print("  AMP_API_KEY=... (or ensure 'amp' CLI is available)")
+        print("")
+        print("[dim]Create a .env file in the current directory with one of these keys.[/dim]")
+        raise typer.Exit(1)
+    
+    qa_check_path = rd / "QA_CHECK.LOG"
+    qa_check = read_text(qa_check_path) if qa_check_path.exists() else ""
+    
+    run_log_path = None
+    for f in rd.glob("*_run_log.txt"):
+        run_log_path = f
+        break
+    run_log = read_text(run_log_path) if run_log_path else ""
+    
+    lst = latest_lst(rd)
+    lst_text = read_text(lst) if lst else ""
+    
+    if not qa_check and not run_log and not lst_text:
+        print(f"[red]No QA_CHECK.LOG, *_run_log.txt, or .lst files found in {rd}[/red]")
+        raise typer.Exit(1)
+    
+    print(f"[yellow]Found files:[/yellow]")
+    if qa_check: print(f"  ✓ QA_CHECK.LOG ({len(qa_check)} chars)")
+    if run_log: print(f"  ✓ {run_log_path.name} ({len(run_log)} chars)")
+    if lst_text: print(f"  ✓ {lst.name} ({len(lst_text)} chars)")
+    
+    print(f"\n[yellow]Sending to LLM for review (provider: {llm})...[/yellow]")
+    result = llm_mod.review_files(qa_check, run_log, lst_text, provider=llm)
+    
+    if not result.used:
+        print(f"[red]Failed to get LLM response. Check API keys and connectivity.[/red]")
+        raise typer.Exit(1)
+    
+    out = ensure_out(rd)
+    review_path = out / "llm_review.md"
+    review_path.write_text(result.text, encoding="utf-8")
+    
+    print(f"\n[bold green]LLM Review ({result.provider}):[/bold green]")
+    print(result.text)
+    print(f"\n[green]Saved to {review_path}[/green]")
+
+@app.command()
 def update():
     """Update times-doctor to the latest version using uv tool upgrade."""
     if sys.platform == "win32":

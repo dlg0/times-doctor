@@ -55,6 +55,12 @@ times-doctor diagnose "D:\Veda\Gams_Wrk\...\msm_ref~0011"
 times-doctor diagnose "D:\...\msm_ref~0011" --gams "C:\GAMS\win64\49\gams.exe" --datacheck
 ```
 
+### Review run files with LLM analysis
+```bash
+times-doctor review "D:\...\msm_ref~0011" --llm auto
+```
+This reads QA_CHECK.LOG, the run log, and .lst file, then sends them to an LLM for a human-readable summary and recommendations.
+
 ### Options scan (no crossover variants)
 ```bash
 times-doctor scan "D:\...\msm_ref~0011" --gams "C:\GAMS\win64\49\gams.exe" --profiles dual sift bar_nox --threads 7
@@ -67,17 +73,23 @@ Artifacts under `<run>/times_doctor_out/`:
 
 ## LLM assistant (optional)
 
-Set one of the following and pass `--llm openai|anthropic|amp|auto`:
+Create a `.env` file in your project directory or set environment variables with one of:
 
 ```bash
-set OPENAI_API_KEY=sk-...          # OpenAI HTTP (uses httpx) or 'openai' CLI fallback
-set ANTHROPIC_API_KEY=sk-ant-...   # With 'claude' CLI (or set ANTHROPIC_CLI)
-set AMP_CLI=amp                    # Any CLI that reads prompt on STDIN and prints completion
+OPENAI_API_KEY=sk-...          # OpenAI HTTP (uses httpx) or 'openai' CLI fallback
+ANTHROPIC_API_KEY=sk-ant-...   # With 'claude' CLI (or set ANTHROPIC_CLI)
+AMP_CLI=amp                    # Any CLI that reads prompt on STDIN and prints completion
 ```
 
-Example:
+Example .env file:
+```
+OPENAI_API_KEY=sk-proj-abc123...
+```
+
+Example commands:
 ```bash
 times-doctor diagnose "D:\...\msm_ref~0011" --llm auto
+times-doctor review "D:\...\msm_ref~0011" --llm auto
 ```
 
 ## Why these solver profiles?
