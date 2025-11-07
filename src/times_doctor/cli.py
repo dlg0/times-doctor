@@ -607,7 +607,12 @@ def review(
     
     # Extract useful sections first
     llm_log_dir = rd / "_llm_calls"
-    print(f"\n[bold yellow]Extracting useful sections with fast LLM...[/bold yellow]")
+    
+    # Determine which fast model will be used
+    api_keys = llm_mod.check_api_keys()
+    fast_model = "gpt-5-mini-chat" if api_keys["openai"] else ("claude-3-5-haiku-20241022" if api_keys["anthropic"] else "unknown")
+    
+    print(f"\n[bold yellow]Extracting useful sections with fast LLM ({fast_model})...[/bold yellow]")
     print(f"[dim](LLM calls logged to {llm_log_dir})[/dim]")
     
     qa_check_useful = ""
