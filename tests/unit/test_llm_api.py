@@ -84,6 +84,51 @@ class TestOpenAIResponsesAPI:
     
     @patch('times_doctor.llm.os.environ.get')
     @patch('httpx.post')
+    def test_empty_content_array(self, mock_post, mock_env):
+        """Test handling when output exists but content array is empty.
+        
+        This reproduces the issue where GPT-5 returns:
+        output: [{"id": "...", "type": "...", "summary": "...", "content": []}]
+        
+        The content array is empty, leading to text_content being empty string.
+        """
+        from times_doctor.llm import _call_openai_responses_api
+        
+        mock_env.return_value = "sk-test-key"
+        
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "id": "resp_456",
+            "object": "response",
+            "created_at": 1234567890,
+            "model": "gpt-5-nano",
+            "output": [
+                {
+                    "id": "msg_123",
+                    "type": "message",
+                    "summary": "Some summary text here",
+                    "content": []  # Empty content array!
+                }
+            ],
+            "usage": {
+                "input_tokens": 115096,
+                "output_tokens": 420,
+                "total_tokens": 115516
+            },
+            "status": "completed"
+        }
+        mock_post.return_value = mock_response
+        
+        text, metadata = _call_openai_responses_api("test prompt", model="gpt-5-nano")
+        
+        # Should fall back to summary when content is empty
+        assert text == "Some summary text here", f"Got empty text when summary was available: {repr(text)}"
+        assert metadata["input_tokens"] == 115096
+        assert metadata["output_tokens"] == 420
+    
+    @patch('times_doctor.llm.os.environ.get')
+    @patch('httpx.post')
     def test_cost_calculation(self, mock_post, mock_env, mock_gpt5_response):
         """Test that cost is calculated correctly for gpt-5-nano."""
         from times_doctor.llm import _call_openai_responses_api

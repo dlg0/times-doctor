@@ -223,7 +223,8 @@ def _call_openai_responses_api(prompt: str, model: str = "gpt-5-nano", reasoning
                     print(f"[dim]DEBUG: content[0]={content[0]}[/dim]")
                     text_content = content[0].get("text", "")
                 else:
-                    text_content = ""
+                    # Fall back to summary field when content is empty
+                    text_content = output[0].get("summary", "")
             else:
                 text_content = ""
             
