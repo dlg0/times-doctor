@@ -202,6 +202,14 @@ def _call_openai_responses_api(prompt: str, model: str = "gpt-5-nano", reasoning
                 "duration_seconds": round(time.time() - start_time, 2)
             }
             
+            # Print concise log
+            in_tok = metadata["input_tokens"]
+            out_tok = metadata["output_tokens"]
+            dur = metadata["duration_seconds"]
+            cost = metadata["cost_usd"]
+            window_pct = (in_tok / 400000 * 100) if model.startswith("gpt-5") else (in_tok / 200000 * 100)
+            print(f"[dim]LLM: {model} | {in_tok:,}→{out_tok:,} tok ({window_pct:.1f}% window) | {dur:.1f}s | ${cost:.4f}[/dim]")
+            
             # Extract text from response
             text_content = data.get("text", {}).get("value", "")
             return text_content, metadata
@@ -459,6 +467,14 @@ def _call_anthropic_api(prompt: str, model: str = "") -> tuple[str, dict]:
                 "cost_usd": input_cost + output_cost,
                 "duration_seconds": round(time.time() - start_time, 2)
             }
+            
+            # Print concise log
+            in_tok = metadata["input_tokens"]
+            out_tok = metadata["output_tokens"]
+            dur = metadata["duration_seconds"]
+            cost = metadata["cost_usd"]
+            window_pct = (in_tok / 200000 * 100)
+            print(f"[dim]LLM: {model} | {in_tok:,}→{out_tok:,} tok ({window_pct:.1f}% window) | {dur:.1f}s | ${cost:.4f}[/dim]")
             
             content = data.get("content", [])
             if content and len(content) > 0:
