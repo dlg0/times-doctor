@@ -621,7 +621,7 @@ def review(
     
     try:
         if qa_check:
-            print(f"[dim]  Extracting from QA_CHECK.LOG...[/dim]")
+            print(f"[dim]  Compressing QA_CHECK.LOG...[/dim]")
             
             def qa_progress(current, total, message):
                 if current == 0:
@@ -629,9 +629,8 @@ def review(
                 else:
                     print(f"[dim]    {message}[/dim]")
             
-            sections = llm_mod.extract_useful_sections(qa_check, "qa_check", log_dir=llm_log_dir, progress_callback=qa_progress)
-            qa_check_useful = llm_mod.create_useful_markdown(qa_check.split('\n'), sections["sections"], "qa_check")
-            qa_check_useful_path = rd / "QA_CHECK_useful.md"
+            qa_check_useful = llm_mod.compress_qa_check(qa_check, log_dir=llm_log_dir, progress_callback=qa_progress)
+            qa_check_useful_path = rd / "QA_CHECK_compressed.md"
             qa_check_useful_path.write_text(qa_check_useful, encoding="utf-8")
             print(f"[green]  ✓ Saved {qa_check_useful_path}[/green]")
         
@@ -674,7 +673,7 @@ def review(
     
     print(f"\n[bold cyan]Sending useful sections to reasoning LLM ({reasoning_model}):[/bold cyan]")
     if qa_check_useful:
-        print(f"  • QA_CHECK_useful.md")
+        print(f"  • QA_CHECK_compressed.md")
     if run_log_useful:
         print(f"  • {run_log_path.stem}_useful.md")
     if lst_useful:

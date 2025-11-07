@@ -1,3 +1,15 @@
+from pathlib import Path
+
+def _load_prompt_template(name: str) -> str:
+    """Load a prompt template from the prompts/ directory."""
+    # Try relative to this module first
+    prompt_file = Path(__file__).parent.parent.parent / "prompts" / f"{name}.txt"
+    if prompt_file.exists():
+        return prompt_file.read_text(encoding="utf-8")
+    
+    # Fallback to inline version if file not found
+    return None
+
 def build_llm_prompt(diagnostics: dict) -> str:
     status = diagnostics.get("status", {})
     ranges = diagnostics.get("ranges", {})
@@ -23,48 +35,85 @@ def build_llm_prompt(diagnostics: dict) -> str:
     lines.append("Constraints: Focus on practical steps (e.g., switch to dual simplex, unify currency to AUD25, fix tiny coefficients).")
     return "\n".join(lines)
 
+def build_qa_check_compress_prompt(file_content: str) -> str:
+    """Build prompt for compressing QA_CHECK.LOG into concise grouped warnings/errors."""
+    template = _load_prompt_template("qa_check_compress")
+    if not template:
+        # Fallback inline version
+        template = """You are analyzing a TIMES/Veda QA_CHECK.LOG file that contains warnings and errors.
+
+Your task: Reduce this to a concise warning/error list where instead of a row for every region/tech combo for the same warning/error, just give a single row for that warning/error but indicate the set of indices it applies to.
+
+Format each warning/error like this:
+
+WARNING: Delayed Process but PASTInvestment.
+    Regions: ADE, CAN, CQ, CVIC, LV, MEL
+    Processes: EE_NatGas*, EE_RePro*, EE_Solar*
+
+SEVERE ERROR: Defective sum of FX and UP FLO_SHAREs in Group
+    Regions: NSW
+    Processes: IT_Gas_Exp, IT_Pet_Ref
+    Vintage: 2015
+    Commodity Group: IT_Met_Pro_NRGI
+
+Instructions:
+- Group identical warnings/errors together
+- List all regions, processes, commodities, vintages etc. that the warning applies to
+- Use wildcards (*) where appropriate to show patterns
+- Keep severity level (WARNING, ERROR, SEVERE ERROR, etc.)
+- Keep the warning/error message verbatim
+- Sort by severity (SEVERE ERROR first, then ERROR, then WARNING)
+
+End your output with:
+
+---
+See QA_CHECK.LOG for full detail
+"""
+    
+    return f"{template}\n\nFile content:\n```\n{file_content}\n```"
+
 def build_extraction_prompt(file_content: str, file_type: str) -> str:
     """Build prompt for fast LLM to extract useful line ranges from log files.
     
     Args:
         file_content: The full file content with line numbers
-        file_type: One of 'qa_check', 'run_log', 'lst'
+        file_type: One of 'run_log', 'lst'
     """
-    lines = []
-    lines.append(f"You are analyzing a TIMES/Veda {file_type.upper()} file to identify ONLY the useful diagnostic sections.")
-    lines.append("")
-    lines.append("Your task:")
-    lines.append("1. Identify line ranges containing useful diagnostic information")
-    lines.append("2. Return a JSON object mapping section names to line ranges")
-    lines.append("")
-    lines.append("INCLUDE line ranges for:")
-    lines.append("- Error messages and warnings")
-    lines.append("- Solver status and termination information")
-    lines.append("- Range statistics (min/max values, matrix statistics)")
-    lines.append("- Infeasibility or optimality information")
-    lines.append("- Unusual solver output or failures")
-    lines.append("- Summary sections at start or end")
-    lines.append("")
-    lines.append("EXCLUDE line ranges for:")
-    lines.append("- Routine progress messages")
-    lines.append("- Repetitive iteration logs")
-    lines.append("- Verbose table dumps")
-    lines.append("- License/copyright boilerplate")
-    lines.append("- Duplicate information")
-    lines.append("")
-    lines.append("Return ONLY valid JSON in this exact format:")
-    lines.append("{")
-    lines.append('  "sections": [')
-    lines.append('    {"name": "Error Messages", "start_line": 45, "end_line": 52},')
-    lines.append('    {"name": "Range Statistics", "start_line": 234, "end_line": 256}')
-    lines.append("  ]")
-    lines.append("}")
-    lines.append("")
-    lines.append("File content:")
-    lines.append("```")
-    lines.append(file_content)
-    lines.append("```")
-    return "\n".join(lines)
+    template = _load_prompt_template("extraction_sections")
+    if not template:
+        # Fallback inline version
+        template = """You are analyzing a TIMES/Veda {file_type} file to identify ONLY the useful diagnostic sections.
+
+Your task:
+1. Identify line ranges containing useful diagnostic information
+2. Return a JSON object mapping section names to line ranges
+
+INCLUDE line ranges for:
+- Error messages and warnings
+- Solver status and termination information
+- Range statistics (min/max values, matrix statistics)
+- Infeasibility or optimality information
+- Unusual solver output or failures
+- Summary sections at start or end
+
+EXCLUDE line ranges for:
+- Routine progress messages
+- Repetitive iteration logs
+- Verbose table dumps
+- License/copyright boilerplate
+- Duplicate information
+
+Return ONLY valid JSON in this exact format:
+{
+  "sections": [
+    {"name": "Error Messages", "start_line": 45, "end_line": 52},
+    {"name": "Range Statistics", "start_line": 234, "end_line": 256}
+  ]
+}
+"""
+    
+    prompt = template.replace("{file_type}", file_type.upper())
+    return f"{prompt}\n\nFile content:\n```\n{file_content}\n```"
 
 def build_review_prompt(qa_check: str, run_log: str, lst_content: str) -> str:
     lines = []

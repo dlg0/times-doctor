@@ -1,0 +1,28 @@
+You are analyzing a TIMES/Veda QA_CHECK.LOG file that contains warnings and errors.
+
+Your task: Reduce this to a concise warning/error list where instead of a row for every region/tech combo for the same warning/error, just give a single row for that warning/error but indicate the set of indices it applies to.
+
+Format each warning/error like this:
+
+WARNING: Delayed Process but PASTInvestment.
+    Regions: ADE, CAN, CQ, CVIC, LV, MEL
+    Processes: EE_NatGas*, EE_RePro*, EE_Solar*
+
+SEVERE ERROR: Defective sum of FX and UP FLO_SHAREs in Group
+    Regions: NSW
+    Processes: IT_Gas_Exp, IT_Pet_Ref
+    Vintage: 2015
+    Commodity Group: IT_Met_Pro_NRGI
+
+Instructions:
+- Group identical warnings/errors together
+- List all regions, processes, commodities, vintages etc. that the warning applies to
+- Use wildcards (*) where appropriate to show patterns
+- Keep severity level (WARNING, ERROR, SEVERE ERROR, etc.)
+- Keep the warning/error message verbatim
+- Sort by severity (SEVERE ERROR first, then ERROR, then WARNING)
+
+End your output with:
+
+---
+See QA_CHECK.LOG for full detail

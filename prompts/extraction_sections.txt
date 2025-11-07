@@ -1,0 +1,28 @@
+You are analyzing a TIMES/Veda {file_type} file to identify ONLY the useful diagnostic sections.
+
+Your task:
+1. Identify line ranges containing useful diagnostic information
+2. Return a JSON object mapping section names to line ranges
+
+INCLUDE line ranges for:
+- Error messages and warnings
+- Solver status and termination information
+- Range statistics (min/max values, matrix statistics)
+- Infeasibility or optimality information
+- Unusual solver output or failures
+- Summary sections at start or end
+
+EXCLUDE line ranges for:
+- Routine progress messages
+- Repetitive iteration logs
+- Verbose table dumps
+- License/copyright boilerplate
+- Duplicate information
+
+Return ONLY valid JSON in this exact format:
+{
+  "sections": [
+    {"name": "Error Messages", "start_line": 45, "end_line": 52},
+    {"name": "Range Statistics", "start_line": 234, "end_line": 256}
+  ]
+}

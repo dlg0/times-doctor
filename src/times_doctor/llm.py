@@ -519,6 +519,88 @@ def chunk_text_by_lines(text: str, max_chars: int = 100000, overlap_lines: int =
     
     return chunks
 
+def compress_qa_check(file_content: str, log_dir: Path = None, progress_callback=None) -> str:
+    """Compress QA_CHECK.LOG into grouped warnings/errors.
+    
+    Args:
+        file_content: Full QA_CHECK.LOG content
+        log_dir: Directory to save LLM call logs
+        progress_callback: Optional callback for progress updates
+    
+    Returns:
+        Compressed text with grouped warnings/errors
+    
+    Raises:
+        RuntimeError: If compression fails
+    """
+    from .prompts import build_qa_check_compress_prompt
+    
+    # Check if chunking is needed
+    needs_chunking = len(file_content) > 100000
+    
+    if needs_chunking:
+        chunks = chunk_text_by_lines(file_content, max_chars=100000, overlap_lines=50)
+        if progress_callback:
+            progress_callback(0, len(chunks), f"Processing {len(chunks)} chunks")
+        
+        compressed_parts = []
+        
+        for i, (chunk_text, start_line, end_line) in enumerate(chunks, 1):
+            if progress_callback:
+                progress_callback(i, len(chunks), f"Chunk {i}/{len(chunks)} (lines {start_line}-{end_line})")
+            
+            prompt = build_qa_check_compress_prompt(chunk_text)
+            
+            # Call LLM
+            api_keys = check_api_keys()
+            text = ""
+            meta = {}
+            
+            if api_keys["openai"]:
+                text, meta = _call_openai_responses_api(prompt, model="gpt-5-nano", reasoning_effort="medium")
+            elif api_keys["anthropic"]:
+                text, meta = _call_anthropic_api(prompt, model="claude-3-5-haiku-20241022")
+            else:
+                error_msg = "No OpenAI or Anthropic API key found"
+                log_llm_call(f"compress_qa_check_chunk{i}", prompt, "", {"error": error_msg}, log_dir)
+                raise RuntimeError(error_msg)
+            
+            log_llm_call(f"compress_qa_check_chunk{i}", prompt, text, meta, log_dir)
+            
+            if text:
+                # Remove the "See QA_CHECK.LOG for full detail" footer from chunks
+                text = text.replace("---\nSee QA_CHECK.LOG for full detail", "").strip()
+                compressed_parts.append(text)
+        
+        # Combine all compressed parts
+        result = "\n\n".join(compressed_parts)
+        result += "\n\n---\nSee QA_CHECK.LOG for full detail"
+        return result
+    
+    else:
+        # Single call for small files
+        prompt = build_qa_check_compress_prompt(file_content)
+        
+        api_keys = check_api_keys()
+        text = ""
+        meta = {}
+        
+        if api_keys["openai"]:
+            text, meta = _call_openai_responses_api(prompt, model="gpt-5-nano", reasoning_effort="medium")
+        elif api_keys["anthropic"]:
+            text, meta = _call_anthropic_api(prompt, model="claude-3-5-haiku-20241022")
+        else:
+            error_msg = "No OpenAI or Anthropic API key found"
+            log_llm_call("compress_qa_check", prompt, "", {"error": error_msg}, log_dir)
+            raise RuntimeError(error_msg)
+        
+        log_llm_call("compress_qa_check", prompt, text, meta, log_dir)
+        
+        if not text:
+            raise RuntimeError("Failed to compress QA_CHECK.LOG. LLM returned empty response.")
+        
+        return text
+
 def extract_useful_sections(file_content: str, file_type: str, log_dir: Path = None, progress_callback=None) -> dict:
     """Extract useful diagnostic sections from a log file using fast LLM.
     
