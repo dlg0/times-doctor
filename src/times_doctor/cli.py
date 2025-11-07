@@ -605,36 +605,6 @@ def review(
     if run_log: print(f"  ✓ {run_log_path.name} ({len(run_log)} chars)")
     if lst_text: print(f"  ✓ {lst.name} ({len(lst_text)} chars)")
     
-    api_keys = llm_mod.check_api_keys()
-    provider_status = []
-    if api_keys["openai"]: provider_status.append("OpenAI")
-    if api_keys["anthropic"]: provider_status.append("Anthropic")
-    if api_keys["amp"]: provider_status.append("Amp")
-    
-    print(f"\n[dim]Available providers: {', '.join(provider_status) if provider_status else 'none'}[/dim]")
-    
-    # Interactive model selection if not specified
-    selected_model = model
-    if not selected_model and llm.lower() in ("openai", "anthropic"):
-        models = []
-        if llm.lower() == "openai" and api_keys["openai"]:
-            models = llm_mod.list_openai_models()
-        elif llm.lower() == "anthropic" and api_keys["anthropic"]:
-            models = llm_mod.list_anthropic_models()
-        
-        if models:
-            print(f"\n[bold]Available {llm.upper()} models:[/bold]")
-            for i, m in enumerate(models, 1):
-                print(f"  {i}. {m}")
-            
-            choice = typer.prompt(f"\nSelect model (1-{len(models)})", type=int, default=1)
-            if 1 <= choice <= len(models):
-                selected_model = models[choice - 1]
-                print(f"[green]Selected: {selected_model}[/green]")
-            else:
-                selected_model = models[0]
-                print(f"[yellow]Invalid choice, using default: {selected_model}[/yellow]")
-    
     # Extract useful sections first
     print(f"\n[bold yellow]Extracting useful sections with fast LLM...[/bold yellow]")
     
@@ -669,6 +639,37 @@ def review(
     except Exception as e:
         print(f"[red]Error during extraction: {e}[/red]")
         raise typer.Exit(1)
+    
+    # Now select reasoning model
+    api_keys = llm_mod.check_api_keys()
+    provider_status = []
+    if api_keys["openai"]: provider_status.append("OpenAI")
+    if api_keys["anthropic"]: provider_status.append("Anthropic")
+    if api_keys["amp"]: provider_status.append("Amp")
+    
+    print(f"\n[dim]Available providers for reasoning: {', '.join(provider_status) if provider_status else 'none'}[/dim]")
+    
+    # Interactive model selection if not specified
+    selected_model = model
+    if not selected_model and llm.lower() in ("openai", "anthropic"):
+        models = []
+        if llm.lower() == "openai" and api_keys["openai"]:
+            models = llm_mod.list_openai_models()
+        elif llm.lower() == "anthropic" and api_keys["anthropic"]:
+            models = llm_mod.list_anthropic_models()
+        
+        if models:
+            print(f"\n[bold]Available {llm.upper()} models:[/bold]")
+            for i, m in enumerate(models, 1):
+                print(f"  {i}. {m}")
+            
+            choice = typer.prompt(f"\nSelect model (1-{len(models)})", type=int, default=1)
+            if 1 <= choice <= len(models):
+                selected_model = models[choice - 1]
+                print(f"[green]Selected: {selected_model}[/green]")
+            else:
+                selected_model = models[0]
+                print(f"[yellow]Invalid choice, using default: {selected_model}[/yellow]")
     
     print(f"\n[bold cyan]Sending useful sections to reasoning LLM:[/bold cyan]")
     if qa_check_useful:
