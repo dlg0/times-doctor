@@ -480,13 +480,53 @@ def summarize(diagnostics: dict, provider: str = "auto") -> LLMResult:
 
     return done("none", "")
 
-def extract_useful_sections(file_content: str, file_type: str, log_dir: Path = None) -> dict:
+def chunk_text_by_lines(text: str, max_chars: int = 100000, overlap_lines: int = 50) -> list[tuple[str, int, int]]:
+    """Split text into overlapping chunks.
+    
+    Args:
+        text: Full text content
+        max_chars: Maximum characters per chunk
+        overlap_lines: Number of lines to overlap between chunks
+    
+    Returns:
+        List of (chunk_text, start_line, end_line) tuples
+    """
+    lines = text.split('\n')
+    chunks = []
+    
+    start_idx = 0
+    while start_idx < len(lines):
+        # Calculate how many lines fit in this chunk
+        chunk_lines = []
+        char_count = 0
+        end_idx = start_idx
+        
+        for i in range(start_idx, len(lines)):
+            line = lines[i]
+            if char_count + len(line) + 1 > max_chars and chunk_lines:
+                break
+            chunk_lines.append(line)
+            char_count += len(line) + 1  # +1 for newline
+            end_idx = i
+        
+        chunk_text = '\n'.join(chunk_lines)
+        chunks.append((chunk_text, start_idx + 1, end_idx + 1))  # 1-indexed line numbers
+        
+        # Move start to next chunk with overlap
+        if end_idx >= len(lines) - 1:
+            break
+        start_idx = max(start_idx + 1, end_idx - overlap_lines)
+    
+    return chunks
+
+def extract_useful_sections(file_content: str, file_type: str, log_dir: Path = None, progress_callback=None) -> dict:
     """Extract useful diagnostic sections from a log file using fast LLM.
     
     Args:
         file_content: Full file content
         file_type: One of 'qa_check', 'run_log', 'lst'
         log_dir: Directory to save LLM call logs
+        progress_callback: Optional callback(current, total, message) for progress updates
     
     Returns:
         dict with 'sections' list of {name, start_line, end_line}
@@ -497,53 +537,150 @@ def extract_useful_sections(file_content: str, file_type: str, log_dir: Path = N
     from .prompts import build_extraction_prompt
     import re
     
-    # Add line numbers to content
-    lines = file_content.split('\n')
-    numbered_content = '\n'.join(f"{i+1}: {line}" for i, line in enumerate(lines))
+    # Check if chunking is needed (>100k chars)
+    needs_chunking = len(file_content) > 100000
     
-    prompt = build_extraction_prompt(numbered_content, file_type)
+    if needs_chunking:
+        chunks = chunk_text_by_lines(file_content, max_chars=100000, overlap_lines=50)
+        if progress_callback:
+            progress_callback(0, len(chunks), f"Processing {len(chunks)} chunks")
+        
+        all_sections = []
+        
+        for i, (chunk_text, start_line, end_line) in enumerate(chunks, 1):
+            if progress_callback:
+                progress_callback(i, len(chunks), f"Chunk {i}/{len(chunks)} (lines {start_line}-{end_line})")
+            
+            # Add line numbers to chunk
+            chunk_lines = chunk_text.split('\n')
+            numbered_content = '\n'.join(f"{start_line + j}: {line}" for j, line in enumerate(chunk_lines))
+            
+            prompt = build_extraction_prompt(numbered_content, file_type)
+            
+            # Call LLM for this chunk
+            api_keys = check_api_keys()
+            text = ""
+            meta = {}
+            
+            if api_keys["openai"]:
+                text, meta = _call_openai_responses_api(prompt, model="gpt-5-nano", reasoning_effort="medium")
+            elif api_keys["anthropic"]:
+                text, meta = _call_anthropic_api(prompt, model="claude-3-5-haiku-20241022")
+            else:
+                error_msg = "No OpenAI or Anthropic API key found. Extraction requires OPENAI_API_KEY or ANTHROPIC_API_KEY in .env file"
+                log_llm_call(f"extraction_{file_type}_chunk{i}", prompt, "", {"error": error_msg}, log_dir)
+                raise RuntimeError(error_msg)
+            
+            # Log the call
+            log_llm_call(f"extraction_{file_type}_chunk{i}", prompt, text, meta, log_dir)
+            
+            if not text:
+                continue  # Skip empty responses
+            
+            # Parse JSON response
+            json_match = re.search(r'\{[\s\S]*"sections"[\s\S]*\}', text)
+            if json_match:
+                json_str = json_match.group(0)
+            else:
+                json_str = text
+            
+            try:
+                result = json.loads(json_str)
+                if "sections" in result and isinstance(result["sections"], list):
+                    all_sections.extend(result["sections"])
+            except Exception:
+                continue  # Skip failed parses, don't fail whole extraction
+        
+        # Merge and deduplicate sections
+        merged_sections = _merge_sections(all_sections)
+        return {"sections": merged_sections}
     
-    # Determine which fast model to use
-    api_keys = check_api_keys()
-    
-    text = ""
-    meta = {}
-    error_msg = ""
-    
-    if api_keys["openai"]:
-        # Use GPT-5 nano with medium reasoning effort for fast extraction
-        text, meta = _call_openai_responses_api(prompt, model="gpt-5-nano", reasoning_effort="medium")
-    elif api_keys["anthropic"]:
-        # Use Haiku (fastest Anthropic model)
-        text, meta = _call_anthropic_api(prompt, model="claude-3-5-haiku-20241022")
     else:
-        error_msg = "No OpenAI or Anthropic API key found. Extraction requires OPENAI_API_KEY or ANTHROPIC_API_KEY in .env file"
-        log_llm_call(f"extraction_{file_type}", prompt, "", {"error": error_msg}, log_dir)
-        raise RuntimeError(error_msg)
+        # Original single-call logic for small files
+        lines = file_content.split('\n')
+        numbered_content = '\n'.join(f"{i+1}: {line}" for i, line in enumerate(lines))
+        
+        prompt = build_extraction_prompt(numbered_content, file_type)
+        
+        # Determine which fast model to use
+        api_keys = check_api_keys()
+        
+        text = ""
+        meta = {}
+        error_msg = ""
+        
+        if api_keys["openai"]:
+            text, meta = _call_openai_responses_api(prompt, model="gpt-5-nano", reasoning_effort="medium")
+        elif api_keys["anthropic"]:
+            text, meta = _call_anthropic_api(prompt, model="claude-3-5-haiku-20241022")
+        else:
+            error_msg = "No OpenAI or Anthropic API key found. Extraction requires OPENAI_API_KEY or ANTHROPIC_API_KEY in .env file"
+            log_llm_call(f"extraction_{file_type}", prompt, "", {"error": error_msg}, log_dir)
+            raise RuntimeError(error_msg)
+        
+        # Log the call
+        log_llm_call(f"extraction_{file_type}", prompt, text, meta, log_dir)
+        
+        if not text:
+            error_msg = f"Failed to extract useful sections from {file_type}. LLM returned empty response."
+            raise RuntimeError(error_msg)
+        
+        # Parse JSON response
+        json_match = re.search(r'\{[\s\S]*"sections"[\s\S]*\}', text)
+        if json_match:
+            json_str = json_match.group(0)
+        else:
+            json_str = text
+        
+        try:
+            result = json.loads(json_str)
+            if "sections" not in result or not isinstance(result["sections"], list):
+                raise ValueError("Invalid JSON structure")
+            return result
+        except Exception as e:
+            error_msg = f"Failed to parse extraction JSON from {file_type}: {e}\nLLM response: {text[:500]}"
+            raise RuntimeError(error_msg)
+
+def _merge_sections(sections: list[dict]) -> list[dict]:
+    """Merge and deduplicate extracted sections.
     
-    # Log the call
-    log_llm_call(f"extraction_{file_type}", prompt, text, meta, log_dir)
+    Removes overlapping sections and sorts by start_line.
+    """
+    if not sections:
+        return []
     
-    if not text:
-        error_msg = f"Failed to extract useful sections from {file_type}. LLM returned empty response."
-        raise RuntimeError(error_msg)
+    # Sort by start_line
+    sorted_sections = sorted(sections, key=lambda s: s.get("start_line", 0))
     
-    # Parse JSON response
-    # Try to extract JSON from response (in case LLM wrapped it in markdown)
-    json_match = re.search(r'\{[\s\S]*"sections"[\s\S]*\}', text)
-    if json_match:
-        json_str = json_match.group(0)
-    else:
-        json_str = text
+    # Merge overlapping or adjacent sections with same name
+    merged = []
+    for section in sorted_sections:
+        if not merged:
+            merged.append(section)
+            continue
+        
+        last = merged[-1]
+        # If sections overlap or are adjacent and have similar names, merge them
+        if (section.get("start_line", 0) <= last.get("end_line", 0) + 10 and
+            _similar_names(last.get("name", ""), section.get("name", ""))):
+            # Extend the last section
+            last["end_line"] = max(last.get("end_line", 0), section.get("end_line", 0))
+            # Combine names if different
+            if last.get("name") != section.get("name"):
+                last["name"] = f"{last.get('name')} / {section.get('name')}"
+        else:
+            merged.append(section)
     
-    try:
-        result = json.loads(json_str)
-        if "sections" not in result or not isinstance(result["sections"], list):
-            raise ValueError("Invalid JSON structure")
-        return result
-    except Exception as e:
-        error_msg = f"Failed to parse extraction JSON from {file_type}: {e}\nLLM response: {text[:500]}"
-        raise RuntimeError(error_msg)
+    return merged
+
+def _similar_names(name1: str, name2: str) -> bool:
+    """Check if two section names are similar enough to merge."""
+    if name1 == name2:
+        return True
+    # Check if one is substring of other
+    if name1 in name2 or name2 in name1:
+        return True
+    return False
 
 def create_useful_markdown(file_lines: list[str], sections: list[dict], file_type: str) -> str:
     """Create markdown file with extracted useful sections.

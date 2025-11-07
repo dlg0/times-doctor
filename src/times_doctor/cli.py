@@ -622,7 +622,14 @@ def review(
     try:
         if qa_check:
             print(f"[dim]  Extracting from QA_CHECK.LOG...[/dim]")
-            sections = llm_mod.extract_useful_sections(qa_check, "qa_check", log_dir=llm_log_dir)
+            
+            def qa_progress(current, total, message):
+                if current == 0:
+                    print(f"[dim]    {message}[/dim]")
+                else:
+                    print(f"[dim]    {message}[/dim]")
+            
+            sections = llm_mod.extract_useful_sections(qa_check, "qa_check", log_dir=llm_log_dir, progress_callback=qa_progress)
             qa_check_useful = llm_mod.create_useful_markdown(qa_check.split('\n'), sections["sections"], "qa_check")
             qa_check_useful_path = rd / "QA_CHECK_useful.md"
             qa_check_useful_path.write_text(qa_check_useful, encoding="utf-8")
@@ -630,7 +637,14 @@ def review(
         
         if run_log:
             print(f"[dim]  Extracting from {run_log_path.name}...[/dim]")
-            sections = llm_mod.extract_useful_sections(run_log, "run_log", log_dir=llm_log_dir)
+            
+            def runlog_progress(current, total, message):
+                if current == 0:
+                    print(f"[dim]    {message}[/dim]")
+                else:
+                    print(f"[dim]    {message}[/dim]")
+            
+            sections = llm_mod.extract_useful_sections(run_log, "run_log", log_dir=llm_log_dir, progress_callback=runlog_progress)
             run_log_useful = llm_mod.create_useful_markdown(run_log.split('\n'), sections["sections"], "run_log")
             run_log_useful_path = rd / f"{run_log_path.stem}_useful.md"
             run_log_useful_path.write_text(run_log_useful, encoding="utf-8")
@@ -638,7 +652,14 @@ def review(
         
         if lst_text:
             print(f"[dim]  Extracting from {lst.name}...[/dim]")
-            sections = llm_mod.extract_useful_sections(lst_text, "lst", log_dir=llm_log_dir)
+            
+            def lst_progress(current, total, message):
+                if current == 0:
+                    print(f"[dim]    {message}[/dim]")
+                else:
+                    print(f"[dim]    {message}[/dim]")
+            
+            sections = llm_mod.extract_useful_sections(lst_text, "lst", log_dir=llm_log_dir, progress_callback=lst_progress)
             lst_useful = llm_mod.create_useful_markdown(lst_text.split('\n'), sections["sections"], "lst")
             lst_useful_path = rd / f"{lst.stem}_useful.md"
             lst_useful_path.write_text(lst_useful, encoding="utf-8")
