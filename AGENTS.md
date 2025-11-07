@@ -86,7 +86,19 @@ Add to MCP config (e.g., `~/.config/claude/config.json`):
 
 Then use `mcp__beads__*` functions instead of CLI commands.
 
-### Managing AI-Generated Planning Documents
+### Testing
+
+Run tests with:
+```bash
+uv run pytest                    # All tests
+uv run pytest -v                 # Verbose
+uv run pytest -k llm             # Only LLM tests
+uv run pytest --cov              # With coverage
+```
+
+See [TESTING.md](TESTING.md) for full testing strategy.
+
+## Managing AI-Generated Planning Documents
 
 AI assistants often create planning and design documents during development:
 - PLAN.md, IMPLEMENTATION.md, ARCHITECTURE.md
