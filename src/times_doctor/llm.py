@@ -567,6 +567,49 @@ def summarize(diagnostics: dict, provider: str = "auto") -> LLMResult:
 
     return done("none", "")
 
+def _extract_lst_pages(file_content: str, progress_callback=None) -> dict:
+    """Extract specific pages from GAMS .lst file.
+    
+    .lst files are already divided into pages with lines like:
+    GAMS 49.6.1  55d34574 May 28, 2025          WEX-WEI x86 64bit/MS Windows - 11/07/25 18:59:17 Page 5
+    
+    We extract only pages 1, 2, 5, 6, 7, 8 which contain useful diagnostic info.
+    """
+    import re
+    
+    lines = file_content.split('\n')
+    
+    # Find all page breaks with their line numbers
+    page_breaks = []
+    page_pattern = re.compile(r'GAMS\s+[\d.]+\s+.*\s+Page\s+(\d+)')
+    
+    for i, line in enumerate(lines, 1):
+        match = page_pattern.search(line)
+        if match:
+            page_num = int(match.group(1))
+            page_breaks.append((i, page_num))
+    
+    if progress_callback:
+        progress_callback(1, 1, f"Found {len(page_breaks)} pages in .lst file")
+    
+    # Extract pages 1, 2, 5, 6, 7, 8
+    wanted_pages = {1, 2, 5, 6, 7, 8}
+    sections = []
+    
+    for i, (line_num, page_num) in enumerate(page_breaks):
+        if page_num in wanted_pages:
+            # Determine end line (either next page break or end of file)
+            end_line = page_breaks[i + 1][0] - 1 if i + 1 < len(page_breaks) else len(lines)
+            
+            sections.append({
+                "name": f"Page {page_num}",
+                "start_line": line_num,
+                "end_line": end_line
+            })
+    
+    return {"sections": sections}
+
+
 def chunk_text_by_lines(text: str, max_chars: int = 100000, overlap_lines: int = 50) -> list[tuple[str, int, int]]:
     """Split text into overlapping chunks.
     
@@ -706,6 +749,10 @@ def extract_useful_sections(file_content: str, file_type: str, log_dir: Path = N
     """
     from .prompts import build_extraction_prompt
     import re
+    
+    # Special handling for .lst files - they're already paginated
+    if file_type == "lst":
+        return _extract_lst_pages(file_content, progress_callback)
     
     # Check if chunking is needed (300k chars ~= 75k tokens, staying well under 400k token limit)
     needs_chunking = len(file_content) > 300000
