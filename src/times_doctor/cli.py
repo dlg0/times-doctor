@@ -108,14 +108,27 @@ def run_gams_with_progress(cmd: list[str], cwd: str, max_lines: int = 4) -> int:
     """Run GAMS and show live tail of output."""
     import threading
     
-    proc = subprocess.Popen(
-        cmd,
-        cwd=cwd,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=False,
-        bufsize=0
-    )
+    # Log the command being run
+    console.print(f"[dim]Working directory: {cwd}[/dim]")
+    console.print(f"[dim]Command: {' '.join(cmd)}[/dim]")
+    
+    try:
+        proc = subprocess.Popen(
+            cmd,
+            cwd=cwd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=False,
+            bufsize=0
+        )
+        console.print(f"[dim]GAMS process started (PID: {proc.pid})[/dim]")
+    except FileNotFoundError as e:
+        console.print(f"[red]Error: GAMS executable not found: {cmd[0]}[/red]")
+        console.print(f"[yellow]Make sure GAMS is installed and in PATH, or use --gams-path[/yellow]")
+        raise
+    except Exception as e:
+        console.print(f"[red]Error starting GAMS: {e}[/red]")
+        raise
     
     lines = []
     display_text = Text("Starting GAMS...", style="dim")
@@ -126,19 +139,28 @@ def run_gams_with_progress(cmd: list[str], cwd: str, max_lines: int = 4) -> int:
                 line_str = line.decode('utf-8', errors='ignore').rstrip()
                 if line_str:
                     lines.append(line_str)
-            except Exception:
+            except Exception as e:
+                console.print(f"[red]Error reading GAMS output: {e}[/red]")
                 pass
     
     reader = threading.Thread(target=read_output, daemon=True)
     reader.start()
     
     with Live(display_text, console=console, refresh_per_second=2) as live:
+        import time
+        iterations = 0
         while proc.poll() is None:
+            iterations += 1
             if lines:
                 display_lines = lines[-max_lines:]
                 display_text = Text("\n".join(display_lines))
                 live.update(display_text)
-            import time
+            else:
+                # Show periodic heartbeat if no output
+                if iterations % 10 == 0:
+                    elapsed = iterations * 0.5
+                    display_text = Text(f"Waiting for GAMS output... ({elapsed:.0f}s elapsed, {len(lines)} lines so far)", style="dim yellow")
+                    live.update(display_text)
             time.sleep(0.5)
         
         # One final update after process ends
@@ -148,6 +170,8 @@ def run_gams_with_progress(cmd: list[str], cwd: str, max_lines: int = 4) -> int:
             live.update(display_text)
     
     reader.join(timeout=1)
+    console.print(f"[dim]GAMS process exited with code: {proc.returncode}[/dim]")
+    console.print(f"[dim]Total output lines captured: {len(lines)}[/dim]")
     return proc.returncode
 
 def parse_range_stats(text: str) -> dict:
@@ -516,7 +540,11 @@ def review(
         print(f"[red]Failed to get LLM response. Check API keys and connectivity.[/red]")
         raise typer.Exit(1)
     
-    print("\n")  # New line after streaming output
+    # If no text was streamed (fallback to non-streaming), print the full result now
+    if not accumulated_text and result.text:
+        print(result.text)
+    
+    print("\n")  # New line after output
     
     print(f"\n[bold cyan]LLM Provider:[/bold cyan] {result.provider}")
     if result.model:
