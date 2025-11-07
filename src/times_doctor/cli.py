@@ -107,10 +107,15 @@ def ensure_out(run_dir: Path) -> Path:
 def run_gams_with_progress(cmd: list[str], cwd: str, max_lines: int = 4) -> int:
     """Run GAMS and show live tail of output."""
     import threading
+    from pathlib import Path
     
     # Log the command being run
     console.print(f"[dim]Working directory: {cwd}[/dim]")
     console.print(f"[dim]Command: {' '.join(cmd)}[/dim]")
+    
+    # Find the .lst file that will be created
+    cwd_path = Path(cwd)
+    lst_files_before = set(cwd_path.glob("*.lst"))
     
     try:
         proc = subprocess.Popen(
@@ -131,6 +136,8 @@ def run_gams_with_progress(cmd: list[str], cwd: str, max_lines: int = 4) -> int:
         raise
     
     lines = []
+    log_file_lines = []
+    current_lst_file = None
     display_text = Text("Starting GAMS...", style="dim")
     
     def read_output():
@@ -155,8 +162,32 @@ def run_gams_with_progress(cmd: list[str], cwd: str, max_lines: int = 4) -> int:
             has_psutil = False
         
         iterations = 0
+        last_log_check = 0
         while proc.poll() is None:
             iterations += 1
+            
+            # Try to find and tail the .lst file if no stdout
+            if not lines and iterations - last_log_check > 4:  # Check every 2 seconds
+                last_log_check = iterations
+                nonlocal current_lst_file
+                if not current_lst_file:
+                    lst_files_after = set(cwd_path.glob("*.lst"))
+                    new_files = lst_files_after - lst_files_before
+                    if new_files:
+                        current_lst_file = max(new_files, key=lambda p: p.stat().st_mtime)
+                        console.print(f"[dim]Found log file: {current_lst_file.name}[/dim]")
+                
+                # Read from log file if available
+                if current_lst_file and current_lst_file.exists():
+                    try:
+                        with open(current_lst_file, 'r', encoding='utf-8', errors='ignore') as f:
+                            new_content = f.readlines()
+                            if len(new_content) > len(log_file_lines):
+                                log_file_lines = new_content
+                                lines = [l.rstrip() for l in new_content if l.strip()]
+                    except:
+                        pass
+            
             if lines:
                 display_lines = lines[-max_lines:]
                 display_text = Text("\n".join(display_lines))
@@ -165,14 +196,23 @@ def run_gams_with_progress(cmd: list[str], cwd: str, max_lines: int = 4) -> int:
                 # Show periodic heartbeat if no output
                 if iterations % 10 == 0:
                     elapsed = iterations * 0.5
-                    # Check if process is actually doing work
+                    # Check if process is actually doing work (including child processes)
                     if has_psutil:
                         try:
                             p = psutil.Process(proc.pid)
                             cpu_percent = p.cpu_percent(interval=0.1)
                             mem_mb = p.memory_info().rss / 1024 / 1024
+                            
+                            # Check for child processes (GAMS spawns gmsgennx.exe on Windows)
+                            children = p.children(recursive=True)
+                            child_info = ""
+                            if children:
+                                child_cpu = sum(c.cpu_percent(interval=0.1) for c in children)
+                                child_mem = sum(c.memory_info().rss for c in children) / 1024 / 1024
+                                child_info = f" + {len(children)} child(s) (CPU: {child_cpu:.1f}%, Mem: {child_mem:.0f}MB)"
+                            
                             display_text = Text(
-                                f"Waiting for GAMS output... ({elapsed:.0f}s, CPU: {cpu_percent:.1f}%, Mem: {mem_mb:.0f}MB, {len(lines)} lines)",
+                                f"GAMS running... ({elapsed:.0f}s, Parent CPU: {cpu_percent:.1f}%, Mem: {mem_mb:.0f}MB{child_info})",
                                 style="dim yellow"
                             )
                         except:
