@@ -113,9 +113,9 @@ def run_gams_with_progress(cmd: list[str], cwd: str, max_lines: int = 30) -> int
     console.print(f"[dim]Working directory: {cwd}[/dim]")
     console.print(f"[dim]Command: {' '.join(cmd)}[/dim]")
     
-    # Find the .log file that will be created
+    # Find the _run_log.txt file that will be created
     cwd_path = Path(cwd)
-    log_files_before = set(cwd_path.glob("*.log"))
+    log_files_before = set(cwd_path.glob("*_run_log.txt"))
     
     try:
         proc = subprocess.Popen(
@@ -170,8 +170,8 @@ def run_gams_with_progress(cmd: list[str], cwd: str, max_lines: int = 30) -> int
             if iterations - last_log_check > 4:  # Check every 2 seconds
                 last_log_check = iterations
                 if not current_log_file:
-                    # Try .log first, then .lst files as fallback
-                    log_files_after = set(cwd_path.glob("*.log"))
+                    # Try _run_log.txt first, then .lst files as fallback
+                    log_files_after = set(cwd_path.glob("*_run_log.txt"))
                     new_files = log_files_after - log_files_before
                     if not new_files:
                         # Fallback to .lst files
@@ -353,6 +353,7 @@ def diagnose(
             "LP=CPLEX",
             "OPTFILE=1",
             "LOGOPTION=2",
+            f"logfile={tmp.name}_run_log.txt",
             f"--GDXPATH={gdx_dir}/",
             "--ERR_ABORT=NO"
         ], cwd=str(tmp))
@@ -477,6 +478,7 @@ def scan(
             "LP=CPLEX",
             "OPTFILE=1",
             "LOGOPTION=2",
+            f"logfile={wdir.name}_run_log.txt",
             f"--GDXPATH={wdir_gdx_dir}/",
             "--ERR_ABORT=NO"
         ], cwd=str(wdir))
@@ -632,6 +634,14 @@ def review(
             else:
                 selected_model = models[0]
                 print(f"[yellow]Invalid choice, using default: {selected_model}[/yellow]")
+    
+    print(f"\n[bold cyan]Sending to LLM:[/bold cyan]")
+    if qa_check_path and qa_check_path.exists():
+        print(f"  • {qa_check_path}")
+    if run_log_path and run_log_path.exists():
+        print(f"  • {run_log_path}")
+    if lst and lst.exists():
+        print(f"  • {lst}")
     
     print(f"\n[bold green]LLM Review:[/bold green]")
     
