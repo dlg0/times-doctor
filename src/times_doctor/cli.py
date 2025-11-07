@@ -200,6 +200,7 @@ def diagnose(
         gdx_dir = tmp / "GAMSSAVE"
         gdx_file = gdx_dir / f"{tmp.name}.gdx"
         
+        print(f"[yellow]Running GAMS datacheck with {threads} threads (this may take several minutes)...[/yellow]")
         subprocess.run([
             gams_cmd, tmp_driver.name,
             f"r={restart_file}",
@@ -215,6 +216,7 @@ def diagnose(
             "--ERR_ABORT=NO"  # Bypass TIMES error abort checks
         ], cwd=str(tmp))
         
+        print("[green]GAMS datacheck complete[/green]")
         lst = latest_lst(tmp)
         lst_text = read_text(lst) if lst else lst_text
 
@@ -322,6 +324,7 @@ def scan(
         wdir_gdx_dir = wdir / "GAMSSAVE"
         wdir_gdx_file = wdir_gdx_dir / f"{wdir.name}.gdx"
         
+        print(f"[yellow]Running profile '{p}' (this may take several minutes)...[/yellow]")
         subprocess.run([
             gams_cmd, wdir_driver.name,
             f"r={restart_file}",
