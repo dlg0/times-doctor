@@ -436,8 +436,8 @@ def extract_useful_sections(file_content: str, file_type: str, log_dir: Path = N
     error_msg = ""
     
     if api_keys["openai"]:
-        # Use fastest available chat model (gpt-4o-mini is fast and cheap)
-        text, meta = _call_openai_api(prompt, model="gpt-4o-mini")
+        # Use fast GPT-5 chat model (non-reasoning)
+        text, meta = _call_openai_api(prompt, model="gpt-5-mini-chat")
     elif api_keys["anthropic"]:
         # Use Haiku (fastest Anthropic model)
         text, meta = _call_anthropic_api(prompt, model="claude-3-5-haiku-20241022")
