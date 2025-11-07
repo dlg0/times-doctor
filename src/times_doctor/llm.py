@@ -101,37 +101,44 @@ def _call_openai_api(prompt: str, model: str = "", stream_callback=None) -> tupl
         timeout_seconds = 300 if model.startswith("gpt-5") or "pro" in model else 120
         
         if stream_callback:
-            # Streaming mode
-            full_text = ""
-            input_tokens = 0
-            output_tokens = 0
-            
-            with httpx.stream("POST", url, headers=headers, json=payload, timeout=timeout_seconds) as r:
-                if r.status_code != 200:
-                    error_msg = f"OpenAI API error {r.status_code}"
-                    print(f"[dim]{error_msg}[/dim]")
-                    return "", {}
+            # Try streaming mode first
+            try:
+                full_text = ""
+                input_tokens = 0
+                output_tokens = 0
                 
-                for line in r.iter_lines():
-                    if not line or line == "data: [DONE]":
-                        continue
-                    if line.startswith("data: "):
-                        try:
-                            import json
-                            chunk = json.loads(line[6:])
-                            delta = chunk.get("choices", [{}])[0].get("delta", {})
-                            content = delta.get("content", "")
-                            if content:
-                                full_text += content
-                                stream_callback(content)
-                            
-                            # Extract usage from the last chunk if available
-                            if "usage" in chunk:
-                                usage = chunk["usage"]
-                                input_tokens = usage.get("prompt_tokens", 0)
-                                output_tokens = usage.get("completion_tokens", 0)
-                        except Exception:
+                with httpx.stream("POST", url, headers=headers, json=payload, timeout=timeout_seconds) as r:
+                    if r.status_code != 200:
+                        # Fall back to non-streaming on error
+                        print(f"[dim]Streaming not available, using non-streaming mode...[/dim]")
+                        payload["stream"] = False
+                        return _call_openai_api(prompt, model=model, stream_callback=None)
+                
+                    for line in r.iter_lines():
+                        if not line or line == "data: [DONE]":
                             continue
+                        if line.startswith("data: "):
+                            try:
+                                import json
+                                chunk = json.loads(line[6:])
+                                delta = chunk.get("choices", [{}])[0].get("delta", {})
+                                content = delta.get("content", "")
+                                if content:
+                                    full_text += content
+                                    stream_callback(content)
+                                
+                                # Extract usage from the last chunk if available
+                                if "usage" in chunk:
+                                    usage = chunk["usage"]
+                                    input_tokens = usage.get("prompt_tokens", 0)
+                                    output_tokens = usage.get("completion_tokens", 0)
+                            except Exception:
+                                continue
+            except Exception as e:
+                # Fall back to non-streaming on any error
+                print(f"[dim]Streaming error, falling back to non-streaming mode...[/dim]")
+                payload["stream"] = False
+                return _call_openai_api(prompt, model=model, stream_callback=None)
             
             # Calculate cost
             cost_per_1k_input = {
