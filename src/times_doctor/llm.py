@@ -1,9 +1,45 @@
-import os, subprocess
+import os, subprocess, json
 from pathlib import Path
+from datetime import datetime
 
 def which(cmd: str):
     from shutil import which as _w
     return _w(cmd)
+
+def log_llm_call(call_type: str, prompt: str, response: str, metadata: dict, log_dir: Path = None):
+    """Log LLM call details to _llm_calls folder for debugging.
+    
+    Args:
+        call_type: Type of call (e.g., 'extraction_qa_check', 'review', 'diagnose')
+        prompt: The prompt sent to the LLM
+        response: The response from the LLM (or error message)
+        metadata: Dict with model, provider, tokens, cost, error info, etc.
+        log_dir: Directory to save logs (defaults to cwd/_llm_calls)
+    """
+    if log_dir is None:
+        log_dir = Path.cwd() / "_llm_calls"
+    
+    log_dir.mkdir(exist_ok=True)
+    
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-3]  # milliseconds
+    log_file = log_dir / f"{timestamp}_{call_type}.json"
+    
+    log_data = {
+        "timestamp": datetime.now().isoformat(),
+        "call_type": call_type,
+        "metadata": metadata,
+        "prompt": prompt,
+        "response": response,
+        "prompt_length": len(prompt),
+        "response_length": len(response)
+    }
+    
+    try:
+        with open(log_file, 'w', encoding='utf-8') as f:
+            json.dump(log_data, f, indent=2, ensure_ascii=False)
+    except Exception as e:
+        # Don't fail the main operation if logging fails
+        print(f"[dim]Warning: Failed to log LLM call: {e}[/dim]")
 
 def load_env():
     try:
@@ -369,12 +405,13 @@ def summarize(diagnostics: dict, provider: str = "auto") -> LLMResult:
 
     return done("none", "")
 
-def extract_useful_sections(file_content: str, file_type: str) -> dict:
+def extract_useful_sections(file_content: str, file_type: str, log_dir: Path = None) -> dict:
     """Extract useful diagnostic sections from a log file using fast LLM.
     
     Args:
         file_content: Full file content
         file_type: One of 'qa_check', 'run_log', 'lst'
+        log_dir: Directory to save LLM call logs
     
     Returns:
         dict with 'sections' list of {name, start_line, end_line}
@@ -383,6 +420,7 @@ def extract_useful_sections(file_content: str, file_type: str) -> dict:
         RuntimeError: If extraction fails
     """
     from .prompts import build_extraction_prompt
+    import re
     
     # Add line numbers to content
     lines = file_content.split('\n')
@@ -395,23 +433,27 @@ def extract_useful_sections(file_content: str, file_type: str) -> dict:
     
     text = ""
     meta = {}
+    error_msg = ""
     
     if api_keys["openai"]:
-        # Use fastest GPT-5 chat model (non-reasoning)
-        text, meta = _call_openai_api(prompt, model="gpt-5-nano-chat")
+        # Use fastest available chat model (gpt-4o-mini is fast and cheap)
+        text, meta = _call_openai_api(prompt, model="gpt-4o-mini")
     elif api_keys["anthropic"]:
         # Use Haiku (fastest Anthropic model)
         text, meta = _call_anthropic_api(prompt, model="claude-3-5-haiku-20241022")
     else:
-        raise RuntimeError("No OpenAI or Anthropic API key found. Extraction requires OPENAI_API_KEY or ANTHROPIC_API_KEY in .env file")
+        error_msg = "No OpenAI or Anthropic API key found. Extraction requires OPENAI_API_KEY or ANTHROPIC_API_KEY in .env file"
+        log_llm_call(f"extraction_{file_type}", prompt, "", {"error": error_msg}, log_dir)
+        raise RuntimeError(error_msg)
+    
+    # Log the call
+    log_llm_call(f"extraction_{file_type}", prompt, text, meta, log_dir)
     
     if not text:
-        raise RuntimeError(f"Failed to extract useful sections from {file_type}. LLM returned empty response.")
+        error_msg = f"Failed to extract useful sections from {file_type}. LLM returned empty response."
+        raise RuntimeError(error_msg)
     
     # Parse JSON response
-    import json
-    import re
-    
     # Try to extract JSON from response (in case LLM wrapped it in markdown)
     json_match = re.search(r'\{[\s\S]*"sections"[\s\S]*\}', text)
     if json_match:
@@ -425,7 +467,8 @@ def extract_useful_sections(file_content: str, file_type: str) -> dict:
             raise ValueError("Invalid JSON structure")
         return result
     except Exception as e:
-        raise RuntimeError(f"Failed to parse extraction JSON from {file_type}: {e}\nLLM response: {text[:500]}")
+        error_msg = f"Failed to parse extraction JSON from {file_type}: {e}\nLLM response: {text[:500]}"
+        raise RuntimeError(error_msg)
 
 def create_useful_markdown(file_lines: list[str], sections: list[dict], file_type: str) -> str:
     """Create markdown file with extracted useful sections.
@@ -468,11 +511,15 @@ def create_useful_markdown(file_lines: list[str], sections: list[dict], file_typ
     
     return "\n".join(md_lines)
 
-def review_files(qa_check: str, run_log: str, lst_content: str, provider: str = "auto", model: str = "", stream_callback=None) -> LLMResult:
+def review_files(qa_check: str, run_log: str, lst_content: str, provider: str = "auto", model: str = "", stream_callback=None, log_dir: Path = None) -> LLMResult:
     from .prompts import build_review_prompt
     prompt = build_review_prompt(qa_check, run_log, lst_content)
 
     def done(name, text, meta=None):
+        # Log the call
+        log_meta = meta if meta else {"provider": name}
+        log_llm_call("review", prompt, text, log_meta, log_dir)
+        
         if meta:
             return LLMResult(
                 text=text, 

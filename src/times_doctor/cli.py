@@ -606,7 +606,9 @@ def review(
     if lst_text: print(f"  ✓ {lst.name} ({len(lst_text)} chars)")
     
     # Extract useful sections first
+    llm_log_dir = rd / "_llm_calls"
     print(f"\n[bold yellow]Extracting useful sections with fast LLM...[/bold yellow]")
+    print(f"[dim](LLM calls logged to {llm_log_dir})[/dim]")
     
     qa_check_useful = ""
     run_log_useful = ""
@@ -615,7 +617,7 @@ def review(
     try:
         if qa_check:
             print(f"[dim]  Extracting from QA_CHECK.LOG...[/dim]")
-            sections = llm_mod.extract_useful_sections(qa_check, "qa_check")
+            sections = llm_mod.extract_useful_sections(qa_check, "qa_check", log_dir=llm_log_dir)
             qa_check_useful = llm_mod.create_useful_markdown(qa_check.split('\n'), sections["sections"], "qa_check")
             qa_check_useful_path = rd / "QA_CHECK_useful.md"
             qa_check_useful_path.write_text(qa_check_useful, encoding="utf-8")
@@ -623,7 +625,7 @@ def review(
         
         if run_log:
             print(f"[dim]  Extracting from {run_log_path.name}...[/dim]")
-            sections = llm_mod.extract_useful_sections(run_log, "run_log")
+            sections = llm_mod.extract_useful_sections(run_log, "run_log", log_dir=llm_log_dir)
             run_log_useful = llm_mod.create_useful_markdown(run_log.split('\n'), sections["sections"], "run_log")
             run_log_useful_path = rd / f"{run_log_path.stem}_useful.md"
             run_log_useful_path.write_text(run_log_useful, encoding="utf-8")
@@ -631,13 +633,14 @@ def review(
         
         if lst_text:
             print(f"[dim]  Extracting from {lst.name}...[/dim]")
-            sections = llm_mod.extract_useful_sections(lst_text, "lst")
+            sections = llm_mod.extract_useful_sections(lst_text, "lst", log_dir=llm_log_dir)
             lst_useful = llm_mod.create_useful_markdown(lst_text.split('\n'), sections["sections"], "lst")
             lst_useful_path = rd / f"{lst.stem}_useful.md"
             lst_useful_path.write_text(lst_useful, encoding="utf-8")
             print(f"[green]  ✓ Saved {lst_useful_path}[/green]")
     except Exception as e:
         print(f"[red]Error during extraction: {e}[/red]")
+        print(f"[yellow]Check {llm_log_dir} for detailed logs[/yellow]")
         raise typer.Exit(1)
     
     # Now select reasoning model
@@ -693,7 +696,7 @@ def review(
         # Print chunk directly for live streaming
         print(chunk, end="", flush=True)
     
-    result = llm_mod.review_files(qa_check_useful, run_log_useful, lst_useful, provider=llm, model=selected_model, stream_callback=stream_handler)
+    result = llm_mod.review_files(qa_check_useful, run_log_useful, lst_useful, provider=llm, model=selected_model, stream_callback=stream_handler, log_dir=llm_log_dir)
     
     if not result.used:
         print(f"[red]Failed to get LLM response. Check API keys and connectivity.[/red]")
