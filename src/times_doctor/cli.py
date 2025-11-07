@@ -496,13 +496,27 @@ def review(
                 selected_model = models[0]
                 print(f"[yellow]Invalid choice, using default: {selected_model}[/yellow]")
     
-    print(f"[yellow]Sending to LLM for review...[/yellow]")
+    print(f"\n[bold green]LLM Review:[/bold green]")
     
-    result = llm_mod.review_files(qa_check, run_log, lst_text, provider=llm, model=selected_model)
+    # Stream the response and display it live
+    from rich.console import Console
+    from rich.markdown import Markdown
+    console_out = Console()
+    accumulated_text = ""
+    
+    def stream_handler(chunk: str):
+        nonlocal accumulated_text
+        accumulated_text += chunk
+        # Print chunk directly for live streaming
+        print(chunk, end="", flush=True)
+    
+    result = llm_mod.review_files(qa_check, run_log, lst_text, provider=llm, model=selected_model, stream_callback=stream_handler)
     
     if not result.used:
         print(f"[red]Failed to get LLM response. Check API keys and connectivity.[/red]")
         raise typer.Exit(1)
+    
+    print("\n")  # New line after streaming output
     
     print(f"\n[bold cyan]LLM Provider:[/bold cyan] {result.provider}")
     if result.model:
@@ -516,8 +530,6 @@ def review(
     review_path = out / "llm_review.md"
     review_path.write_text(result.text, encoding="utf-8")
     
-    print(f"\n[bold green]LLM Review:[/bold green]")
-    print(result.text)
     print(f"\n[green]Saved to {review_path}[/green]")
 
 @app.command()

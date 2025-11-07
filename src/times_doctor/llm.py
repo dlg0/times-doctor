@@ -65,7 +65,7 @@ def _call_cli(cli: str, prompt: str) -> str:
     except Exception:
         return ""
 
-def _call_openai_api(prompt: str, model: str = "") -> tuple[str, dict]:
+def _call_openai_api(prompt: str, model: str = "", stream_callback=None) -> tuple[str, dict]:
     key = os.environ.get("OPENAI_API_KEY","")
     if not key:
         return "", {}
@@ -86,7 +86,8 @@ def _call_openai_api(prompt: str, model: str = "") -> tuple[str, dict]:
         "messages": [
             {"role": "system", "content": "You are a concise LP solver expert."},
             {"role": "user", "content": prompt}
-        ]
+        ],
+        "stream": True if stream_callback else False
     }
     
     # GPT-5 models only support temperature=1 (default), don't include it
@@ -98,12 +99,41 @@ def _call_openai_api(prompt: str, model: str = "") -> tuple[str, dict]:
     try:
         # Longer timeout for reasoning models (GPT-5, etc.)
         timeout_seconds = 300 if model.startswith("gpt-5") or "pro" in model else 120
-        r = httpx.post(url, headers=headers, json=payload, timeout=timeout_seconds)
-        if r.status_code == 200:
-            data = r.json()
-            usage = data.get("usage", {})
+        
+        if stream_callback:
+            # Streaming mode
+            full_text = ""
+            input_tokens = 0
+            output_tokens = 0
             
-            # Calculate cost (pricing as of 2025)
+            with httpx.stream("POST", url, headers=headers, json=payload, timeout=timeout_seconds) as r:
+                if r.status_code != 200:
+                    error_msg = f"OpenAI API error {r.status_code}"
+                    print(f"[dim]{error_msg}[/dim]")
+                    return "", {}
+                
+                for line in r.iter_lines():
+                    if not line or line == "data: [DONE]":
+                        continue
+                    if line.startswith("data: "):
+                        try:
+                            import json
+                            chunk = json.loads(line[6:])
+                            delta = chunk.get("choices", [{}])[0].get("delta", {})
+                            content = delta.get("content", "")
+                            if content:
+                                full_text += content
+                                stream_callback(content)
+                            
+                            # Extract usage from the last chunk if available
+                            if "usage" in chunk:
+                                usage = chunk["usage"]
+                                input_tokens = usage.get("prompt_tokens", 0)
+                                output_tokens = usage.get("completion_tokens", 0)
+                        except Exception:
+                            continue
+            
+            # Calculate cost
             cost_per_1k_input = {
                 "gpt-5": 0.005, "gpt-5-pro": 0.01, "gpt-5-mini": 0.0005, "gpt-5-nano": 0.0001,
                 "gpt-4o": 0.0025, "gpt-4o-mini": 0.00015, "gpt-4-turbo": 0.01, "gpt-4": 0.03, "gpt-3.5-turbo": 0.0005
@@ -113,38 +143,75 @@ def _call_openai_api(prompt: str, model: str = "") -> tuple[str, dict]:
                 "gpt-4o": 0.01, "gpt-4o-mini": 0.0006, "gpt-4-turbo": 0.03, "gpt-4": 0.06, "gpt-3.5-turbo": 0.0015
             }
             
-            model_base = model.split("-")[0:2]
-            model_key = "-".join(model_base) if len(model_base) >= 2 else model
+            model_key = model
             for key_prefix in cost_per_1k_input.keys():
                 if model.startswith(key_prefix):
                     model_key = key_prefix
                     break
             
-            input_cost = usage.get("prompt_tokens", 0) / 1000 * cost_per_1k_input.get(model_key, 0.0005)
-            output_cost = usage.get("completion_tokens", 0) / 1000 * cost_per_1k_output.get(model_key, 0.0015)
+            input_cost = input_tokens / 1000 * cost_per_1k_input.get(model_key, 0.0005)
+            output_cost = output_tokens / 1000 * cost_per_1k_output.get(model_key, 0.0015)
             
             metadata = {
                 "model": model,
                 "temperature": 1.0 if model.startswith("gpt-5") else float(os.environ.get("OPENAI_TEMPERATURE", "0.2")),
                 "provider": "openai",
-                "input_tokens": usage.get("prompt_tokens", 0),
-                "output_tokens": usage.get("completion_tokens", 0),
-                "total_tokens": usage.get("total_tokens", 0),
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+                "total_tokens": input_tokens + output_tokens,
                 "cost_usd": input_cost + output_cost
             }
             
-            return data["choices"][0]["message"]["content"].strip(), metadata
+            return full_text.strip(), metadata
         else:
-            # Return error info for better debugging
-            error_msg = f"OpenAI API error {r.status_code}"
-            try:
-                error_data = r.json()
-                if "error" in error_data:
-                    error_msg = f"{error_msg}: {error_data['error'].get('message', 'Unknown error')}"
-            except:
-                pass
-            print(f"[dim]{error_msg}[/dim]")
-            return "", {}
+            # Non-streaming mode (original behavior)
+            r = httpx.post(url, headers=headers, json=payload, timeout=timeout_seconds)
+            if r.status_code == 200:
+                data = r.json()
+                usage = data.get("usage", {})
+                
+                # Calculate cost (pricing as of 2025)
+                cost_per_1k_input = {
+                    "gpt-5": 0.005, "gpt-5-pro": 0.01, "gpt-5-mini": 0.0005, "gpt-5-nano": 0.0001,
+                    "gpt-4o": 0.0025, "gpt-4o-mini": 0.00015, "gpt-4-turbo": 0.01, "gpt-4": 0.03, "gpt-3.5-turbo": 0.0005
+                }
+                cost_per_1k_output = {
+                    "gpt-5": 0.015, "gpt-5-pro": 0.03, "gpt-5-mini": 0.0015, "gpt-5-nano": 0.0004,
+                    "gpt-4o": 0.01, "gpt-4o-mini": 0.0006, "gpt-4-turbo": 0.03, "gpt-4": 0.06, "gpt-3.5-turbo": 0.0015
+                }
+                
+                model_base = model.split("-")[0:2]
+                model_key = "-".join(model_base) if len(model_base) >= 2 else model
+                for key_prefix in cost_per_1k_input.keys():
+                    if model.startswith(key_prefix):
+                        model_key = key_prefix
+                        break
+                
+                input_cost = usage.get("prompt_tokens", 0) / 1000 * cost_per_1k_input.get(model_key, 0.0005)
+                output_cost = usage.get("completion_tokens", 0) / 1000 * cost_per_1k_output.get(model_key, 0.0015)
+                
+                metadata = {
+                    "model": model,
+                    "temperature": 1.0 if model.startswith("gpt-5") else float(os.environ.get("OPENAI_TEMPERATURE", "0.2")),
+                    "provider": "openai",
+                    "input_tokens": usage.get("prompt_tokens", 0),
+                    "output_tokens": usage.get("completion_tokens", 0),
+                    "total_tokens": usage.get("total_tokens", 0),
+                    "cost_usd": input_cost + output_cost
+                }
+                
+                return data["choices"][0]["message"]["content"].strip(), metadata
+            else:
+                # Return error info for better debugging
+                error_msg = f"OpenAI API error {r.status_code}"
+                try:
+                    error_data = r.json()
+                    if "error" in error_data:
+                        error_msg = f"{error_msg}: {error_data['error'].get('message', 'Unknown error')}"
+                except:
+                    pass
+                print(f"[dim]{error_msg}[/dim]")
+                return "", {}
     except Exception as e:
         print(f"[dim]OpenAI API exception: {str(e)}[/dim]")
         return "", {}
@@ -262,7 +329,7 @@ def summarize(diagnostics: dict, provider: str = "auto") -> LLMResult:
 
     return done("none", "")
 
-def review_files(qa_check: str, run_log: str, lst_content: str, provider: str = "auto", model: str = "") -> LLMResult:
+def review_files(qa_check: str, run_log: str, lst_content: str, provider: str = "auto", model: str = "", stream_callback=None) -> LLMResult:
     from .prompts import build_review_prompt
     prompt = build_review_prompt(qa_check, run_log, lst_content)
 
@@ -284,7 +351,7 @@ def review_files(qa_check: str, run_log: str, lst_content: str, provider: str = 
         return done("none", "")
 
     if prov in ("auto","openai"):
-        t, meta = _call_openai_api(prompt, model=model)
+        t, meta = _call_openai_api(prompt, model=model, stream_callback=stream_callback)
         if t: return done("openai", t, meta)
 
     if prov in ("auto","anthropic"):
