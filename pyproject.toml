@@ -1,0 +1,45 @@
+[project]
+name = "times-doctor"
+version = "0.2.0"
+description = "Diagnose and scan failed TIMES/Veda runs; optional LLM advice"
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "MIT"}
+authors = [
+  {name = "David Green", email = "david.green@csiro.au"}
+]
+keywords = ["TIMES", "VEDA", "energy-modeling", "GAMS", "CPLEX", "optimization"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Scientific/Engineering",
+]
+
+dependencies = [
+  "typer>=0.12",
+  "rich>=13.7",
+]
+
+[project.optional-dependencies]
+llm = ["httpx>=0.27"]
+
+[project.scripts]
+times-doctor = "times_doctor.cli:app"
+
+[project.urls]
+Homepage = "https://github.com/dlg0/times-doctor"
+Repository = "https://github.com/dlg0/times-doctor"
+Issues = "https://github.com/dlg0/times-doctor/issues"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/times_doctor"]
