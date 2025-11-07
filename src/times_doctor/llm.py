@@ -177,16 +177,18 @@ def _call_openai_responses_api(prompt: str, model: str = "gpt-5-nano", reasoning
             data = r.json()
             usage = data.get("usage", {})
             
-            # GPT-5 responses API pricing
-            cost_per_1k_input = {"gpt-5": 0.005, "gpt-5-pro": 0.01, "gpt-5-mini": 0.0005, "gpt-5-nano": 0.0001}
-            cost_per_1k_output = {"gpt-5": 0.015, "gpt-5-pro": 0.03, "gpt-5-mini": 0.0015, "gpt-5-nano": 0.0004}
+            # GPT-5 responses API pricing (check most specific models first)
+            cost_per_1k_input = {"gpt-5-nano": 0.0001, "gpt-5-mini": 0.0005, "gpt-5-pro": 0.01, "gpt-5": 0.005}
+            cost_per_1k_output = {"gpt-5-nano": 0.0004, "gpt-5-mini": 0.0015, "gpt-5-pro": 0.03, "gpt-5": 0.015}
             
-            model_key = model.split("-")[0:2]
-            model_key = "-".join(model_key) if len(model_key) >= 2 else model
-            for key_prefix in cost_per_1k_input.keys():
-                if model.startswith(key_prefix):
-                    model_key = key_prefix
-                    break
+            # Find matching price by exact key match first, then prefix
+            model_key = model
+            if model_key not in cost_per_1k_input:
+                # Try prefix matching (most specific first)
+                for key_prefix in cost_per_1k_input.keys():
+                    if model.startswith(key_prefix):
+                        model_key = key_prefix
+                        break
             
             input_cost = usage.get("input_tokens", 0) / 1000 * cost_per_1k_input.get(model_key, 0.0001)
             output_cost = usage.get("output_tokens", 0) / 1000 * cost_per_1k_output.get(model_key, 0.0004)
