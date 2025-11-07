@@ -148,6 +148,12 @@ def run_gams_with_progress(cmd: list[str], cwd: str, max_lines: int = 4) -> int:
     
     with Live(display_text, console=console, refresh_per_second=2) as live:
         import time
+        try:
+            import psutil
+            has_psutil = True
+        except ImportError:
+            has_psutil = False
+        
         iterations = 0
         while proc.poll() is None:
             iterations += 1
@@ -159,7 +165,20 @@ def run_gams_with_progress(cmd: list[str], cwd: str, max_lines: int = 4) -> int:
                 # Show periodic heartbeat if no output
                 if iterations % 10 == 0:
                     elapsed = iterations * 0.5
-                    display_text = Text(f"Waiting for GAMS output... ({elapsed:.0f}s elapsed, {len(lines)} lines so far)", style="dim yellow")
+                    # Check if process is actually doing work
+                    if has_psutil:
+                        try:
+                            p = psutil.Process(proc.pid)
+                            cpu_percent = p.cpu_percent(interval=0.1)
+                            mem_mb = p.memory_info().rss / 1024 / 1024
+                            display_text = Text(
+                                f"Waiting for GAMS output... ({elapsed:.0f}s, CPU: {cpu_percent:.1f}%, Mem: {mem_mb:.0f}MB, {len(lines)} lines)",
+                                style="dim yellow"
+                            )
+                        except:
+                            display_text = Text(f"Waiting for GAMS output... ({elapsed:.0f}s, {len(lines)} lines)", style="dim yellow")
+                    else:
+                        display_text = Text(f"Waiting for GAMS output... ({elapsed:.0f}s, {len(lines)} lines)", style="dim yellow")
                     live.update(display_text)
             time.sleep(0.5)
         
