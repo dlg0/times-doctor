@@ -1,4 +1,4 @@
-import os, subprocess, json
+import os, subprocess, json, time
 from pathlib import Path
 from datetime import datetime
 
@@ -546,6 +546,7 @@ def compress_qa_check(file_content: str, log_dir: Path = None, progress_callback
         compressed_parts = []
         
         for i, (chunk_text, start_line, end_line) in enumerate(chunks, 1):
+            chunk_start = time.time()
             if progress_callback:
                 progress_callback(i, len(chunks), f"Chunk {i}/{len(chunks)} (lines {start_line}-{end_line})")
             
@@ -556,6 +557,7 @@ def compress_qa_check(file_content: str, log_dir: Path = None, progress_callback
             text = ""
             meta = {}
             
+            llm_start = time.time()
             if api_keys["openai"]:
                 text, meta = _call_openai_responses_api(prompt, model="gpt-5-nano", reasoning_effort="minimal")
             elif api_keys["anthropic"]:
@@ -564,8 +566,12 @@ def compress_qa_check(file_content: str, log_dir: Path = None, progress_callback
                 error_msg = "No OpenAI or Anthropic API key found"
                 log_llm_call(f"compress_qa_check_chunk{i}", prompt, "", {"error": error_msg}, log_dir)
                 raise RuntimeError(error_msg)
+            llm_duration = time.time() - llm_start
             
+            meta["llm_duration_seconds"] = round(llm_duration, 2)
+            meta["chunk_duration_seconds"] = round(time.time() - chunk_start, 2)
             log_llm_call(f"compress_qa_check_chunk{i}", prompt, text, meta, log_dir)
+            print(f"[dim]    Chunk {i} completed in {llm_duration:.1f}s[/dim]")
             
             if text:
                 # Remove the "See QA_CHECK.LOG for full detail" footer from chunks
