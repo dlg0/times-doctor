@@ -517,6 +517,34 @@ def scan(
 
     print(f"[green]Wrote[/green] {csvp}")
 
+def find_run_directories(base_dir: Path) -> list[tuple[Path, str, float]]:
+    """Find all available run directories with timestamps.
+    
+    Returns list of (path, label, mtime) tuples sorted by recency.
+    """
+    candidates = []
+    
+    # Add the main directory
+    lst = latest_lst(base_dir)
+    if lst:
+        mtime = lst.stat().st_mtime
+        candidates.append((base_dir, f"{base_dir.name} (original run)", mtime))
+    
+    # Look for _td_datacheck and other _td_* subdirectories
+    for subdir in base_dir.glob("_td_*"):
+        if subdir.is_dir():
+            lst = latest_lst(subdir)
+            if lst:
+                mtime = lst.stat().st_mtime
+                import datetime
+                dt = datetime.datetime.fromtimestamp(mtime)
+                time_str = dt.strftime("%Y-%m-%d %H:%M:%S")
+                candidates.append((subdir, f"{subdir.name} ({time_str})", mtime))
+    
+    # Sort by most recent first
+    candidates.sort(key=lambda x: x[2], reverse=True)
+    return candidates
+
 @app.command()
 def review(
     run_dir: str,
@@ -525,6 +553,22 @@ def review(
 ):
     """Review QA_CHECK.LOG, run log, and LST files using LLM for human-readable diagnostics."""
     rd = Path(run_dir).resolve()
+    
+    # Check for multiple run directories
+    run_dirs = find_run_directories(rd)
+    
+    if len(run_dirs) > 1:
+        print(f"\n[bold]Found {len(run_dirs)} run directories:[/bold]")
+        for i, (path, label, mtime) in enumerate(run_dirs, 1):
+            print(f"  {i}. {label}")
+        
+        choice = typer.prompt(f"\nSelect run to review (1-{len(run_dirs)})", type=int, default=1)
+        if 1 <= choice <= len(run_dirs):
+            rd = run_dirs[choice - 1][0]
+            print(f"[green]Selected: {rd}[/green]")
+        else:
+            print(f"[yellow]Invalid choice, using: {run_dirs[0][0]}[/yellow]")
+            rd = run_dirs[0][0]
     
     api_keys = llm_mod.check_api_keys()
     has_any_key = any(api_keys.values())
