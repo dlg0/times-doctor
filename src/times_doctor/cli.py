@@ -391,7 +391,7 @@ def update():
             ["uv", "tool", "upgrade", "times-doctor"],
             check=True
         )
-        print("[green]✓ times-doctor updated successfully[/green]")
+        print("[green]times-doctor updated successfully[/green]")
     except subprocess.CalledProcessError as e:
         print(f"[red]Failed to update times-doctor: {e}[/red]")
         raise typer.Exit(1)
