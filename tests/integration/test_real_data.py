@@ -143,12 +143,15 @@ class TestRealDataProcessing:
         # Verify the response
         assert "sections" in result
         sections = result["sections"]
-        assert len(sections) > 0, "Should extract at least one page"
+        assert len(sections) > 0, "Should extract at least one section"
         
-        # All sections should be named "Page N"
+        # Should also have extracted_text
+        assert "extracted_text" in result
+        assert len(result["extracted_text"]) > 0, "Should have extracted text"
+        
+        # All sections should have name and line numbers
         for section in sections:
             assert "name" in section
-            assert section["name"].startswith("Page ")
             assert "start_line" in section
             assert "end_line" in section
             assert section["start_line"] <= section["end_line"]
@@ -157,8 +160,10 @@ class TestRealDataProcessing:
         assert len(progress_calls) > 0, "Should have progress updates"
         
         # Print summary
-        print(f"\n✅ .lst pages extracted successfully")
-        print(f"   Input size: {len(content)} chars")
-        print(f"   Pages found: {len(sections)}")
-        page_names = [s["name"] for s in sections]
-        print(f"   Pages: {', '.join(page_names)}")
+        print(f"\n✅ .lst sections extracted successfully")
+        print(f"   Input size: {len(content):,} chars")
+        print(f"   Output size: {len(result['extracted_text']):,} chars")
+        print(f"   Compression: {100 * (1 - len(result['extracted_text']) / len(content)):.1f}%")
+        print(f"   Sections found: {len(sections)}")
+        section_names = [s["name"] for s in sections]
+        print(f"   Sections: {', '.join(section_names[:5])}{'...' if len(section_names) > 5 else ''}")

@@ -142,8 +142,8 @@ def _call_cli(cli: str, prompt: str) -> str:
     except Exception:
         return ""
 
-def _call_openai_responses_api(prompt: str, model: str = "gpt-5-nano", reasoning_effort: str = "medium") -> tuple[str, dict]:
-    """Call OpenAI GPT-5 Responses API (different from chat completions)."""
+def _call_openai_responses_api(prompt: str, model: str = "gpt-5-nano", reasoning_effort: str = "medium", stream_callback=None, log_dir: Path = None) -> tuple[str, dict]:
+    """Call OpenAI GPT-5 Responses API with optional streaming support."""
     start_time = time.time()
     key = os.environ.get("OPENAI_API_KEY","")
     if not key:
@@ -151,6 +151,7 @@ def _call_openai_responses_api(prompt: str, model: str = "gpt-5-nano", reasoning
     
     try:
         import httpx
+        import json as json_module
     except Exception:
         return "", {}
     
@@ -167,26 +168,114 @@ def _call_openai_responses_api(prompt: str, model: str = "gpt-5-nano", reasoning
             "effort": reasoning_effort,
             "summary": "auto"
         },
-        "store": True
+        "store": True,
+        "stream": True if stream_callback else False
     }
     
     try:
         timeout_seconds = 300
         
         # Log raw request
-        log_dir = Path.cwd() / "_llm_calls"
+        if log_dir is None:
+            log_dir = Path.cwd() / "_llm_calls"
         log_dir.mkdir(parents=True, exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
         request_log = log_dir / f"{timestamp}_request.json"
         with open(request_log, 'w', encoding='utf-8') as f:
             json.dump({"url": url, "headers": {k: v for k, v in headers.items() if k != "Authorization"}, "payload": payload}, f, indent=2)
+        print(f"  → Logged request to {request_log}")
         
+        if stream_callback:
+            # Streaming mode
+            full_text = ""
+            input_tokens = 0
+            output_tokens = 0
+            
+            with httpx.stream("POST", url, headers=headers, json=payload, timeout=timeout_seconds) as r:
+                if r.status_code != 200:
+                    # Fall back to non-streaming
+                    payload["stream"] = False
+                    return _call_openai_responses_api(prompt, model=model, reasoning_effort=reasoning_effort, stream_callback=None)
+                
+                for line in r.iter_lines():
+                    if not line or line == "data: [DONE]":
+                        continue
+                    if line.startswith("data: "):
+                        try:
+                            event = json_module.loads(line[6:])
+                            
+                            # Handle response.output_text.delta events
+                            if event.get("type") == "response.output_text.delta":
+                                delta = event.get("delta", "")
+                                if delta:
+                                    full_text += delta
+                                    stream_callback(delta)
+                            
+                            # Extract usage from response.done event
+                            elif event.get("type") == "response.done":
+                                usage = event.get("usage", {})
+                                input_tokens = usage.get("input_tokens", 0)
+                                output_tokens = usage.get("output_tokens", 0)
+                        
+                        except Exception:
+                            continue
+            
+            # Log streaming response
+            response_log = log_dir / f"{timestamp}_response.json"
+            with open(response_log, 'w', encoding='utf-8') as f:
+                json.dump({"streaming": True, "full_text": full_text, "input_tokens": input_tokens, "output_tokens": output_tokens}, f, indent=2)
+            print(f"  ← Logged response to {response_log}")
+            
+            # Estimate tokens if not provided
+            if input_tokens == 0:
+                input_tokens = len(prompt) // 4
+            if output_tokens == 0:
+                output_tokens = len(full_text) // 4
+            
+            # Calculate cost
+            cost_per_1k_input = {"gpt-5-nano": 0.0001, "gpt-5-mini": 0.0005, "gpt-5-pro": 0.01, "gpt-5": 0.005}
+            cost_per_1k_output = {"gpt-5-nano": 0.0004, "gpt-5-mini": 0.0015, "gpt-5-pro": 0.03, "gpt-5": 0.015}
+            
+            model_key = model
+            if model_key not in cost_per_1k_input:
+                for key_prefix in cost_per_1k_input.keys():
+                    if model.startswith(key_prefix):
+                        model_key = key_prefix
+                        break
+            
+            input_cost = input_tokens / 1000 * cost_per_1k_input.get(model_key, 0.0001)
+            output_cost = output_tokens / 1000 * cost_per_1k_output.get(model_key, 0.0004)
+            
+            metadata = {
+                "model": model,
+                "provider": "openai",
+                "reasoning_effort": reasoning_effort,
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+                "total_tokens": input_tokens + output_tokens,
+                "cost_usd": input_cost + output_cost,
+                "duration_seconds": round(time.time() - start_time, 2)
+            }
+            
+            # Print concise log
+            in_tok = metadata["input_tokens"]
+            out_tok = metadata["output_tokens"]
+            dur = metadata["duration_seconds"]
+            cost = metadata["cost_usd"]
+            window_pct = (in_tok / 400000 * 100) if model.startswith("gpt-5") else (in_tok / 200000 * 100)
+            effort_str = f" ({reasoning_effort})" if reasoning_effort else ""
+            print(f"[dim]LLM: {model}{effort_str} | {in_tok:,}→{out_tok:,} tok ({window_pct:.1f}% window) | {dur:.1f}s | ${cost:.4f}[/dim]")
+            
+            return full_text.strip(), metadata
+        
+        # Non-streaming mode (original behavior)
         r = httpx.post(url, headers=headers, json=payload, timeout=timeout_seconds)
         
         # Log raw response
         response_log = log_dir / f"{timestamp}_response.json"
         with open(response_log, 'w', encoding='utf-8') as f:
             json.dump({"status_code": r.status_code, "headers": dict(r.headers), "body": r.json() if r.status_code == 200 else r.text}, f, indent=2)
+        print(f"[dim]  ← Logged response to {response_log}[/dim]")
         
         if r.status_code == 200:
             data = r.json()
@@ -225,7 +314,8 @@ def _call_openai_responses_api(prompt: str, model: str = "gpt-5-nano", reasoning
             dur = metadata["duration_seconds"]
             cost = metadata["cost_usd"]
             window_pct = (in_tok / 400000 * 100) if model.startswith("gpt-5") else (in_tok / 200000 * 100)
-            print(f"[dim]LLM: {model} | {in_tok:,}→{out_tok:,} tok ({window_pct:.1f}% window) | {dur:.1f}s | ${cost:.4f}[/dim]")
+            effort_str = f" ({reasoning_effort})" if reasoning_effort else ""
+            print(f"[dim]LLM: {model}{effort_str} | {in_tok:,}→{out_tok:,} tok ({window_pct:.1f}% window) | {dur:.1f}s | ${cost:.4f}[/dim]")
             
             # Extract text from response - GPT-5 Responses API uses 'output' field
             output = data.get("output", [])
@@ -279,12 +369,13 @@ def _call_openai_responses_api(prompt: str, model: str = "gpt-5-nano", reasoning
         print(f"[dim]OpenAI Responses API exception: {str(e)}[/dim]")
         return "", {}
 
-def _call_openai_api(prompt: str, model: str = "", stream_callback=None) -> tuple[str, dict]:
+def _call_openai_api(prompt: str, model: str = "", stream_callback=None, log_dir: Path = None) -> tuple[str, dict]:
     key = os.environ.get("OPENAI_API_KEY","")
     if not key:
         return "", {}
     try:
         import httpx
+        import json as json_module
     except Exception:
         if which("openai"):
             return _call_cli("openai", prompt), {"model": "openai-cli", "provider": "openai-cli"}
@@ -350,8 +441,7 @@ def _call_openai_api(prompt: str, model: str = "", stream_callback=None) -> tupl
                             continue
                         if line.startswith("data: "):
                             try:
-                                import json
-                                chunk = json.loads(line[6:])
+                                chunk = json_module.loads(line[6:])
                                 delta = chunk.get("choices", [{}])[0].get("delta", {})
                                 content = delta.get("content", "")
                                 if content:
@@ -371,6 +461,13 @@ def _call_openai_api(prompt: str, model: str = "", stream_callback=None) -> tupl
                 rprint(f"\n[yellow]⚠ Streaming error, falling back to non-streaming mode...[/yellow]")
                 payload["stream"] = False
                 return _call_openai_api(prompt, model=model, stream_callback=None)
+            
+            # If we didn't get usage data from stream, estimate tokens
+            if input_tokens == 0:
+                # Rough estimate: ~4 chars per token
+                input_tokens = len(prompt) // 4
+            if output_tokens == 0:
+                output_tokens = len(full_text) // 4
             
             # Calculate cost
             cost_per_1k_input = {
@@ -408,12 +505,14 @@ def _call_openai_api(prompt: str, model: str = "", stream_callback=None) -> tupl
             # Non-streaming mode (original behavior)
             
             # Log raw request
-            log_dir = Path.cwd() / "_llm_calls"
+            if log_dir is None:
+                log_dir = Path.cwd() / "_llm_calls"
             log_dir.mkdir(parents=True, exist_ok=True)
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
             request_log = log_dir / f"{timestamp}_request.json"
             with open(request_log, 'w', encoding='utf-8') as f:
                 json.dump({"url": url, "headers": {k: v for k, v in headers.items() if k != "Authorization"}, "payload": payload}, f, indent=2)
+            print(f"  → Logged request to {request_log}")
             
             r = httpx.post(url, headers=headers, json=payload, timeout=timeout_seconds)
             
@@ -421,6 +520,7 @@ def _call_openai_api(prompt: str, model: str = "", stream_callback=None) -> tupl
             response_log = log_dir / f"{timestamp}_response.json"
             with open(response_log, 'w', encoding='utf-8') as f:
                 json.dump({"status_code": r.status_code, "headers": dict(r.headers), "body": r.json() if r.status_code == 200 else r.text}, f, indent=2)
+            print(f"[dim]  ← Logged response to {response_log}[/dim]")
             
             if r.status_code == 200:
                 data = r.json()
@@ -474,8 +574,8 @@ def _call_openai_api(prompt: str, model: str = "", stream_callback=None) -> tupl
         print(f"[dim]OpenAI API exception: {str(e)}[/dim]")
         return "", {}
 
-def _call_anthropic_api(prompt: str, model: str = "") -> tuple[str, dict]:
-    """Call Anthropic API directly."""
+def _call_anthropic_api(prompt: str, model: str = "", stream_callback=None) -> tuple[str, dict]:
+    """Call Anthropic API directly with optional streaming support."""
     start_time = time.time()
     key = os.environ.get("ANTHROPIC_API_KEY","")
     if not key:
@@ -483,6 +583,7 @@ def _call_anthropic_api(prompt: str, model: str = "") -> tuple[str, dict]:
     
     try:
         import httpx
+        import json as json_module
     except Exception:
         return "", {}
     
@@ -500,18 +601,65 @@ def _call_anthropic_api(prompt: str, model: str = "") -> tuple[str, dict]:
         "model": model,
         "max_tokens": 4096,
         "temperature": temperature,
-        "messages": [{"role": "user", "content": prompt}]
+        "messages": [{"role": "user", "content": prompt}],
+        "stream": True if stream_callback else False
     }
     
     try:
         # Longer timeout for reasoning models
         timeout_seconds = 300 if "opus" in model or "sonnet" in model else 120
-        r = httpx.post(url, headers=headers, json=payload, timeout=timeout_seconds)
-        if r.status_code == 200:
-            data = r.json()
-            usage = data.get("usage", {})
+        
+        if stream_callback:
+            # Streaming mode
+            full_text = ""
+            input_tokens = 0
+            output_tokens = 0
             
-            # Anthropic pricing (as of 2024)
+            with httpx.stream("POST", url, headers=headers, json=payload, timeout=timeout_seconds) as r:
+                if r.status_code != 200:
+                    # Fall back to non-streaming
+                    payload["stream"] = False
+                    return _call_anthropic_api(prompt, model=model, stream_callback=None)
+                
+                for line in r.iter_lines():
+                    if not line:
+                        continue
+                    
+                    # Anthropic streaming format: "event: ...\ndata: {...}"
+                    if line.startswith("data: "):
+                        try:
+                            data = json_module.loads(line[6:])
+                            
+                            # Handle different event types
+                            if data.get("type") == "content_block_delta":
+                                delta = data.get("delta", {})
+                                if delta.get("type") == "text_delta":
+                                    text = delta.get("text", "")
+                                    if text:
+                                        full_text += text
+                                        stream_callback(text)
+                            
+                            # Extract usage from message_delta event
+                            elif data.get("type") == "message_delta":
+                                usage = data.get("usage", {})
+                                output_tokens = usage.get("output_tokens", output_tokens)
+                            
+                            # Extract input tokens from message_start event
+                            elif data.get("type") == "message_start":
+                                message = data.get("message", {})
+                                usage = message.get("usage", {})
+                                input_tokens = usage.get("input_tokens", 0)
+                        
+                        except Exception:
+                            continue
+            
+            # Estimate tokens if not provided
+            if input_tokens == 0:
+                input_tokens = len(prompt) // 4
+            if output_tokens == 0:
+                output_tokens = len(full_text) // 4
+            
+            # Calculate cost
             pricing = {
                 "claude-3-5-sonnet-20241022": (0.003, 0.015),
                 "claude-3-5-haiku-20241022": (0.0008, 0.004),
@@ -521,33 +669,67 @@ def _call_anthropic_api(prompt: str, model: str = "") -> tuple[str, dict]:
             }
             
             cost_per_1k_input, cost_per_1k_output = pricing.get(model, (0.003, 0.015))
-            input_cost = usage.get("input_tokens", 0) / 1000 * cost_per_1k_input
-            output_cost = usage.get("output_tokens", 0) / 1000 * cost_per_1k_output
+            input_cost = input_tokens / 1000 * cost_per_1k_input
+            output_cost = output_tokens / 1000 * cost_per_1k_output
             
             metadata = {
                 "model": model,
                 "temperature": temperature,
                 "provider": "anthropic",
-                "input_tokens": usage.get("input_tokens", 0),
-                "output_tokens": usage.get("output_tokens", 0),
-                "total_tokens": usage.get("input_tokens", 0) + usage.get("output_tokens", 0),
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+                "total_tokens": input_tokens + output_tokens,
                 "cost_usd": input_cost + output_cost,
                 "duration_seconds": round(time.time() - start_time, 2)
             }
             
-            # Print concise log
-            in_tok = metadata["input_tokens"]
-            out_tok = metadata["output_tokens"]
-            dur = metadata["duration_seconds"]
-            cost = metadata["cost_usd"]
-            window_pct = (in_tok / 200000 * 100)
-            print(f"[dim]LLM: {model} | {in_tok:,}→{out_tok:,} tok ({window_pct:.1f}% window) | {dur:.1f}s | ${cost:.4f}[/dim]")
-            
-            content = data.get("content", [])
-            if content and len(content) > 0:
-                return content[0].get("text", ""), metadata
-        return "", {}
-    except Exception:
+            return full_text.strip(), metadata
+        
+        else:
+            # Non-streaming mode (original behavior)
+            r = httpx.post(url, headers=headers, json=payload, timeout=timeout_seconds)
+            if r.status_code == 200:
+                data = r.json()
+                usage = data.get("usage", {})
+                
+                # Anthropic pricing (as of 2024)
+                pricing = {
+                    "claude-3-5-sonnet-20241022": (0.003, 0.015),
+                    "claude-3-5-haiku-20241022": (0.0008, 0.004),
+                    "claude-3-opus-20240229": (0.015, 0.075),
+                    "claude-3-sonnet-20240229": (0.003, 0.015),
+                    "claude-3-haiku-20240307": (0.00025, 0.00125)
+                }
+                
+                cost_per_1k_input, cost_per_1k_output = pricing.get(model, (0.003, 0.015))
+                input_cost = usage.get("input_tokens", 0) / 1000 * cost_per_1k_input
+                output_cost = usage.get("output_tokens", 0) / 1000 * cost_per_1k_output
+                
+                metadata = {
+                    "model": model,
+                    "temperature": temperature,
+                    "provider": "anthropic",
+                    "input_tokens": usage.get("input_tokens", 0),
+                    "output_tokens": usage.get("output_tokens", 0),
+                    "total_tokens": usage.get("input_tokens", 0) + usage.get("output_tokens", 0),
+                    "cost_usd": input_cost + output_cost,
+                    "duration_seconds": round(time.time() - start_time, 2)
+                }
+                
+                # Print concise log
+                in_tok = metadata["input_tokens"]
+                out_tok = metadata["output_tokens"]
+                dur = metadata["duration_seconds"]
+                cost = metadata["cost_usd"]
+                window_pct = (in_tok / 200000 * 100)
+                print(f"[dim]LLM: {model} | {in_tok:,}→{out_tok:,} tok ({window_pct:.1f}% window) | {dur:.1f}s | ${cost:.4f}[/dim]")
+                
+                content = data.get("content", [])
+                if content and len(content) > 0:
+                    return content[0].get("text", ""), metadata
+            return "", {}
+    except Exception as e:
+        print(f"[dim]Anthropic API exception: {str(e)}[/dim]")
         return "", {}
 
 def _call_anthropic_cli(prompt: str) -> str:
@@ -598,16 +780,21 @@ def summarize(diagnostics: dict, provider: str = "auto") -> LLMResult:
     return done("none", "")
 
 def _filter_run_log(file_content: str, progress_callback=None) -> dict:
-    """Filter run_log.txt to keep only useful diagnostic content.
+    """Filter run_log.txt to keep only condensed diagnostic content.
     
     Filtering rules:
     - Skip everything before "starting execution" or "Restarting execution"
     - Drop lines containing "DMoves" or "PMoves"
     - Drop lines starting with "Iteration:"
     - Drop lines starting with "Elapsed time ="
+    - Deduplicate exact duplicates
+    - Condense repetitive lines that differ only in numbers
     
     Returns dict with "filtered_content" key containing the filtered text.
     """
+    import re
+    from collections import defaultdict
+    
     lines = file_content.split('\n')
     
     # Find the start line
@@ -617,12 +804,21 @@ def _filter_run_log(file_content: str, progress_callback=None) -> dict:
             start_idx = i
             break
     
-    # Filter lines
+    # Step 1: Collect errors/warnings from beginning (before execution)
+    pre_execution_important = []
+    for i in range(0, start_idx):
+        line = lines[i]
+        # Keep errors, warnings, and their context (but be specific to avoid noise)
+        if ("*** Error" in line or "*** Warning" in line or 
+            "Domain violation" in line or "*** " in line):
+            pre_execution_important.append(line)
+    
+    # Step 2: Basic filtering from execution start
     filtered_lines = []
     for i in range(start_idx, len(lines)):
         line = lines[i]
         
-        # Skip lines matching filter rules
+        # Skip lines matching basic filter rules
         if ("DMoves" in line or "PMoves" in line or 
             line.startswith("Iteration:") or 
             line.startswith("Elapsed time =")):
@@ -630,59 +826,317 @@ def _filter_run_log(file_content: str, progress_callback=None) -> dict:
         
         filtered_lines.append(line)
     
+    # Combine pre-execution important items with filtered execution log
+    if pre_execution_important:
+        all_lines = pre_execution_important + ["", "--- [Pre-execution errors above] ---", ""] + filtered_lines
+    else:
+        all_lines = filtered_lines
+    
+    # Step 2: Condense repetitive patterns
+    condensed_lines = _condense_repetitive_lines(all_lines)
+    
     if progress_callback:
         orig_lines = len(lines)
-        filtered_count = len(filtered_lines)
-        progress_callback(1, 1, f"Filtered run_log: {orig_lines} → {filtered_count} lines")
+        after_basic = len(filtered_lines)
+        final_count = len(condensed_lines)
+        progress_callback(1, 1, f"Filtered run_log: {orig_lines} → {after_basic} → {final_count} lines")
     
     # Return filtered content directly
     return {
-        "filtered_content": '\n'.join(filtered_lines),
+        "filtered_content": '\n'.join(condensed_lines),
         "sections": []  # Empty sections since we're returning filtered content
     }
 
 
-def _extract_lst_pages(file_content: str, progress_callback=None) -> dict:
-    """Extract specific pages from GAMS .lst file.
+def _condense_repetitive_lines(lines: list) -> list:
+    """Condense lines that differ only in numeric values.
     
-    .lst files are already divided into pages with lines like:
-    GAMS 49.6.1  55d34574 May 28, 2025          WEX-WEI x86 64bit/MS Windows - 11/07/25 18:59:17 Page 5
+    Groups consecutive similar lines and shows:
+    - One example of the line
+    - Count and sample values if repeated
     
-    We extract only pages 1, 2, 5, 6, 7, 8 which contain useful diagnostic info.
+    Also handles multi-line patterns (e.g., error messages spanning 2+ lines)
+    """
+    import re
+    from collections import defaultdict
+    
+    if not lines:
+        return lines
+    
+    # First pass: handle multi-line error patterns (e.g., "*** Error" followed by indented description)
+    lines = _condense_multiline_errors(lines)
+    
+    # Create pattern by replacing numbers with placeholder
+    def make_pattern(line: str) -> str:
+        # Replace integers with {N}
+        pattern = re.sub(r'\b\d+\b', '{N}', line)
+        # Replace floats with {F}
+        pattern = re.sub(r'\b\d+\.\d+\b', '{F}', pattern)
+        return pattern
+    
+    # Extract all numbers from a line
+    def extract_numbers(line: str) -> list:
+        return re.findall(r'\b\d+(?:\.\d+)?\b', line)
+    
+    result = []
+    current_group = []
+    current_pattern = None
+    
+    for line in lines:
+        # Skip empty lines
+        if not line.strip():
+            if current_group:
+                result.extend(_format_group(current_group, current_pattern))
+                current_group = []
+                current_pattern = None
+            result.append(line)
+            continue
+        
+        pattern = make_pattern(line)
+        
+        # If pattern matches current group, add to group
+        if pattern == current_pattern:
+            current_group.append(line)
+        else:
+            # Flush previous group
+            if current_group:
+                result.extend(_format_group(current_group, current_pattern))
+            
+            # Start new group
+            current_group = [line]
+            current_pattern = pattern
+    
+    # Flush final group
+    if current_group:
+        result.extend(_format_group(current_group, current_pattern))
+    
+    return result
+
+
+def _condense_multiline_errors(lines: list) -> list:
+    """Condense multi-line error patterns like:
+    *** Error 170 in file.dd
+        Domain violation for element
+    (repeated many times)
+    
+    Returns condensed version with one example + count.
     """
     import re
     
-    lines = file_content.split('\n')
+    result = []
+    i = 0
     
-    # Find all page breaks with their line numbers
-    page_breaks = []
-    page_pattern = re.compile(r'GAMS\s+[\d.]+\s+.*\s+Page\s+(\d+)')
+    while i < len(lines):
+        line = lines[i]
+        
+        # Check if this is an error/warning line
+        if line.startswith("*** Error") or line.startswith("*** Warning"):
+            # Look ahead to see if next line is indented (continuation)
+            if i + 1 < len(lines) and lines[i + 1].startswith("    "):
+                # Extract the error pattern (remove numbers)
+                error_pattern = re.sub(r'\b\d+\b', '{N}', line)
+                desc_line = lines[i + 1]
+                
+                # Count consecutive occurrences of this error+description pair
+                count = 0
+                examples = []
+                j = i
+                
+                while j + 1 < len(lines):
+                    if re.sub(r'\b\d+\b', '{N}', lines[j]) == error_pattern and \
+                       j + 1 < len(lines) and lines[j + 1] == desc_line:
+                        count += 1
+                        # Collect first few examples with varying numbers
+                        if len(examples) < 5:
+                            nums = re.findall(r'\b\d+\b', lines[j])
+                            examples.extend(nums)
+                        j += 2  # Skip error + description
+                    else:
+                        break
+                
+                if count >= 3:
+                    # Show condensed version
+                    result.append(lines[i])
+                    result.append(lines[i + 1])
+                    
+                    # Get unique numbers from examples
+                    unique_nums = []
+                    seen = set()
+                    for num in examples:
+                        if num not in seen:
+                            seen.add(num)
+                            unique_nums.append(num)
+                    
+                    if unique_nums:
+                        if len(unique_nums) <= 6:
+                            nums_str = ', '.join(unique_nums)
+                        else:
+                            nums_str = ', '.join(unique_nums[:3]) + f', ... ({len(unique_nums)} unique values)'
+                        result.append(f"  [↑ repeated {count} times with error numbers: {nums_str}]")
+                    else:
+                        result.append(f"  [↑ repeated {count} times]")
+                    
+                    i = j  # Skip past all the duplicates
+                    continue
+        
+        # Not a condensable error, keep as-is
+        result.append(line)
+        i += 1
     
-    for i, line in enumerate(lines, 1):
-        match = page_pattern.search(line)
-        if match:
-            page_num = int(match.group(1))
-            page_breaks.append((i, page_num))
+    return result
+
+
+def _format_group(group: list, pattern: str) -> list:
+    """Format a group of similar lines.
     
-    if progress_callback:
-        progress_callback(1, 1, f"Found {len(page_breaks)} pages in .lst file")
+    If group has 1-2 items: return as-is
+    If group has 3+ items: return one example + summary
+    """
+    if len(group) <= 2:
+        return group
     
-    # Extract pages 1, 2, 5, 6, 7, 8
-    wanted_pages = {1, 2, 5, 6, 7, 8}
-    sections = []
+    # Show first occurrence
+    first_line = group[0]
     
-    for i, (line_num, page_num) in enumerate(page_breaks):
-        if page_num in wanted_pages:
-            # Determine end line (either next page break or end of file)
-            end_line = page_breaks[i + 1][0] - 1 if i + 1 < len(page_breaks) else len(lines)
+    # Extract varying numbers from all lines in group
+    import re
+    all_numbers = []
+    for line in group:
+        nums = re.findall(r'\b\d+(?:\.\d+)?\b', line)
+        all_numbers.extend(nums)
+    
+    # Get unique numbers (preserve order)
+    seen = set()
+    unique_nums = []
+    for num in all_numbers:
+        if num not in seen:
+            seen.add(num)
+            unique_nums.append(num)
+    
+    # Build summary
+    if len(unique_nums) <= 6:
+        nums_str = ', '.join(unique_nums)
+    else:
+        nums_str = ', '.join(unique_nums[:3]) + f', ... ({len(unique_nums)} values)'
+    
+    summary = f"  [↑ repeated {len(group)} times with values: {nums_str}]"
+    
+    return [first_line, summary]
+
+
+def _extract_lst_pages(file_content: str, progress_callback=None) -> dict:
+    """Extract and condense sections from GAMS .lst file using LST parser.
+    
+    Uses the LST parser to extract semantic sections and aggregate repetitive content.
+    """
+    from pathlib import Path
+    import tempfile
+    import json
+    from .lst_parser import process_lst_file
+    
+    # Count original lines
+    original_line_count = len(file_content.split('\n'))
+    
+    # Write content to a temporary file (LST parser expects a file path)
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.lst', delete=False, encoding='utf-8') as tmp:
+        tmp.write(file_content)
+        tmp_path = Path(tmp.name)
+    
+    try:
+        if progress_callback:
+            progress_callback(1, 3, "Parsing LST file sections...")
+        
+        # Parse the LST file
+        result = process_lst_file(tmp_path)
+        
+        if progress_callback:
+            progress_callback(2, 3, f"Extracted {len(result['sections'])} sections")
+        
+        # Build markdown output
+        output_parts = []
+        
+        # Add metadata
+        output_parts.append("# LST File Analysis\n")
+        output_parts.append("## Metadata\n")
+        for key, value in result['metadata'].items():
+            output_parts.append(f"- **{key}**: {value}\n")
+        output_parts.append("\n")
+        
+        # Add each section
+        for section_name, section_data in result['sections'].items():
+            output_parts.append(f"## {section_name}\n\n")
             
-            sections.append({
-                "name": f"Page {page_num}",
-                "start_line": line_num,
-                "end_line": end_line
+            # If there's a text summary, use it
+            if 'text_summary' in section_data:
+                output_parts.append(section_data['text_summary'])
+                output_parts.append("\n\n")
+            
+            # For compilation sections with errors
+            if 'errors' in section_data:
+                output_parts.append("### Error Summary\n\n")
+                for error_code, error_info in section_data['errors'].items():
+                    output_parts.append(f"**Error {error_code}**: {error_info['count']:,} occurrences\n\n")
+                    
+                    # Show top patterns
+                    if error_info['elements']:
+                        output_parts.append("Top error patterns:\n")
+                        top_patterns = sorted(
+                            error_info['elements'].items(),
+                            key=lambda x: x[1],
+                            reverse=True
+                        )[:10]
+                        
+                        for pattern, count in top_patterns:
+                            output_parts.append(f"- `{pattern}`: {count:,} occurrences\n")
+                        output_parts.append("\n")
+                    
+                    # Show sample errors
+                    if error_info['samples'] and len(error_info['samples']) > 0:
+                        output_parts.append("<details>\n")
+                        output_parts.append("<summary>Sample errors (click to expand)</summary>\n\n")
+                        for i, sample in enumerate(error_info['samples'][:5], 1):
+                            output_parts.append(f"**Sample {i}:**\n")
+                            output_parts.append(f"```\n{sample.get('context', 'No context')}\n```\n\n")
+                        output_parts.append("</details>\n\n")
+            
+            # For sections with summary dict
+            elif 'summary' in section_data and isinstance(section_data['summary'], dict):
+                output_parts.append("### Summary\n\n")
+                for key, value in section_data['summary'].items():
+                    output_parts.append(f"- **{key}**: {value}\n")
+                output_parts.append("\n")
+            
+            # For other sections with content (keep short excerpts)
+            elif 'content' in section_data:
+                content = section_data['content']
+                if len(content) > 2000:
+                    output_parts.append(f"```\n{content[:2000]}\n... (truncated)\n```\n\n")
+                else:
+                    output_parts.append(f"```\n{content}\n```\n\n")
+        
+        extracted_text = ''.join(output_parts)
+        condensed_line_count = len(extracted_text.split('\n'))
+        
+        if progress_callback:
+            progress_callback(3, 3, f"Condensed LST: {original_line_count} → {condensed_line_count} lines")
+        
+        # Build sections list for backward compatibility
+        sections_list = []
+        for section_name in result['sections'].keys():
+            sections_list.append({
+                "name": section_name,
+                "start_line": 1,  # Not meaningful anymore with semantic sections
+                "end_line": 1     # Not meaningful anymore with semantic sections
             })
+        
+        return {
+            "sections": sections_list,
+            "extracted_text": extracted_text
+        }
     
-    return {"sections": sections}
+    finally:
+        # Clean up temp file
+        tmp_path.unlink(missing_ok=True)
 
 
 def chunk_text_by_lines(text: str, max_chars: int = 100000, overlap_lines: int = 50) -> list[tuple[str, int, int]]:
@@ -744,6 +1198,7 @@ def condense_qa_check(file_content: str, progress_callback=None) -> str:
     
     # Parse events from the file content (as lines)
     lines = file_content.split('\n')
+    original_line_count = len(lines)
     events = iter_events(lines, index_allow=None, min_severity="INFO")
     
     if progress_callback:
@@ -752,14 +1207,17 @@ def condense_qa_check(file_content: str, progress_callback=None) -> str:
     # Condense events
     summary_rows, message_counts, all_index_keys = condense_events(events)
     
-    if progress_callback:
-        progress_callback(2, 2, f"Found {len(summary_rows)} unique event patterns")
-    
     # Format output
-    return format_condensed_output(summary_rows, message_counts, all_index_keys)
+    condensed_output = format_condensed_output(summary_rows, message_counts, all_index_keys)
+    condensed_line_count = len(condensed_output.split('\n'))
+    
+    if progress_callback:
+        progress_callback(2, 2, f"Condensed QA_CHECK: {original_line_count} → {condensed_line_count} lines")
+    
+    return condensed_output
 
-def extract_useful_sections(file_content: str, file_type: str, log_dir: Path = None, progress_callback=None) -> dict:
-    """Extract useful diagnostic sections from a log file using fast LLM.
+def extract_condensed_sections(file_content: str, file_type: str, log_dir: Path = None, progress_callback=None) -> dict:
+    """Extract condensed diagnostic sections from a log file using fast LLM.
     
     Args:
         file_content: Full file content
@@ -810,7 +1268,7 @@ def extract_useful_sections(file_content: str, file_type: str, log_dir: Path = N
             meta = {}
             
             if api_keys["openai"]:
-                text, meta = _call_openai_responses_api(prompt, model="gpt-5-nano", reasoning_effort="minimal")
+                text, meta = _call_openai_responses_api(prompt, model="gpt-5-nano", reasoning_effort="minimal", log_dir=log_dir)
             elif api_keys["anthropic"]:
                 text, meta = _call_anthropic_api(prompt, model="claude-3-5-haiku-20241022")
             else:
@@ -857,7 +1315,7 @@ def extract_useful_sections(file_content: str, file_type: str, log_dir: Path = N
         error_msg = ""
         
         if api_keys["openai"]:
-            text, meta = _call_openai_responses_api(prompt, model="gpt-5-nano", reasoning_effort="minimal")
+            text, meta = _call_openai_responses_api(prompt, model="gpt-5-nano", reasoning_effort="minimal", log_dir=log_dir)
         elif api_keys["anthropic"]:
             text, meta = _call_anthropic_api(prompt, model="claude-3-5-haiku-20241022")
         else:
@@ -869,7 +1327,7 @@ def extract_useful_sections(file_content: str, file_type: str, log_dir: Path = N
         log_llm_call(f"extraction_{file_type}", prompt, text, meta, log_dir)
         
         if not text:
-            error_msg = f"Failed to extract useful sections from {file_type}. LLM returned empty response."
+            error_msg = f"Failed to extract condensed sections from {file_type}. LLM returned empty response."
             raise RuntimeError(error_msg)
         
         # Parse JSON response
@@ -929,8 +1387,8 @@ def _similar_names(name1: str, name2: str) -> bool:
         return True
     return False
 
-def create_useful_markdown(file_lines: list[str], sections: list[dict], file_type: str) -> str:
-    """Create markdown file with extracted useful sections.
+def create_condensed_markdown(file_lines: list[str], sections: list[dict], file_type: str) -> str:
+    """Create markdown file with extracted condensed sections.
     
     Args:
         file_lines: Original file content as list of lines
@@ -948,7 +1406,7 @@ def create_useful_markdown(file_lines: list[str], sections: list[dict], file_typ
         'run_log': 'Run Log',
         'lst': 'LST File'
     }
-    md_lines.append(f"# {file_name_map.get(file_type, file_type)} - Useful Sections")
+    md_lines.append(f"# {file_name_map.get(file_type, file_type)} - Condensed")
     md_lines.append("")
     
     for section in sections:
@@ -996,15 +1454,16 @@ def review_files(qa_check: str, run_log: str, lst_content: str, provider: str = 
         return done("none", "")
 
     if prov in ("auto","openai"):
-        # Use GPT-5 with high reasoning effort for review
-        t, meta = _call_openai_responses_api(prompt, model="gpt-5", reasoning_effort="high")
+        # Use GPT-5 with high reasoning effort for review via Responses API
+        # Responses API supports streaming with the stream parameter
+        t, meta = _call_openai_responses_api(prompt, model="gpt-5", reasoning_effort="high", stream_callback=stream_callback, log_dir=log_dir)
         if t: return done("openai", t, meta)
 
     if prov in ("auto","anthropic"):
         # Use Sonnet for review (best balance of quality/cost)
         if not model:
             model = "claude-3-5-sonnet-20241022"
-        t, meta = _call_anthropic_api(prompt, model=model)
+        t, meta = _call_anthropic_api(prompt, model=model, stream_callback=stream_callback)
         if t: return done("anthropic", t, meta)
         
         t = _call_anthropic_cli(prompt)

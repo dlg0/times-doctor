@@ -82,7 +82,7 @@ REM Test direct run
 uvx --from git+https://github.com/dlg0/times-doctor times-doctor --help
 
 REM Test with sample data (if available)
-uvx --from git+https://github.com/dlg0/times-doctor times-doctor diagnose "D:\path\to\run" --gams "C:\GAMS\win64\49\gams.exe"
+uvx --from git+https://github.com/dlg0/times-doctor times-doctor review "D:\path\to\run"
 ```
 
 ## For Private Repository Access

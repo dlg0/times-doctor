@@ -73,7 +73,7 @@ See QA_CHECK.LOG for full detail
     return f"{template}\n\nFile content:\n```\n{file_content}\n```"
 
 def build_extraction_prompt(file_content: str, file_type: str) -> str:
-    """Build prompt for fast LLM to extract useful line ranges from log files.
+    """Build prompt for fast LLM to extract condensed line ranges from log files.
     
     Args:
         file_content: The full file content with line numbers
@@ -82,10 +82,10 @@ def build_extraction_prompt(file_content: str, file_type: str) -> str:
     template = _load_prompt_template("extraction_sections")
     if not template:
         # Fallback inline version
-        template = """You are analyzing a TIMES/Veda {file_type} file to identify ONLY the useful diagnostic sections.
+        template = """You are analyzing a TIMES/Veda {file_type} file to identify ONLY the condensed diagnostic sections.
 
 Your task:
-1. Identify line ranges containing useful diagnostic information
+1. Identify line ranges containing condensed diagnostic information
 2. Return a JSON object mapping section names to line ranges
 
 INCLUDE line ranges for:
@@ -124,14 +124,14 @@ def build_review_prompt(qa_check: str, run_log: str, lst_content: str) -> str:
     lines.append("")
     lines.append("Focus on practical, actionable advice. Be specific about what files, settings, or data need attention.")
     lines.append("")
-    lines.append("=== QA_CHECK.LOG ===")
-    lines.append(qa_check[:8000] if qa_check else "(file not found)")
+    lines.append("=== QA_CHECK.LOG (CONDENSED) ===")
+    lines.append(qa_check if qa_check else "(file not found)")
     lines.append("")
-    lines.append("=== RUN LOG ===")
-    lines.append(run_log[:8000] if run_log else "(file not found)")
+    lines.append("=== RUN LOG (CONDENSED) ===")
+    lines.append(run_log if run_log else "(file not found)")
     lines.append("")
-    lines.append("=== LST FILE (excerpts) ===")
-    lines.append(lst_content[:8000] if lst_content else "(file not found)")
+    lines.append("=== LST FILE (CONDENSED EXCERPTS) ===")
+    lines.append(lst_content if lst_content else "(file not found)")
     lines.append("")
     lines.append("Provide your analysis in markdown format with clear sections.")
     return "\n".join(lines)

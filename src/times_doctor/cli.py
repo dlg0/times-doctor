@@ -90,7 +90,9 @@ def pick_driver_gms(run_dir: Path) -> Path:
     raise FileNotFoundError("No .run or .gms driver found in run dir")
 
 def latest_lst(run_dir: Path) -> Path | None:
-    lsts = sorted(run_dir.glob("*.lst"), key=lambda p: p.stat().st_mtime, reverse=True)
+    # Find .lst files but exclude .condensed.lst files
+    lsts = [p for p in run_dir.glob("*.lst") if ".condensed" not in p.name]
+    lsts = sorted(lsts, key=lambda p: p.stat().st_mtime, reverse=True)
     return lsts[0] if lsts else None
 
 def read_text(path: Path) -> str:
@@ -314,137 +316,150 @@ def suggest_fixes(status: dict, ranges: dict, mixed_cur_files: list[str], used_b
     return tips
 
 @app.command()
-def diagnose(
+def datacheck(
     run_dir: str,
     gams_path: str | None = typer.Option(None, "--gams-path", help="Path to gams.exe (defaults to 'gams' in PATH)"),
-    datacheck: bool = typer.Option(False, help="Run a short CPLEX 'datacheck 2' pass"),
-    threads: int = typer.Option(7, help="Threads for diagnostics rerun"),
-    llm: str = typer.Option("none", help="LLM provider: auto|openai|anthropic|amp|none")
+    threads: int = typer.Option(7, help="Number of threads for CPLEX to use during datacheck")
 ):
+    """
+    Rerun model with CPLEX datacheck mode for detailed diagnostics.
+    
+    Creates '_td_datacheck' directory, copies your run, and runs GAMS
+    with CPLEX 'datacheck 2' enabled. This generates range statistics
+    and identifies numerical issues WITHOUT solving the full model.
+    
+    Much faster than full solve. Identifies:
+      - Matrix coefficient ranges (min/max)
+      - Bound ranges
+      - RHS ranges
+      - Numerical conditioning issues
+    
+    After datacheck completes, run 'review' again to analyze results.
+    
+    \b
+    Example:
+      times-doctor datacheck data/065Nov25-annualupto2045/parscen
+    
+    \b
+    Created directories:
+      <run_dir>/_td_datacheck/       - Datacheck run copy
+      <run_dir>/_td_datacheck/*.lst  - Listing with range stats
+    """
     rd = Path(run_dir).resolve()
-    out = ensure_out(rd)
-
+    
+    gams_cmd = gams_path if gams_path else "gams"
+    
+    # Detect TIMES version
     lst = latest_lst(rd)
-    lst_text = read_text(lst) if lst else ""
-
-    used_barrier_noXO = bool(re.search(r"lpmethod\s*4", lst_text, re.I) and re.search(r"solutiontype\s*2", lst_text, re.I))
-
-    if datacheck:
-        gams_cmd = gams_path if gams_path else "gams"
-        times_version = detect_times_version(lst)
-        times_src = get_times_source(version=times_version)
-        driver = pick_driver_gms(rd)
-        tmp = rd / "_td_datacheck"
-        if tmp.exists():
-            shutil.rmtree(tmp)
-        shutil.copytree(rd, tmp)
-        write_opt(tmp / "cplex.opt", [
-            "datacheck 2",
-            f"threads {threads}",
-            "names yes",
-            "lpmethod 2",
-            "solutiontype 1",
-            "scaind -1",
-            "aggind 1",
-            "eprhs 1.0e-06",
-            "epopt 1.0e-06",
-            "numericalemphasis 1"
-        ])
+    times_version = detect_times_version(lst)
+    times_src = get_times_source(version=times_version)
+    
+    driver = pick_driver_gms(rd)
+    tmp = rd / "_td_datacheck"
+    
+    if tmp.exists():
+        print(f"[yellow]Removing existing datacheck directory: {tmp}[/yellow]")
+        shutil.rmtree(tmp)
+    
+    print(f"[yellow]Creating datacheck run directory: {tmp}[/yellow]")
+    shutil.copytree(rd, tmp)
+    
+    # Write CPLEX options file with datacheck enabled
+    write_opt(tmp / "cplex.opt", [
+        "datacheck 2",
+        f"threads {threads}",
+        "names yes",
+        "lpmethod 2",
+        "solutiontype 1",
+        "scaind -1",
+        "aggind 1",
+        "eprhs 1.0e-06",
+        "epopt 1.0e-06",
+        "numericalemphasis 1"
+    ])
+    
+    tmp_driver = pick_driver_gms(tmp)
+    dd_dir = rd.parent
+    restart_file = times_src / "_times.g00"
+    gdx_dir = tmp / "GAMSSAVE"
+    gdx_file = gdx_dir / f"{tmp.name}.gdx"
+    
+    print(f"[yellow]Running GAMS datacheck with {threads} threads (this may take several minutes)...[/yellow]")
+    returncode = run_gams_with_progress([
+        gams_cmd, tmp_driver.name,
+        f"r={restart_file}",
+        f"idir1={tmp}",
+        f"idir2={times_src}",
+        f"idir3={dd_dir}",
+        f"gdx={gdx_file}",
+        f"gdxcompress=1",
+        "LP=CPLEX",
+        "OPTFILE=1",
+        "LOGOPTION=2",
+        f"logfile={tmp.name}_run_log.txt",
+        f"--GDXPATH={gdx_dir}/",
+        "--ERR_ABORT=NO"
+    ], cwd=str(tmp))
+    
+    print(f"\n[green]✓ GAMS datacheck complete[/green]")
+    print(f"[green]✓ Datacheck output saved to: {tmp}[/green]")
+    
+    # Parse and display basic status
+    lst = latest_lst(tmp)
+    if lst:
+        lst_text = read_text(lst)
+        ranges = parse_range_stats(lst_text)
+        status = parse_statuses(lst_text)
         
-        tmp_driver = pick_driver_gms(tmp)
-        dd_dir = rd.parent
-        restart_file = times_src / "_times.g00"
-        gdx_dir = tmp / "GAMSSAVE"
-        gdx_file = gdx_dir / f"{tmp.name}.gdx"
-        
-        print(f"[yellow]Running GAMS datacheck with {threads} threads (this may take several minutes)...[/yellow]")
-        run_gams_with_progress([
-            gams_cmd, tmp_driver.name,
-            f"r={restart_file}",
-            f"idir1={tmp}",
-            f"idir2={times_src}",
-            f"idir3={dd_dir}",
-            f"gdx={gdx_file}",
-            f"gdxcompress=1",
-            "LP=CPLEX",
-            "OPTFILE=1",
-            "LOGOPTION=2",
-            f"logfile={tmp.name}_run_log.txt",
-            f"--GDXPATH={gdx_dir}/",
-            "--ERR_ABORT=NO"
-        ], cwd=str(tmp))
-        
-        print("[green]GAMS datacheck complete[/green]")
-        lst = latest_lst(tmp)
-        lst_text = read_text(lst) if lst else lst_text
-
-    ranges = parse_range_stats(lst_text) if lst_text else {}
-    status = parse_statuses(lst_text) if lst_text else {}
-    mixed = grep_mixed_currencies(rd)
-
-    tips = suggest_fixes(status, ranges, mixed, used_barrier_noXO)
-
-    # optional LLM advice
-    llm_text = ""
-    if llm.lower() != "none":
-        diag = {
-            "status": status,
-            "ranges": ranges,
-            "mixed_currency_files": mixed,
-            "used_barrier_noXO": used_barrier_noXO
-        }
-        res = llm_mod.summarize(diag, provider=llm)
-        if res.used:
-            llm_text = res.text
-
-    table = Table(title="TIMES Doctor — Diagnose")
-    for k,v in status.items():
-        table.add_row(k, str(v))
-    console.print(table)
-
-    if ranges:
-        print(f"[bold]Range statistics[/bold]: {ranges}")
-    if mixed:
-        print(f"[bold red]Mixed currencies suspected in[/bold red]: {mixed}")
-    if llm_text:
-        print("[bold]LLM advice[/bold]:\n" + llm_text)
-
-    md = out / "diagnose_report.md"
-    with md.open("w", encoding="utf-8") as f:
-        f.write("# TIMES Doctor — Diagnose Report\n\n")
-        f.write(f"Run dir: `{rd}`\n\n")
-        if status:
-            f.write("## Status\n")
-            for k,v in status.items():
-                f.write(f"- **{k}**: {v}\n")
-            f.write("\n")
         if ranges:
-            f.write("## Range statistics\n")
-            for k,(mn,mx) in ranges.items():
-                f.write(f"- **{k}**: min {mn:.3e}, max {mx:.3e}\n")
-            f.write("\n")
-        if mixed:
-            f.write("## Mixed currencies\n")
-            for p in mixed:
-                f.write(f"- {p}\n")
-            f.write("\n")
-        f.write("## Suggestions\n")
-        for t in tips:
-            f.write(f"- {t}\n")
-        f.write("\n")
-        if llm_text:
-            f.write("## LLM Advice\n")
-            f.write(llm_text + "\n")
-    print(f"[green]Wrote[/green] {md}")
+            print(f"\n[bold cyan]Range Statistics:[/bold cyan]")
+            for k, (mn, mx) in ranges.items():
+                print(f"  {k:8s}: min {mn:.3e}, max {mx:.3e}")
+        
+        if status:
+            print(f"\n[bold cyan]Status:[/bold cyan]")
+            print(f"  Model Status:  {status.get('model_status', 'N/A')}")
+            print(f"  Solver Status: {status.get('solver_status', 'N/A')}")
+            print(f"  LP Status:     {status.get('lp_status_text', 'N/A')}")
+    
+    print(f"\n[bold yellow]Next step:[/bold yellow]")
+    print(f"  Run 'times-doctor review {run_dir}' to analyze the datacheck results with LLM assistance.")
+    print(f"  The review command will prompt you to select between the original run and this datacheck run.")
 
 @app.command()
 def scan(
     run_dir: str,
     gams_path: str | None = typer.Option(None, "--gams-path", help="Path to gams.exe (defaults to 'gams' in PATH)"),
-    profiles: list[str] = typer.Option(["dual","sift","bar_nox"], help="Profiles: dual|sift|bar_nox"),
-    threads: int = typer.Option(7),
-    llm: str = typer.Option("none", help="LLM provider: auto|openai|anthropic|amp|none")
+    profiles: list[str] = typer.Option(["dual","sift","bar_nox"], help="Solver profiles to test (dual|sift|bar_nox)"),
+    threads: int = typer.Option(7, help="Number of threads for CPLEX to use"),
+    llm: str = typer.Option("none", help="LLM provider for optional analysis: auto|openai|anthropic|amp|none")
 ):
+    """
+    Test multiple CPLEX solver configurations to find best approach.
+    
+    Runs your model with different CPLEX algorithms to compare behavior.
+    Each profile uses different methods that may handle numerical issues
+    differently. Helps identify which solver config works best.
+    
+    Available profiles:
+      dual    - Dual simplex (lpmethod 2) - Most robust
+      sift    - Sifting (lpmethod 5) - Good for huge sparse LPs
+      bar_nox - Barrier without crossover (lpmethod 4) - Fast
+    
+    Results summarized in CSV for easy comparison.
+    
+    \b
+    Example:
+      times-doctor scan data/065Nov25-annualupto2045/parscen
+      times-doctor scan data/... --profiles dual sift
+    
+    \b
+    Created directories:
+      <run_dir>/times_doctor_out/scan_runs/dual/
+      <run_dir>/times_doctor_out/scan_runs/sift/
+      <run_dir>/times_doctor_out/scan_runs/bar_nox/
+      <run_dir>/times_doctor_out/scan_report.csv
+    """
     rd = Path(run_dir).resolve()
     
     gams_cmd = gams_path if gams_path else "gams"
@@ -569,7 +584,32 @@ def review(
     llm: str = typer.Option("auto", help="LLM provider: auto|openai|anthropic|amp|none"),
     model: str = typer.Option("", help="Specific model to use (will prompt if not specified)")
 ):
-    """Review QA_CHECK.LOG, run log, and LST files using LLM for human-readable diagnostics."""
+    """
+    Review TIMES run files using LLM for human-readable diagnostics.
+    
+    ⭐ START HERE - Primary command for diagnosing TIMES model issues.
+    
+    Analyzes QA_CHECK.LOG, run log, and .lst files from your failed run.
+    Provides clear explanations of what went wrong and actionable steps
+    to fix your model.
+    
+    If multiple runs exist (original + datacheck), you'll be prompted
+    to select which one to review.
+    
+    Identifies: infeasibilities, numerical issues, matrix coefficient
+    problems, solver configuration recommendations.
+    
+    After review, LLM may suggest running 'datacheck' for deeper analysis.
+    
+    \b
+    Example:
+      times-doctor review data/065Nov25-annualupto2045/parscen
+    
+    \b
+    Output:
+      <run_dir>/times_doctor_out/llm_review.md  ← Read this!
+      <run_dir>/_llm_calls/                     ← API call logs
+    """
     rd = Path(run_dir).resolve()
     
     # Check for multiple run directories
@@ -628,12 +668,12 @@ def review(
     api_keys = llm_mod.check_api_keys()
     fast_model = "gpt-5-nano" if api_keys["openai"] else ("claude-3-5-haiku-20241022" if api_keys["anthropic"] else "unknown")
     
-    print(f"\n[bold yellow]Extracting useful sections with fast LLM ({fast_model})...[/bold yellow]")
+    print(f"\n[bold yellow]Condensing files with fast LLM ({fast_model})...[/bold yellow]")
     print(f"[dim](LLM calls logged to {llm_log_dir})[/dim]")
     
-    qa_check_useful = ""
-    run_log_useful = ""
-    lst_useful = ""
+    condensed_qa_check = ""
+    condensed_run_log = ""
+    condensed_lst = ""
     
     try:
         if qa_check:
@@ -645,10 +685,10 @@ def review(
                 else:
                     print(f"[dim]    {message}[/dim]")
             
-            qa_check_useful = llm_mod.condense_qa_check(qa_check, progress_callback=qa_progress)
-            qa_check_useful_path = rd / "QA_CHECK_condensed.md"
-            qa_check_useful_path.write_text(qa_check_useful, encoding="utf-8")
-            print(f"[green]  ✓ Saved {qa_check_useful_path}[/green]")
+            condensed_qa_check = llm_mod.condense_qa_check(qa_check, progress_callback=qa_progress)
+            condensed_qa_check_path = rd / "QA_CHECK.condensed.LOG"
+            condensed_qa_check_path.write_text(condensed_qa_check, encoding="utf-8")
+            print(f"[green]  ✓ Saved {condensed_qa_check_path}[/green]")
         
         if run_log:
             print(f"[dim]  Extracting from {run_log_path.name}...[/dim]")
@@ -659,17 +699,17 @@ def review(
                 else:
                     print(f"[dim]    {message}[/dim]")
             
-            sections = llm_mod.extract_useful_sections(run_log, "run_log", log_dir=llm_log_dir, progress_callback=runlog_progress)
+            sections = llm_mod.extract_condensed_sections(run_log, "run_log", log_dir=llm_log_dir, progress_callback=runlog_progress)
             
             # For run_log, we get filtered_content directly
             if "filtered_content" in sections and sections["filtered_content"]:
-                run_log_useful = f"# Run Log - Filtered\n\n```\n{sections['filtered_content']}\n```\n"
+                condensed_run_log = f"# Run Log - Filtered\n\n```\n{sections['filtered_content']}\n```\n"
             else:
-                run_log_useful = llm_mod.create_useful_markdown(run_log.split('\n'), sections["sections"], "run_log")
+                condensed_run_log = llm_mod.create_condensed_markdown(run_log.split('\n'), sections["sections"], "run_log")
             
-            run_log_useful_path = rd / f"{run_log_path.stem}_useful.md"
-            run_log_useful_path.write_text(run_log_useful, encoding="utf-8")
-            print(f"[green]  ✓ Saved {run_log_useful_path}[/green]")
+            condensed_run_log_path = rd / f"{run_log_path.stem}.condensed.txt"
+            condensed_run_log_path.write_text(condensed_run_log, encoding="utf-8")
+            print(f"[green]  ✓ Saved {condensed_run_log_path}[/green]")
         
         if lst_text:
             print(f"[dim]  Extracting from {lst.name}...[/dim]")
@@ -680,11 +720,11 @@ def review(
                 else:
                     print(f"[dim]    {message}[/dim]")
             
-            sections = llm_mod.extract_useful_sections(lst_text, "lst", log_dir=llm_log_dir, progress_callback=lst_progress)
-            lst_useful = llm_mod.create_useful_markdown(lst_text.split('\n'), sections["sections"], "lst")
-            lst_useful_path = rd / f"{lst.stem}_useful.md"
-            lst_useful_path.write_text(lst_useful, encoding="utf-8")
-            print(f"[green]  ✓ Saved {lst_useful_path}[/green]")
+            sections = llm_mod.extract_condensed_sections(lst_text, "lst", log_dir=llm_log_dir, progress_callback=lst_progress)
+            condensed_lst = llm_mod.create_condensed_markdown(lst_text.split('\n'), sections["sections"], "lst")
+            condensed_lst_path = rd / f"{lst.stem}.condensed.lst"
+            condensed_lst_path.write_text(condensed_lst, encoding="utf-8")
+            print(f"[green]  ✓ Saved {condensed_lst_path}[/green]")
     except Exception as e:
         print(f"[red]Error during extraction: {e}[/red]")
         print(f"[yellow]Check {llm_log_dir} for detailed logs[/yellow]")
@@ -693,24 +733,29 @@ def review(
     # Determine reasoning model
     reasoning_model = "gpt-5 (high effort)" if api_keys["openai"] else ("claude-3-5-sonnet-20241022" if api_keys["anthropic"] else "unknown")
     
-    print(f"\n[bold cyan]Sending useful sections to reasoning LLM ({reasoning_model}):[/bold cyan]")
-    if qa_check_useful:
-        print(f"  • QA_CHECK_compressed.md")
-    if run_log_useful:
-        print(f"  • {run_log_path.stem}_useful.md")
-    if lst_useful:
-        print(f"  • {lst.stem}_useful.md")
+    print(f"\n[bold cyan]Sending condensed files to reasoning LLM ({reasoning_model}):[/bold cyan]")
+    if condensed_qa_check:
+        print(f"  • QA_CHECK.condensed.LOG")
+    if condensed_run_log:
+        print(f"  • {run_log_path.stem}.condensed.txt")
+    if condensed_lst:
+        print(f"  • {lst.stem}.condensed.lst")
     
-    print(f"\n[bold green]LLM Review:[/bold green]")
+    print(f"\n[bold green]Reviewing...[/bold green]\n")
     
-    result = llm_mod.review_files(qa_check_useful, run_log_useful, lst_useful, provider=llm, model=model, log_dir=llm_log_dir)
+    # Create streaming callback to display output as it comes
+    def stream_output(chunk: str):
+        print(chunk, end='', flush=True)
+    
+    result = llm_mod.review_files(condensed_qa_check, condensed_run_log, condensed_lst, provider=llm, model=model, stream_callback=stream_output, log_dir=llm_log_dir)
     
     if not result.used:
         print(f"[red]Failed to get LLM response. Check API keys and connectivity.[/red]")
         raise typer.Exit(1)
     
-    # Print the result
-    print(result.text)
+    # If streaming wasn't used (e.g., fallback to responses API), print the result
+    if not result.text or '\n' not in result.text:
+        print(result.text)
     
     print("\n")  # New line after output
     
@@ -730,7 +775,15 @@ def review(
 
 @app.command()
 def update():
-    """Update times-doctor to the latest version using uv tool upgrade."""
+    """
+    Update times-doctor to the latest version from GitHub.
+    
+    Uses 'uv tool upgrade' to fetch and install the latest version.
+    
+    \b
+    Example:
+      times-doctor update
+    """
     if sys.platform == "win32":
         print("[yellow]On Windows, times-doctor cannot update itself while running.[/yellow]")
         print("[yellow]Please run this command in PowerShell instead:[/yellow]")
@@ -761,7 +814,7 @@ app.add_typer(run_utility_app, name="run-utility")
 @run_utility_app.command("condense-qa-check")
 def condense_qa_check_cmd(
     input_file: Path = typer.Argument(..., help="Path to QA_CHECK.LOG file"),
-    output_file: Path = typer.Option(None, "--output", "-o", help="Output file path (default: QA_CHECK_condensed.md in same directory)"),
+    output_file: Path = typer.Option(None, "--output", "-o", help="Output file path (default: QA_CHECK.condensed.LOG in same directory)"),
 ):
     """Condense a QA_CHECK.LOG file into a compact summary."""
     if not input_file.exists():
@@ -779,7 +832,7 @@ def condense_qa_check_cmd(
     condensed = llm_mod.condense_qa_check(content, progress_callback=progress_callback)
     
     if output_file is None:
-        output_file = input_file.parent / "QA_CHECK_condensed.md"
+        output_file = input_file.parent / "QA_CHECK.condensed.LOG"
     
     output_file.write_text(condensed, encoding="utf-8")
     print(f"[green]✓ Saved condensed output to {output_file}[/green]")
@@ -789,7 +842,7 @@ def condense_qa_check_cmd(
 @run_utility_app.command("condense-lst")
 def condense_lst_cmd(
     input_file: Path = typer.Argument(..., help="Path to .lst file"),
-    output_file: Path = typer.Option(None, "--output", "-o", help="Output file path (default: <input>_pages.md in same directory)"),
+    output_file: Path = typer.Option(None, "--output", "-o", help="Output file path (default: <input>.condensed.lst in same directory)"),
 ):
     """Extract useful pages from a .lst file."""
     if not input_file.exists():
@@ -804,11 +857,11 @@ def condense_lst_cmd(
     def progress_callback(current, total, message):
         print(f"[dim]  {message}[/dim]")
     
-    result = llm_mod.extract_useful_sections(content, "lst", progress_callback=progress_callback)
+    result = llm_mod.extract_condensed_sections(content, "lst", progress_callback=progress_callback)
     extracted = result.get("extracted_text", "")
     
     if output_file is None:
-        output_file = input_file.parent / f"{input_file.stem}_pages.md"
+        output_file = input_file.parent / f"{input_file.stem}.condensed.lst"
     
     output_file.write_text(extracted, encoding="utf-8")
     print(f"[green]✓ Saved extracted pages to {output_file}[/green]")
@@ -818,7 +871,7 @@ def condense_lst_cmd(
 @run_utility_app.command("condense-run-log")
 def condense_run_log_cmd(
     input_file: Path = typer.Argument(..., help="Path to run log file (*_run_log.txt)"),
-    output_file: Path = typer.Option(None, "--output", "-o", help="Output file path (default: <input>_filtered.md in same directory)"),
+    output_file: Path = typer.Option(None, "--output", "-o", help="Output file path (default: <input>.condensed.txt in same directory)"),
 ):
     """Filter a run log file to show only useful diagnostic information."""
     if not input_file.exists():
@@ -833,11 +886,11 @@ def condense_run_log_cmd(
     def progress_callback(current, total, message):
         print(f"[dim]  {message}[/dim]")
     
-    result = llm_mod.extract_useful_sections(content, "run_log", progress_callback=progress_callback)
-    filtered = result.get("extracted_text", "")
+    result = llm_mod.extract_condensed_sections(content, "run_log", progress_callback=progress_callback)
+    filtered = result.get("filtered_content", "")
     
     if output_file is None:
-        output_file = input_file.parent / f"{input_file.stem}_filtered.md"
+        output_file = input_file.parent / f"{input_file.stem}.condensed.txt"
     
     output_file.write_text(filtered, encoding="utf-8")
     print(f"[green]✓ Saved filtered output to {output_file}[/green]")

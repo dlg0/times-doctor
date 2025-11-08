@@ -59,3 +59,5 @@ htmlcov/
 
 # uv
 .python-version
+
+_llm_calls/
