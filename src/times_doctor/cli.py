@@ -751,3 +751,94 @@ def update():
         print("[red]Error: 'uv' command not found. Please install uv first.[/red]")
         print("Visit: https://docs.astral.sh/uv/getting-started/installation/")
         raise typer.Exit(1)
+
+
+# Run utility commands for condensing log files
+run_utility_app = typer.Typer(help="Utility commands for condensing and processing log files")
+app.add_typer(run_utility_app, name="run-utility")
+
+
+@run_utility_app.command("condense-qa-check")
+def condense_qa_check_cmd(
+    input_file: Path = typer.Argument(..., help="Path to QA_CHECK.LOG file"),
+    output_file: Path = typer.Option(None, "--output", "-o", help="Output file path (default: QA_CHECK_condensed.md in same directory)"),
+):
+    """Condense a QA_CHECK.LOG file into a compact summary."""
+    if not input_file.exists():
+        print(f"[red]Error: File not found: {input_file}[/red]")
+        raise typer.Exit(1)
+    
+    print(f"[dim]Reading {input_file}...[/dim]")
+    content = read_text(input_file)
+    
+    print(f"[dim]Condensing QA_CHECK.LOG ({len(content)} chars)...[/dim]")
+    
+    def progress_callback(current, total, message):
+        print(f"[dim]  {message}[/dim]")
+    
+    condensed = llm_mod.condense_qa_check(content, progress_callback=progress_callback)
+    
+    if output_file is None:
+        output_file = input_file.parent / "QA_CHECK_condensed.md"
+    
+    output_file.write_text(condensed, encoding="utf-8")
+    print(f"[green]✓ Saved condensed output to {output_file}[/green]")
+    print(f"[dim]  Original: {len(content):,} chars → Condensed: {len(condensed):,} chars[/dim]")
+
+
+@run_utility_app.command("condense-lst")
+def condense_lst_cmd(
+    input_file: Path = typer.Argument(..., help="Path to .lst file"),
+    output_file: Path = typer.Option(None, "--output", "-o", help="Output file path (default: <input>_pages.md in same directory)"),
+):
+    """Extract useful pages from a .lst file."""
+    if not input_file.exists():
+        print(f"[red]Error: File not found: {input_file}[/red]")
+        raise typer.Exit(1)
+    
+    print(f"[dim]Reading {input_file}...[/dim]")
+    content = read_text(input_file)
+    
+    print(f"[dim]Extracting useful pages from LST ({len(content)} chars)...[/dim]")
+    
+    def progress_callback(current, total, message):
+        print(f"[dim]  {message}[/dim]")
+    
+    result = llm_mod.extract_useful_sections(content, "lst", progress_callback=progress_callback)
+    extracted = result.get("extracted_text", "")
+    
+    if output_file is None:
+        output_file = input_file.parent / f"{input_file.stem}_pages.md"
+    
+    output_file.write_text(extracted, encoding="utf-8")
+    print(f"[green]✓ Saved extracted pages to {output_file}[/green]")
+    print(f"[dim]  Original: {len(content):,} chars → Extracted: {len(extracted):,} chars[/dim]")
+
+
+@run_utility_app.command("condense-run-log")
+def condense_run_log_cmd(
+    input_file: Path = typer.Argument(..., help="Path to run log file (*_run_log.txt)"),
+    output_file: Path = typer.Option(None, "--output", "-o", help="Output file path (default: <input>_filtered.md in same directory)"),
+):
+    """Filter a run log file to show only useful diagnostic information."""
+    if not input_file.exists():
+        print(f"[red]Error: File not found: {input_file}[/red]")
+        raise typer.Exit(1)
+    
+    print(f"[dim]Reading {input_file}...[/dim]")
+    content = read_text(input_file)
+    
+    print(f"[dim]Filtering run log ({len(content)} chars)...[/dim]")
+    
+    def progress_callback(current, total, message):
+        print(f"[dim]  {message}[/dim]")
+    
+    result = llm_mod.extract_useful_sections(content, "run_log", progress_callback=progress_callback)
+    filtered = result.get("extracted_text", "")
+    
+    if output_file is None:
+        output_file = input_file.parent / f"{input_file.stem}_filtered.md"
+    
+    output_file.write_text(filtered, encoding="utf-8")
+    print(f"[green]✓ Saved filtered output to {output_file}[/green]")
+    print(f"[dim]  Original: {len(content):,} chars → Filtered: {len(filtered):,} chars[/dim]")

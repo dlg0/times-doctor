@@ -244,6 +244,148 @@ def condense_log_to_rows(
     return condense_events(events)
 
 
+def _is_int_str(s: str) -> bool:
+    """Check if string represents an integer."""
+    return bool(re.fullmatch(r"-?\d+", s))
+
+
+def _format_int_ranges(ints: List[int]) -> str:
+    """Format list of integers as ranges (e.g., [1,2,3,5,6,8] -> '1-3, 5-6, 8')."""
+    if not ints:
+        return ""
+    ints = sorted(set(ints))
+    ranges = []
+    start = prev = ints[0]
+    for n in ints[1:]:
+        if n == prev + 1:
+            prev = n
+        else:
+            ranges.append((start, prev))
+            start = prev = n
+    ranges.append((start, prev))
+    parts = []
+    for a, b in ranges:
+        parts.append(str(a) if a == b else f"{a}-{b}")
+    return ", ".join(parts)
+
+
+def _summarize_values(vals: Iterable[str], sample_limit: int = 5) -> str:
+    """Summarize a set of values, showing ranges for integers or samples for strings."""
+    vals = set(v for v in vals if v is not None and v != "")
+    if not vals:
+        return "0 values"
+    
+    ints = [int(v) for v in vals if _is_int_str(v)]
+    non_ints = sorted(v for v in vals if not _is_int_str(v))
+    
+    parts = []
+    if ints:
+        rng = _format_int_ranges(ints)
+        parts.append(f"{len(set(ints))} values: {rng}")
+    if non_ints:
+        if len(non_ints) <= sample_limit:
+            samples = ", ".join(non_ints)
+        else:
+            samples = ", ".join(non_ints[:sample_limit]) + ", ..."
+        parts.append(f"{len(non_ints)} values: {samples}")
+    
+    return "; ".join(parts) if parts else str(len(vals)) + " values"
+
+
+def rollup_summary_rows(
+    summary_rows: List[Dict[str, str]],
+    group_on_keys: Optional[Sequence[str]] = None,
+    sample_limit: int = 3,
+) -> List[Dict[str, str]]:
+    """
+    Roll up summary rows by grouping on message only and aggregating all indices.
+    
+    Args:
+        summary_rows: Detailed event occurrences with indices
+        group_on_keys: Keys to group by (if None, groups by message only, aggregating all indices)
+        sample_limit: How many sample index combinations to keep
+    
+    Returns:
+        Rolled-up rows with aggregated counts and value summaries
+    """
+    # Discover index keys present in rows
+    fixed = {"severity", "message", "occurrences"}
+    discovered = set()
+    for r in summary_rows:
+        discovered.update(k for k in r.keys() if k not in fixed)
+    
+    # Default: group by message only (aggregate over all indices)
+    if group_on_keys is None:
+        group_on_keys = []
+    
+    groups = {}  # key -> accumulator
+    for r in summary_rows:
+        sev = r["severity"]
+        msg = r["message"]
+        occ = int(r.get("occurrences", "0") or 0)
+        sig = tuple((k, r.get(k, "")) for k in group_on_keys)
+        
+        acc = groups.setdefault(
+            (sev, msg, sig),
+            {
+                "severity": sev,
+                "message": msg,
+                "occurrences": 0,
+                "group_by": dict(sig),
+                "agg": {},  # key -> set(values)
+                "samples": [],  # list of sample dicts
+            },
+        )
+        acc["occurrences"] += occ
+        
+        # Collect aggregated values for non-grouped keys
+        for k, v in r.items():
+            if k in fixed or k in acc["group_by"]:
+                continue
+            if not v:
+                continue
+            acc["agg"].setdefault(k, set()).add(v)
+        
+        # Collect samples (keep first N)
+        if len(acc["samples"]) < sample_limit:
+            idx = {k: v for k, v in r.items() if k not in fixed and v}
+            acc["samples"].append(idx)
+    
+    # Build rolled-up rows
+    rolled = []
+    for acc in groups.values():
+        row = {
+            "severity": acc["severity"],
+            "message": acc["message"],
+            "occurrences": str(acc["occurrences"]),
+        }
+        # Grouped-by keys
+        for k in group_on_keys:
+            row[k] = acc["group_by"].get(k, "")
+        # Aggregated keys summary
+        if acc["agg"]:
+            parts = []
+            for k in sorted(acc["agg"].keys()):
+                parts.append(f"{k}: {_summarize_values(acc['agg'][k])}")
+            row["aggregates"] = "; ".join(parts)
+        # Sample indices
+        if acc["samples"]:
+            def fmt_sample(d): return ", ".join(f"{k}={d[k]}" for k in sorted(d.keys()))
+            row["samples"] = " | ".join(fmt_sample(s) for s in acc["samples"][:sample_limit])
+        rolled.append(row)
+    
+    # Sort by severity, message, then group_by key values
+    def _sort_key(r: Dict[str, str]) -> Tuple[int, str, Tuple[str, ...]]:
+        return (
+            severity_rank(r.get("severity", "")),
+            r.get("message", ""),
+            tuple(r.get(k, "") for k in group_on_keys),
+        )
+    
+    rolled.sort(key=_sort_key)
+    return rolled
+
+
 def format_condensed_output(
     summary_rows: List[Dict[str, str]],
     message_counts: List[Dict[str, str]],
@@ -283,12 +425,16 @@ def format_condensed_output(
     
     lines.append("")
     
-    # Detailed breakdown by message type
-    lines.append("DETAILED BREAKDOWN")
+    # Rolled-up breakdown (aggregate over all indices)
+    lines.append("GROUPED BREAKDOWN")
     lines.append("-" * 80)
     
+    # Group by message only (aggregate all indices including regions)
+    rolled = rollup_summary_rows(summary_rows, group_on_keys=None, sample_limit=1)
+    group_on_keys = []  # No grouping keys, we aggregate everything
+    
     current_severity = None
-    for row in summary_rows:
+    for row in rolled:
         severity = row["severity"]
         message = row["message"]
         occurrences = row["occurrences"]
@@ -302,15 +448,26 @@ def format_condensed_output(
         
         # Message line
         lines.append(f"  {message}")
-        lines.append(f"    Occurrences: {occurrences}")
+        lines.append(f"    Total occurrences: {occurrences}")
         
-        # Show indices if present
-        indices = {k: v for k, v in row.items() if k not in ["severity", "message", "occurrences"] and v}
-        if indices:
-            indices_str = ", ".join(f"{k}={v}" for k, v in sorted(indices.items()))
-            lines.append(f"    Indices: {indices_str}")
+        # Grouped-by indices
+        if group_on_keys:
+            grouped = {k: row.get(k, "") for k in group_on_keys if row.get(k)}
+            if grouped:
+                grouped_str = ", ".join(f"{k}={v}" for k, v in sorted(grouped.items()))
+                lines.append(f"    Grouped by: {grouped_str}")
+        
+        # Aggregated values (e.g., years, time periods)
+        if row.get("aggregates"):
+            lines.append(f"    Varies across: {row['aggregates']}")
+        
+        # Sample combinations
+        if row.get("samples"):
+            lines.append(f"    Sample indices: {row['samples']}")
+        
+        # Add blank line after each error
+        lines.append("")
     
-    lines.append("")
     lines.append("=" * 80)
     lines.append("See QA_CHECK.LOG for full detail")
     lines.append("=" * 80)

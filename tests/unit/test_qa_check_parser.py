@@ -239,7 +239,7 @@ class TestFormatting:
         assert "QA_CHECK.LOG SUMMARY" in output
         assert "ERROR" in output
         assert "Test :: Error message" in output
-        assert "Occurrences: 3" in output
+        assert "Total occurrences: 3" in output
         assert "See QA_CHECK.LOG for full detail" in output
 
 
