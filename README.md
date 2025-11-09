@@ -38,7 +38,7 @@ See [INSTALL.md](INSTALL.md) for detailed installation instructions.
 
 **What it does:**
 - Reads QA_CHECK.LOG, run log, and .lst files from your failed run
-- Analyzes them with an LLM (GPT-5 or Claude 3.5 Sonnet)
+- Analyzes them with an LLM (GPT-4o or Claude 3.5 Sonnet)
 - Provides human-readable explanations and actionable recommendations
 
 **When to use it:**
@@ -56,7 +56,7 @@ times-doctor review data/065Nov25-annualupto2045/parscen
 times-doctor review "D:\Veda\Gams_Wrk\YourModel\msm_ref~0011"
 
 # Use a specific model
-times-doctor review data/065Nov25-annualupto2045/parscen --model gpt-5
+times-doctor review data/065Nov25-annualupto2045/parscen --model gpt-4o
 ```
 
 **What gets created:**
@@ -96,10 +96,10 @@ Select run to review (1-2):
 
 ```bash
 # Run datacheck with default settings (7 threads)
-times-doctor datacheck data/065Nov25-annualupto2045/parscen --gams gams
+times-doctor datacheck data/065Nov25-annualupto2045/parscen --gams-path gams
 
 # Windows with specific GAMS path
-times-doctor datacheck "D:\Veda\Gams_Wrk\YourModel\msm_ref~0011" --gams "C:\GAMS\win64\49\gams.exe"
+times-doctor datacheck "D:\Veda\Gams_Wrk\YourModel\msm_ref~0011" --gams-path "C:\GAMS\win64\49\gams.exe"
 
 # Use more threads for faster execution
 times-doctor datacheck data/065Nov25-annualupto2045/parscen --threads 12
@@ -155,16 +155,16 @@ Next step:
 
 ```bash
 # Test all default profiles (sequential)
-times-doctor scan data/065Nov25-annualupto2045/parscen --gams gams
+times-doctor scan data/065Nov25-annualupto2045/parscen --gams-path gams
 
 # Test only specific profiles
-times-doctor scan data/065Nov25-annualupto2045/parscen --profiles dual sift
+times-doctor scan data/065Nov25-annualupto2045/parscen --profiles dual --profiles sift
 
 # Run profiles in parallel (faster!)
 times-doctor scan data/065Nov25-annualupto2045/parscen --parallel
 
 # Windows with more threads
-times-doctor scan "D:\...\msm_ref~0011" --gams "C:\GAMS\win64\49\gams.exe" --threads 12
+times-doctor scan "D:\...\msm_ref~0011" --gams-path "C:\GAMS\win64\49\gams.exe" --threads 12
 ```
 
 **What gets created:**
@@ -243,7 +243,7 @@ Copy `config.toml.example` to get started.
 Create a `.env` file in your project directory:
 
 ```bash
-# OpenAI (recommended - supports GPT-5 reasoning model)
+# OpenAI (recommended)
 OPENAI_API_KEY=sk-proj-...
 
 # OR Anthropic
@@ -271,7 +271,7 @@ $env:OPENAI_API_KEY="sk-proj-..."
 The `--llm` flag controls which provider to use:
 
 - `--llm auto` - Automatically selects based on available API keys (default for `review`)
-- `--llm openai` - Force OpenAI (uses GPT-5-nano for condensing, GPT-5 for reasoning)
+- `--llm openai` - Force OpenAI (uses gpt-4o-mini for condensing, gpt-4o for reasoning)
 - `--llm anthropic` - Force Anthropic (uses Claude 3.5 Haiku + Sonnet)
 - `--llm none` - Disable LLM features (only for `scan` command)
 
@@ -386,7 +386,7 @@ times-doctor run-utility condense-run-log model_run_log.txt
 
 ```bash
 # Use a specific reasoning model
-times-doctor review data/065Nov25-annualupto2045/parscen --model gpt-5-high-effort
+times-doctor review data/065Nov25-annualupto2045/parscen --model gpt-4o
 
 # Or for Anthropic
 times-doctor review data/065Nov25-annualupto2045/parscen --llm anthropic --model claude-3-5-sonnet-20241022
