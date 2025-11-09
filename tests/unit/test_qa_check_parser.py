@@ -1,7 +1,7 @@
 """Unit tests for QA_CHECK.LOG parser."""
 
 import pytest
-from times_doctor.qa_check_parser import (
+from times_doctor.core.qa_check_parser import (
     normalize_severity,
     severity_rank,
     expand_composite_key,

@@ -7,7 +7,7 @@ from rich.table import Table
 from rich.console import Console
 from rich.live import Live
 from rich.text import Text
-from . import llm as llm_mod
+from .core import llm as llm_mod
 from . import __version__
 from . import cplex_progress
 from .multi_run_progress import MultiRunProgressMonitor, RunStatus

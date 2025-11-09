@@ -20,7 +20,7 @@ class TestRunLogFiltering:
     
     def test_filter_run_log_basic(self, sample_run_log_file):
         """Test that _filter_run_log returns filtered content."""
-        from times_doctor.llm import _filter_run_log
+        from times_doctor.core.llm import _filter_run_log
         
         content = sample_run_log_file.read_text(encoding='utf-8', errors='ignore')
         
@@ -37,7 +37,7 @@ class TestRunLogFiltering:
     
     def test_filter_run_log_skips_before_execution(self, sample_run_log_file):
         """Test that content before execution start is skipped."""
-        from times_doctor.llm import _filter_run_log
+        from times_doctor.core.llm import _filter_run_log
         
         content = sample_run_log_file.read_text(encoding='utf-8', errors='ignore')
         original_lines = content.split('\n')
@@ -60,7 +60,7 @@ class TestRunLogFiltering:
     
     def test_filter_run_log_removes_noise(self):
         """Test that DMoves, PMoves, Iteration, and Elapsed time lines are removed."""
-        from times_doctor.llm import _filter_run_log
+        from times_doctor.core.llm import _filter_run_log
         
         test_content = """--- Restarting execution
 Important line A
@@ -89,7 +89,7 @@ Final important line D
     
     def test_filter_run_log_with_progress_callback(self, sample_run_log_file):
         """Test that progress callback is called."""
-        from times_doctor.llm import _filter_run_log
+        from times_doctor.core.llm import _filter_run_log
         
         content = sample_run_log_file.read_text(encoding='utf-8', errors='ignore')
         
@@ -108,7 +108,7 @@ Final important line D
     
     def test_extract_condensed_sections_uses_filtering(self, sample_run_log_file):
         """Test that extract_condensed_sections uses filtering for run_log files."""
-        from times_doctor.llm import extract_condensed_sections
+        from times_doctor.core.llm import extract_condensed_sections
         
         content = sample_run_log_file.read_text(encoding='utf-8', errors='ignore')
         
@@ -127,7 +127,7 @@ class TestRunLogFilteringEdgeCases:
     
     def test_filter_run_log_no_execution_marker(self):
         """Test filtering when no execution marker is found."""
-        from times_doctor.llm import _filter_run_log
+        from times_doctor.core.llm import _filter_run_log
         
         content = """First line here
 DMoves here
@@ -147,7 +147,7 @@ Third line here
     
     def test_filter_run_log_case_insensitive_execution(self):
         """Test that execution marker search is case-insensitive."""
-        from times_doctor.llm import _filter_run_log
+        from times_doctor.core.llm import _filter_run_log
         
         content = """Before line
 --- STARTING EXECUTION
@@ -163,7 +163,7 @@ After line
     
     def test_filter_run_log_empty_content(self):
         """Test filtering empty content."""
-        from times_doctor.llm import _filter_run_log
+        from times_doctor.core.llm import _filter_run_log
         
         result = _filter_run_log("")
         
@@ -176,7 +176,7 @@ class TestRunLogCondensing:
     
     def test_condense_pre_execution_errors(self):
         """Test that errors before execution start are captured and condensed."""
-        from times_doctor.llm import _filter_run_log
+        from times_doctor.core.llm import _filter_run_log
         
         content = """*** Error 170 in D:\\Veda\\syssettings.dd
     Domain violation for element
@@ -210,7 +210,7 @@ class TestRunLogCondensing:
     
     def test_condense_multiline_errors(self):
         """Test that multi-line error patterns are condensed."""
-        from times_doctor.llm import _condense_multiline_errors
+        from times_doctor.core.llm import _condense_multiline_errors
         
         # Same file, same error, same description = should condense
         lines = [
@@ -241,7 +241,7 @@ class TestRunLogCondensing:
     
     def test_condense_repetitive_lines(self):
         """Test that repetitive lines differing only in numbers are condensed."""
-        from times_doctor.llm import _condense_repetitive_lines
+        from times_doctor.core.llm import _condense_repetitive_lines
         
         lines = [
             "--- parscen~0011.RUN(124) 118 Mb",
@@ -267,7 +267,7 @@ class TestRunLogCondensing:
     
     def test_condense_repetitive_lines_shows_sample_values(self):
         """Test that condensed output shows sample varying values."""
-        from times_doctor.llm import _condense_repetitive_lines
+        from times_doctor.core.llm import _condense_repetitive_lines
         
         lines = [
             "--- parscen~0011.RUN(100) 50 Mb",
@@ -285,7 +285,7 @@ class TestRunLogCondensing:
     
     def test_format_group_small_groups_unchanged(self):
         """Test that small groups (1-2 items) are not condensed."""
-        from times_doctor.llm import _format_group
+        from times_doctor.core.llm import _format_group
         
         # Single item
         result = _format_group(["line 1"], "pattern")
@@ -297,7 +297,7 @@ class TestRunLogCondensing:
     
     def test_format_group_large_groups_condensed(self):
         """Test that groups of 3+ items are condensed."""
-        from times_doctor.llm import _format_group
+        from times_doctor.core.llm import _format_group
         
         group = [
             "--- file.RUN(100) 50 Mb",
@@ -314,7 +314,7 @@ class TestRunLogCondensing:
     
     def test_end_to_end_condensing_with_real_patterns(self, sample_run_log_file=None):
         """Test end-to-end condensing with realistic run_log patterns."""
-        from times_doctor.llm import _filter_run_log
+        from times_doctor.core.llm import _filter_run_log
         
         content = """*** Error 170 in syssettings.dd
     Domain violation for element

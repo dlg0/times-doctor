@@ -22,7 +22,7 @@ class TestAnthropicStreaming:
         3. Verifies complete response is assembled correctly
         4. Validates metadata (tokens, cost, etc.)
         """
-        from times_doctor.llm import _call_anthropic_api
+        from times_doctor.core.llm import _call_anthropic_api
         
         # Simple prompt for testing
         prompt = "Explain what linear programming is in one sentence."
@@ -76,7 +76,7 @@ class TestAnthropicStreaming:
         This test verifies that streaming works consistently with
         different Claude models.
         """
-        from times_doctor.llm import _call_anthropic_api
+        from times_doctor.core.llm import _call_anthropic_api
         
         prompt = "Count from 1 to 3."
         
@@ -112,7 +112,7 @@ class TestAnthropicStreaming:
         If there's an error with streaming, the API should gracefully
         fall back to non-streaming mode.
         """
-        from times_doctor.llm import _call_anthropic_api
+        from times_doctor.core.llm import _call_anthropic_api
         
         prompt = "Say hello"
         
@@ -140,7 +140,7 @@ class TestAnthropicStreaming:
         This ensures that the streaming mechanism properly handles
         responses that come in multiple chunks.
         """
-        from times_doctor.llm import _call_anthropic_api
+        from times_doctor.core.llm import _call_anthropic_api
         
         # Prompt that generates longer response
         prompt = "List the first 5 prime numbers and explain what a prime number is."

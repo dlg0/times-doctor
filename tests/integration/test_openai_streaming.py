@@ -27,7 +27,7 @@ class TestOpenAIStreaming:
         3. Verifies complete response is assembled correctly
         4. Validates metadata (tokens, cost, etc.)
         """
-        from times_doctor.llm import _call_openai_api
+        from times_doctor.core.llm import _call_openai_api
         
         # Simple prompt for testing
         prompt = "Explain what linear programming is in one sentence."
@@ -81,7 +81,7 @@ class TestOpenAIStreaming:
         This test verifies that streaming works consistently with
         different GPT models.
         """
-        from times_doctor.llm import _call_openai_api
+        from times_doctor.core.llm import _call_openai_api
         
         prompt = "Count from 1 to 3."
         
@@ -117,7 +117,7 @@ class TestOpenAIStreaming:
         If the org doesn't support streaming (requires verification),
         the API should gracefully fall back to non-streaming mode.
         """
-        from times_doctor.llm import _call_openai_api
+        from times_doctor.core.llm import _call_openai_api
         
         prompt = "Say hello"
         
@@ -145,7 +145,7 @@ class TestOpenAIStreaming:
         This ensures that the streaming mechanism properly handles
         responses that come in multiple chunks.
         """
-        from times_doctor.llm import _call_openai_api
+        from times_doctor.core.llm import _call_openai_api
         
         # Prompt that generates longer response
         prompt = "List the first 5 prime numbers and explain what a prime number is."

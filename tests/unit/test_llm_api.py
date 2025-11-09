@@ -34,11 +34,11 @@ class TestOpenAIResponsesAPI:
             "status": "completed"
         }
     
-    @patch('times_doctor.llm.os.environ.get')
+    @patch('times_doctor.core.llm.os.environ.get')
     @patch('httpx.post')
     def test_successful_response_parsing(self, mock_post, mock_env, mock_gpt5_response):
         """Test that we correctly parse a successful GPT-5 response."""
-        from times_doctor.llm import _call_openai_responses_api
+        from times_doctor.core.llm import _call_openai_responses_api
         
         # Setup environment
         mock_env.return_value = "sk-test-key"
@@ -62,11 +62,11 @@ class TestOpenAIResponsesAPI:
         assert "duration_seconds" in metadata
         assert "cost_usd" in metadata
     
-    @patch('times_doctor.llm.os.environ.get')
+    @patch('times_doctor.core.llm.os.environ.get')
     @patch('httpx.post')
     def test_empty_output_handling(self, mock_post, mock_env):
         """Test handling of empty output array."""
-        from times_doctor.llm import _call_openai_responses_api
+        from times_doctor.core.llm import _call_openai_responses_api
         
         mock_env.return_value = "sk-test-key"
         
@@ -84,7 +84,7 @@ class TestOpenAIResponsesAPI:
         assert text == ""
         assert metadata["output_tokens"] == 0
     
-    @patch('times_doctor.llm.os.environ.get')
+    @patch('times_doctor.core.llm.os.environ.get')
     @patch('httpx.post')
     def test_empty_content_array(self, mock_post, mock_env):
         """Test handling when output exists but content array is empty.
@@ -94,7 +94,7 @@ class TestOpenAIResponsesAPI:
         
         The content array is empty, leading to text_content being empty string.
         """
-        from times_doctor.llm import _call_openai_responses_api
+        from times_doctor.core.llm import _call_openai_responses_api
         
         mock_env.return_value = "sk-test-key"
         
@@ -130,11 +130,11 @@ class TestOpenAIResponsesAPI:
         assert metadata["input_tokens"] == 115096
         assert metadata["output_tokens"] == 420
     
-    @patch('times_doctor.llm.os.environ.get')
+    @patch('times_doctor.core.llm.os.environ.get')
     @patch('httpx.post')
     def test_cost_calculation(self, mock_post, mock_env, mock_gpt5_response):
         """Test that cost is calculated correctly for gpt-5-nano."""
-        from times_doctor.llm import _call_openai_responses_api
+        from times_doctor.core.llm import _call_openai_responses_api
         
         mock_env.return_value = "sk-test-key"
         

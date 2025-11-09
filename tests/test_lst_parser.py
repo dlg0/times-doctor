@@ -2,7 +2,7 @@
 
 import pytest
 from pathlib import Path
-from times_doctor.lst_parser import (
+from times_doctor.core.lst_parser import (
     LSTParser,
     CompilationProcessor,
     ExecutionProcessor,

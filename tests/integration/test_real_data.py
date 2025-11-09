@@ -32,7 +32,7 @@ class TestRealDataProcessing:
         3. Verifies that structured output is produced
         4. Checks that events are properly deduplicated
         """
-        from times_doctor.llm import condense_qa_check
+        from times_doctor.core.llm import condense_qa_check
         
         # Find the QA_CHECK.LOG file
         qa_check_files = list(data_dir.rglob("QA_CHECK.LOG"))
@@ -75,7 +75,7 @@ class TestRealDataProcessing:
         2. Uses the filtering logic to remove noise
         3. Verifies filtered output is produced
         """
-        from times_doctor.llm import _filter_run_log
+        from times_doctor.core.llm import _filter_run_log
         
         # Find run_log files
         run_log_files = list(data_dir.rglob("*_run_log.txt"))
@@ -121,7 +121,7 @@ class TestRealDataProcessing:
         2. Extracts specific pages (1, 2, 5, 6, 7, 8)
         3. Verifies page structure is correct
         """
-        from times_doctor.llm import _extract_lst_pages
+        from times_doctor.core.llm import _extract_lst_pages
         
         # Find .lst files (prefer non-condensed files)
         lst_files = list(data_dir.rglob("*.lst"))

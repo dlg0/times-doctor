@@ -1,7 +1,7 @@
 import os, subprocess, json, time
 from pathlib import Path
 from datetime import datetime
-from .redactor import redact_api_key, redact_dict
+from . import redactor
 
 def which(cmd: str):
     from shutil import which as _w
@@ -51,8 +51,8 @@ def log_llm_call(call_type: str, prompt: str, response: str, metadata: dict, log
         "timestamp": datetime.now().isoformat(),
         "call_type": call_type,
         "metadata": metadata,
-        "prompt": redact_api_key(prompt),
-        "response": redact_api_key(response),
+        "prompt": redactor.redact_api_key(prompt),
+        "response": redactor.redact_api_key(response),
         "prompt_length": len(prompt),
         "response_length": len(response),
         "tokens": {
@@ -65,7 +65,7 @@ def log_llm_call(call_type: str, prompt: str, response: str, metadata: dict, log
         "cost_usd": round(cost, 6)
     }
     
-    log_data = redact_dict(log_data)
+    log_data = redactor.redact_dict(log_data)
     
     try:
         with open(log_file, 'w', encoding='utf-8') as f:

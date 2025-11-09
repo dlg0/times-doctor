@@ -20,7 +20,7 @@ class TestLstPageExtraction:
     
     def test_extract_lst_pages(self, sample_lst_file):
         """Test that _extract_lst_pages correctly identifies and extracts semantic sections."""
-        from times_doctor.llm import _extract_lst_pages
+        from times_doctor.core.llm import _extract_lst_pages
         
         # Read the file
         content = sample_lst_file.read_text(encoding='utf-8', errors='ignore')
@@ -53,7 +53,7 @@ class TestLstPageExtraction:
     
     def test_extract_lst_pages_line_numbers(self, sample_lst_file):
         """Test that extracted sections have valid line numbers (even if placeholder)."""
-        from times_doctor.llm import _extract_lst_pages
+        from times_doctor.core.llm import _extract_lst_pages
         
         content = sample_lst_file.read_text(encoding='utf-8', errors='ignore')
         result = _extract_lst_pages(content)
@@ -70,7 +70,7 @@ class TestLstPageExtraction:
     
     def test_extract_lst_pages_with_progress_callback(self, sample_lst_file):
         """Test that progress callback is called during extraction."""
-        from times_doctor.llm import _extract_lst_pages
+        from times_doctor.core.llm import _extract_lst_pages
         
         content = sample_lst_file.read_text(encoding='utf-8', errors='ignore')
         
@@ -90,7 +90,7 @@ class TestLstPageExtraction:
     
     def test_extract_condensed_sections_uses_page_extraction(self, sample_lst_file):
         """Test that extract_condensed_sections correctly handles LST files."""
-        from times_doctor.llm import extract_condensed_sections
+        from times_doctor.core.llm import extract_condensed_sections
         
         content = sample_lst_file.read_text(encoding='utf-8', errors='ignore')
         result = extract_condensed_sections(content, "lst")
@@ -124,7 +124,7 @@ class TestLstContentExtraction:
     
     def test_extracted_pages_contain_useful_content(self, sample_lst_file):
         """Test that extracted sections contain substantial diagnostic content."""
-        from times_doctor.llm import _extract_lst_pages
+        from times_doctor.core.llm import _extract_lst_pages
         
         content = sample_lst_file.read_text(encoding='utf-8', errors='ignore')
         result = _extract_lst_pages(content)
