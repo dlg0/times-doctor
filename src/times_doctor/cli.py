@@ -135,6 +135,25 @@ def ensure_out(run_dir: Path) -> Path:
     return out
 
 
+def _extract_opt_files(text: str) -> dict[str, str]:
+    """
+    Extract .opt files from LLM response using ===OPT_FILE: / ===END_OPT_FILE delimiters.
+
+    Returns:
+        Dictionary mapping filename -> content
+    """
+    opt_files: dict[str, str] = {}
+    pattern = r"===OPT_FILE:\s*(\S+\.opt)\s*\n(.*?)===END_OPT_FILE"
+
+    matches = re.finditer(pattern, text, re.DOTALL | re.MULTILINE)
+    for match in matches:
+        filename = match.group(1).strip()
+        content = match.group(2).strip()
+        opt_files[filename] = content
+
+    return opt_files
+
+
 def run_gams_with_progress(
     cmd: list[str],
     cwd: str,
@@ -646,9 +665,6 @@ def scan(
     gams_path: str | None = typer.Option(
         None, "--gams-path", help="Path to gams.exe (defaults to 'gams' in PATH)"
     ),
-    profiles: list[str] = typer.Option(
-        ["dual", "sift", "bar_nox"], help="Solver profiles to test (dual|sift|bar_nox)"
-    ),
     threads: int = typer.Option(7, help="Number of threads for CPLEX to use"),
     llm: str = typer.Option(
         "none", help="LLM provider for optional analysis: auto|openai|anthropic|amp|none"
@@ -672,33 +688,61 @@ def scan(
     """
     Test multiple CPLEX solver configurations to find best approach.
 
-    Runs your model with different CPLEX algorithms to compare behavior.
-    Each profile uses different methods that may handle numerical issues
-    differently. Helps identify which solver config works best.
+    Scans the run directory for LLM-generated solver .opt files in _td_opt_files/
+    and runs your model with each configuration to compare behavior.
 
-    Available profiles:
-      dual    - Dual simplex (lpmethod 2) - Most robust
-      sift    - Sifting (lpmethod 5) - Good for huge sparse LPs
-      bar_nox - Barrier without crossover (lpmethod 4) - Fast
+    Use 'times-doctor review-solver-options' first to generate configurations.
 
-    By default, runs profiles sequentially. Use --parallel to run all
-    profiles simultaneously (faster but uses more CPU/memory).
+    By default, runs configurations sequentially. Use --parallel to run all
+    configurations simultaneously (faster but uses more CPU/memory).
 
     Results summarized in CSV for easy comparison.
 
     \b
     Example:
+      times-doctor review-solver-options data/065Nov25-annualupto2045/parscen
       times-doctor scan data/065Nov25-annualupto2045/parscen
-      times-doctor scan data/... --profiles dual sift
-      times-doctor scan data/... --parallel  # Run all 3 profiles at once
+      times-doctor scan data/... --parallel  # Run all configs at once
 
     \b
     Created directories:
-      <run_dir>/times_doctor_out/scan_runs/dual/
-      <run_dir>/times_doctor_out/scan_runs/sift/
-      <run_dir>/times_doctor_out/scan_runs/bar_nox/
+      <run_dir>/times_doctor_out/scan_runs/<config_name>/
       <run_dir>/times_doctor_out/scan_report.csv
     """
+    rd = Path(run_dir).resolve()
+
+    # Check for _td_opt_files directory
+    opt_files_dir = rd / "_td_opt_files"
+    if not opt_files_dir.exists() or not opt_files_dir.is_dir():
+        print("[red]Error: No _td_opt_files/ directory found.[/red]")
+        print(
+            "\n[yellow]Run 'times-doctor review-solver-options' first to generate solver configurations.[/yellow]"
+        )
+        raise typer.Exit(1)
+
+    # Find all .opt files in the directory
+    opt_files = sorted(opt_files_dir.glob("*.opt"))
+    if not opt_files:
+        print("[red]Error: No .opt files found in _td_opt_files/[/red]")
+        print(
+            "\n[yellow]Run 'times-doctor review-solver-options' first to generate solver configurations.[/yellow]"
+        )
+        raise typer.Exit(1)
+
+    # Extract config names (filename without .opt extension)
+    config_names = [f.stem for f in opt_files]
+
+    # Prompt user to confirm
+    print(f"\n[bold]Found {len(opt_files)} solver configurations in _td_opt_files/:[/bold]")
+    for i, name in enumerate(config_names, 1):
+        print(f"  {i}. {name}")
+
+    if not typer.confirm(f"\nRun scan with these {len(opt_files)} configurations?", default=True):
+        print("[yellow]Scan cancelled.[/yellow]")
+        raise typer.Exit(0)
+
+    # Now continue with the scan using these config names
+    profiles = config_names
     rd = Path(run_dir).resolve()
 
     gams_cmd = gams_path if gams_path else "gams"
@@ -727,70 +771,24 @@ def scan(
 
     workers = compute_workers(len(profiles), threads, max_workers)
 
-    def opt_lines(name: str) -> list[str]:
-        if name == "dual":
-            return [
-                "lpmethod 2",
-                "solutiontype 1",
-                "aggind 1",
-                "scaind -1",
-                f"threads {threads}",
-                "eprhs 1e-06",
-                "epopt 1e-06",
-                "numericalemphasis 1",
-                "names no",
-                "advind 0",
-                "rerun yes",
-                "iis 0",
-                "simdisplay 2",
-                "bardisplay 2",
-            ]
-        if name == "sift":
-            return [
-                "lpmethod 5",
-                "solutiontype 1",
-                "aggind 1",
-                "scaind -1",
-                f"threads {threads}",
-                "eprhs 1e-06",
-                "epopt 1e-06",
-                "numericalemphasis 1",
-                "names no",
-                "advind 0",
-                "rerun yes",
-                "iis 0",
-                "simdisplay 2",
-                "bardisplay 2",
-            ]
-        if name == "bar_nox":
-            return [
-                "lpmethod 4",
-                "baralg 1",
-                "barorder 1",
-                "solutiontype 2",
-                "aggind 1",
-                "scaind -1",
-                f"threads {threads}",
-                "eprhs 1e-06",
-                "epopt 1e-06",
-                "numericalemphasis 1",
-                "names no",
-                "advind 0",
-                "rerun yes",
-                "iis 0",
-                "simdisplay 2",
-                "bardisplay 2",
-            ]
-        raise ValueError(f"Unknown profile {name}")
+    # Map config names to their .opt file paths
+    opt_file_map = {f.stem: f for f in opt_files}
 
-    # Set up run directories
+    # Set up run directories and copy .opt files
     run_dirs: dict[str, Path] = {}
     for p in profiles:
         wdir = scan_root / p
         if wdir.exists():
             shutil.rmtree(wdir)
-        shutil.copytree(rd, wdir, ignore=shutil.ignore_patterns("times_doctor_out"))
-        (wdir / "cplex.opt").write_text("\n".join(opt_lines(p)) + "\n", encoding="utf-8")
+        shutil.copytree(
+            rd, wdir, ignore=shutil.ignore_patterns("times_doctor_out", "_td_opt_files")
+        )
+
+        # Copy the corresponding .opt file as cplex.opt
+        src_opt = opt_file_map[p]
+        dst_opt = wdir / "cplex.opt"
+        shutil.copy2(src_opt, dst_opt)
+
         run_dirs[p] = wdir
 
     # Helper function to run a single profile
@@ -1639,6 +1637,23 @@ def review_solver_options(
     review_path.write_text(result.text, encoding="utf-8")
 
     print(f"\n[green]Saved to {review_path}[/green]")
+
+    # Extract and save .opt files from the response
+    opt_files = _extract_opt_files(result.text)
+    if opt_files:
+        opt_dir = rd / "_td_opt_files"
+        opt_dir.mkdir(exist_ok=True)
+
+        for filename, content in opt_files.items():
+            opt_path = opt_dir / filename
+            opt_path.write_text(content, encoding="utf-8")
+
+        print(f"\n[green]Extracted {len(opt_files)} solver configurations to {opt_dir}/[/green]")
+        print("[dim]Use 'times-doctor scan' to test these configurations[/dim]")
+    else:
+        print(
+            "\n[yellow]No .opt files found in LLM response (expected ===OPT_FILE: delimiters)[/yellow]"
+        )
 
 
 @app.command()

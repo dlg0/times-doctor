@@ -46,6 +46,7 @@ config.toml
 # TIMES Doctor outputs
 times_doctor_out/
 _td_datacheck/
+_td_opt_files/
 
 # Test data (large files)
 data/

@@ -84,23 +84,44 @@ Provide your analysis in markdown with these sections:
 ### 1. Diagnosis
 Concise explanation of why the solver stopped at feasible rather than proven optimal.
 
-### 2. Recommended cplex.opt Changes
-Specific parameter changes in order of priority. Format as:
-```
+### 2. Generated Solver Configurations
+You MUST generate approximately 12 different cplex.opt configurations to test different parameter combinations.
+These will be automatically extracted and used for systematic testing.
+
+For each configuration, use this EXACT format:
+
+===OPT_FILE: descriptive_name.opt
 parameter_name value  $ reason for this setting
-```
+...
+===END_OPT_FILE
+
+**Naming guidelines**:
+- Use descriptive names like: tight_tolerances.opt, moderate_scaling.opt, aggressive_barrier.opt
+- Keep names lowercase with underscores
+- Make names meaningful so users understand what each config tests
+
+**Configuration strategy**:
+- Test different tolerance levels (e.g., epopt: 1e-7, 1e-8, 1e-9)
+- Test combinations of related parameters (e.g., matching epopt/eprhs pairs)
+- Test scaling and numerical emphasis variations
+- Create a progression from conservative to aggressive tuning
+- Include at least one "baseline_tighter" config with just slightly tighter tolerances
+- Include configs that test specific hypotheses from your diagnosis
 
 Example:
-```
-epopt 1e-7       $ Tighten optimality tolerance from default 1e-6
+===OPT_FILE: baseline_tighter.opt
+epopt 1e-7       $ Slightly tighter than default 1e-6
 eprhs 1e-7       $ Match feasibility tolerance to epopt
-barepcomp 1e-9   $ Tighten barrier convergence for better proof
-```
+===END_OPT_FILE
+
+===OPT_FILE: tight_tolerances.opt
+epopt 1e-8       $ Very tight optimality tolerance
+eprhs 1e-8       $ Very tight feasibility tolerance
+barepcomp 1e-10  $ Very tight barrier convergence
+===END_OPT_FILE
 
 ### 3. Action Plan
-1. First action (highest priority)
-2. Second action
-3. ...
+Brief summary of the testing strategy and what to look for in results.
 
 Be concrete and actionable. Assume the user is a Veda operator, not a deep CPLEX expert.
 
