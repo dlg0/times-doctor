@@ -71,11 +71,23 @@ line-length = 100
 target-version = "py39"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "B", "SIM"]
-ignore = []
+select = ["E", "F", "I", "UP", "B", "SIM", "S", "PERF"]
+ignore = [
+    "E501",  # Line too long (enforced by formatter, not linter)
+    "E722",  # Bare except (acceptable in robust error handling)
+    "S110",  # try-except-pass (acceptable for optional cleanup)
+    "S112",  # try-except-continue (acceptable for lenient parsing)
+    "B904",  # raise without from (acceptable for user-facing errors)
+]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["S101"]
+"tests/*" = ["S101", "SIM117"]  # Allow assert and nested with in tests
+"scripts/*" = ["B007"]  # Allow unused loop vars in scripts
+"src/times_doctor/core/http_client.py" = ["S311"]  # random.uniform for retry jitter (not crypto)
+"src/times_doctor/core/llm.py" = ["S603", "PERF401", "SIM102"]  # subprocess for llm cli, allow simple loops
+"src/times_doctor/core/qa_check_parser.py" = ["PERF401", "PERF403"]  # Comprehensions harder to read here
+"src/times_doctor/core/lst_parser.py" = ["PERF401"]  # List comprehensions harder to read here
+"src/times_doctor/cli.py" = ["B008", "S603", "PERF203", "E741"]  # typer patterns, subprocess trusted, perf ok
 
 [tool.mypy]
 python_version = "3.9"

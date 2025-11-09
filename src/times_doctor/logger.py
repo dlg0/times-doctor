@@ -1,10 +1,9 @@
 """Centralized logging and console output for times-doctor."""
-from rich.console import Console
-from rich.spinner import Spinner
-from rich.live import Live
+
 from contextlib import contextmanager
 from typing import Optional
-import sys
+
+from rich.console import Console
 
 _console: Optional[Console] = None
 _no_color: bool = False
@@ -14,11 +13,7 @@ def init_console(no_color: bool = False):
     """Initialize the global console with color settings."""
     global _console, _no_color
     _no_color = no_color
-    _console = Console(
-        force_terminal=not no_color,
-        no_color=no_color,
-        highlight=not no_color
-    )
+    _console = Console(force_terminal=not no_color, no_color=no_color, highlight=not no_color)
 
 
 def get_console() -> Console:
@@ -56,7 +51,7 @@ def dim(message: str, **kwargs):
 @contextmanager
 def spinner(message: str):
     """Show a spinner while executing a block of code.
-    
+
     Example:
         with spinner("Downloading files..."):
             download_files()

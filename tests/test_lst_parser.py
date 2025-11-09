@@ -1,16 +1,17 @@
 """Tests for LST file parser."""
 
-import pytest
 from pathlib import Path
+
+import pytest
+
 from times_doctor.core.lst_parser import (
-    LSTParser,
     CompilationProcessor,
     ExecutionProcessor,
+    LSTParser,
+    LSTSection,
     ModelAnalysisProcessor,
     process_lst_file,
-    LSTSection
 )
-
 
 # Sample LST content for testing
 SAMPLE_LST_HEADER = """GAMS 49.6.1  55d34574 May 28, 2025          WEX-WEI x86 64bit/MS Windows - 11/06/25 13:17:19 Page 1
@@ -88,10 +89,10 @@ def sample_lst_file(tmp_path):
     """Create a sample LST file for testing."""
     lst_file = tmp_path / "test.lst"
     content = (
-        SAMPLE_LST_HEADER + 
-        SAMPLE_COMPILATION_CONTENT +
-        SAMPLE_EXECUTION_CONTENT +
-        SAMPLE_MODEL_ANALYSIS_CONTENT
+        SAMPLE_LST_HEADER
+        + SAMPLE_COMPILATION_CONTENT
+        + SAMPLE_EXECUTION_CONTENT
+        + SAMPLE_MODEL_ANALYSIS_CONTENT
     )
     lst_file.write_text(content)
     return lst_file
@@ -101,15 +102,15 @@ def test_lst_parser_finds_sections(sample_lst_file):
     """Test that LSTParser correctly identifies sections."""
     parser = LSTParser(sample_lst_file)
     sections = parser.parse()
-    
+
     # Should find at least 3 sections
     assert len(sections) >= 3
-    
+
     # Check section names
     section_names = [s.name for s in sections]
-    assert 'C o m p i l a t i o n' in section_names or 'Compilation' in section_names
-    assert 'E x e c u t i o n' in section_names or 'Execution' in section_names
-    
+    assert "C o m p i l a t i o n" in section_names or "Compilation" in section_names
+    assert "E x e c u t i o n" in section_names or "Execution" in section_names
+
 
 def test_compilation_processor_aggregates_errors():
     """Test that CompilationProcessor aggregates domain violations."""
@@ -119,26 +120,26 @@ def test_compilation_processor_aggregates_errors():
         start_line=10,
         end_line=50,
         header="GAMS header",
-        content=SAMPLE_COMPILATION_CONTENT.split('\n', 3)[3]  # Skip header
+        content=SAMPLE_COMPILATION_CONTENT.split("\n", 3)[3],  # Skip header
     )
-    
+
     result = CompilationProcessor.process(section)
-    
+
     # Should find error code 170
-    assert '170' in result['errors']
-    
+    assert "170" in result["errors"]
+
     # Should count 4 occurrences
-    assert result['errors']['170']['count'] == 4
-    
+    assert result["errors"]["170"]["count"] == 4
+
     # Should have element patterns
-    assert len(result['errors']['170']['elements']) > 0
-    
+    assert len(result["errors"]["170"]["elements"]) > 0
+
     # Should have samples
-    assert len(result['errors']['170']['samples']) > 0
-    
+    assert len(result["errors"]["170"]["samples"]) > 0
+
     # Summary should be non-empty
-    assert len(result['summary']) > 0
-    assert '170' in result['summary']
+    assert len(result["summary"]) > 0
+    assert "170" in result["summary"]
 
 
 def test_execution_processor_extracts_timing():
@@ -149,21 +150,21 @@ def test_execution_processor_extracts_timing():
         start_line=100,
         end_line=200,
         header="GAMS header",
-        content=SAMPLE_EXECUTION_CONTENT.split('\n', 3)[3]  # Skip header
+        content=SAMPLE_EXECUTION_CONTENT.split("\n", 3)[3],  # Skip header
     )
-    
+
     result = ExecutionProcessor.process(section)
-    
+
     # Should have summary
-    assert 'summary' in result
-    assert result['summary']['total_time_secs'] > 0
-    assert result['summary']['peak_memory_mb'] > 0
-    
+    assert "summary" in result
+    assert result["summary"]["total_time_secs"] > 0
+    assert result["summary"]["peak_memory_mb"] > 0
+
     # Should have major operations (none in this small sample, all <0.5s)
-    assert 'major_operations' in result
-    
+    assert "major_operations" in result
+
     # Should have text summary
-    assert len(result['text_summary']) > 0
+    assert len(result["text_summary"]) > 0
 
 
 def test_model_analysis_processor_extracts_equations():
@@ -174,64 +175,64 @@ def test_model_analysis_processor_extracts_equations():
         start_line=200,
         end_line=300,
         header="GAMS header",
-        content=SAMPLE_MODEL_ANALYSIS_CONTENT.split('\n', 3)[3]  # Skip header
+        content=SAMPLE_MODEL_ANALYSIS_CONTENT.split("\n", 3)[3],  # Skip header
     )
-    
+
     result = ModelAnalysisProcessor.process(section)
-    
+
     # Should have equations
-    assert 'equations' in result
-    assert len(result['equations']) > 0
-    
+    assert "equations" in result
+    assert len(result["equations"]) > 0
+
     # Should have summary
-    assert 'summary' in result
-    assert result['summary']['total_equation_count'] > 0
-    assert result['summary']['equation_types'] > 0
-    
+    assert "summary" in result
+    assert result["summary"]["total_equation_count"] > 0
+    assert result["summary"]["equation_types"] > 0
+
     # Check specific equation
-    eq_names = [eq['name'] for eq in result['equations']]
-    assert 'EQ_ACTFLO' in eq_names
-    
+    eq_names = [eq["name"] for eq in result["equations"]]
+    assert "EQ_ACTFLO" in eq_names
+
     # Find EQ_ACTFLO and check count
-    eq_actflo = next(eq for eq in result['equations'] if eq['name'] == 'EQ_ACTFLO')
-    assert eq_actflo['count'] == 1035406
-    
+    eq_actflo = next(eq for eq in result["equations"] if eq["name"] == "EQ_ACTFLO")
+    assert eq_actflo["count"] == 1035406
+
     # Should have text summary
-    assert len(result['text_summary']) > 0
+    assert len(result["text_summary"]) > 0
 
 
 def test_process_lst_file_full_integration(sample_lst_file):
     """Test full integration of LST file processing."""
     result = process_lst_file(sample_lst_file)
-    
+
     # Should have metadata
-    assert 'metadata' in result
-    assert 'file' in result['metadata']
-    assert 'section_count' in result['metadata']
-    
+    assert "metadata" in result
+    assert "file" in result["metadata"]
+    assert "section_count" in result["metadata"]
+
     # Should have sections
-    assert 'sections' in result
-    assert len(result['sections']) > 0
-    
+    assert "sections" in result
+    assert len(result["sections"]) > 0
+
     # Check for expected section types (normalized names may vary)
-    section_keys = list(result['sections'].keys())
+    section_keys = list(result["sections"].keys())
     assert len(section_keys) >= 2  # At least compilation and execution
 
 
 def test_section_name_normalization():
     """Test that section names are normalized correctly."""
-    parser = LSTParser(Path('dummy'))
+    parser = LSTParser(Path("dummy"))
     parser.lines = [
-        'GAMS 49.6.1  55d34574 May 28, 2025          WEX-WEI x86 64bit/MS Windows - 11/06/25 13:17:19 Page 1\n',
-        'TIMES -- VERSION 4.8.3\n',
-        'C o m p i l a t i o n\n',
+        "GAMS 49.6.1  55d34574 May 28, 2025          WEX-WEI x86 64bit/MS Windows - 11/06/25 13:17:19 Page 1\n",
+        "TIMES -- VERSION 4.8.3\n",
+        "C o m p i l a t i o n\n",
     ]
-    
+
     title = parser._extract_section_title(0)
     # Should normalize multiple spaces (or just keep as-is)
     # The actual behavior is to keep the spacing, which is fine
-    assert 'ompilation' in title.lower() or title == 'C o m p i l a t i o n'
+    assert "ompilation" in title.lower() or title == "C o m p i l a t i o n"
 
 
-if __name__ == '__main__':
-    pytest.main([__file__, '-v'])
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])

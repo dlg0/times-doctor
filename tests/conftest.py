@@ -1,8 +1,8 @@
 """Pytest configuration and fixtures."""
 
-import pytest
-import os
 from pathlib import Path
+
+import pytest
 
 
 def pytest_addoption(parser):
@@ -11,7 +11,7 @@ def pytest_addoption(parser):
         "--run-integration",
         action="store_true",
         default=False,
-        help="Run integration tests (requires API keys and costs money)"
+        help="Run integration tests (requires API keys and costs money)",
     )
 
 

@@ -20,11 +20,11 @@ def _find_prompts_dir() -> Path:
 
 def _validate_placeholders(content: str, required: set[str]) -> tuple[set[str], set[str]]:
     """Validate that template contains exactly the required placeholders.
-    
+
     Returns:
         (missing, extra) sets of placeholder names
     """
-    found = set(re.findall(r'\{(\w+)\}', content))
+    found = set(re.findall(r"\{(\w+)\}", content))
     missing = required - found
     extra = found - required
     return missing, extra
@@ -34,56 +34,56 @@ def load_prompt_template(
     name: str,
     version: str | None = None,
     required_placeholders: set[str] | None = None,
-    strict_hash: bool | None = None
+    strict_hash: bool | None = None,
 ) -> str | None:
     """Load a prompt template with versioning and validation.
-    
+
     Args:
         name: Prompt template name (e.g., 'qa_check_compress')
         version: Specific version to load (e.g., 'v1'). If None, uses manifest current.
         required_placeholders: Set of placeholder names that must be in template (e.g., {'file_type'})
         strict_hash: Enforce SHA256 checksum validation. None = use env var PROMPT_STRICT_HASH (default True in CI)
-    
+
     Returns:
         Template content or None if not found (caller should use fallback)
-    
+
     Raises:
         ValueError: If placeholders don't match required set or checksum fails in strict mode
     """
     if strict_hash is None:
         strict_hash = os.getenv("PROMPT_STRICT_HASH", "1") == "1"
-    
+
     # Check for environment override (e.g., PROMPT_VERSION_QA_CHECK_COMPRESS=v2)
     env_key = f"PROMPT_VERSION_{name.upper()}".replace("-", "_")
     version_override = os.getenv(env_key)
     if version_override:
         version = version_override
         logger.info(f"Prompt version override via {env_key}: {version}")
-    
+
     try:
         prompts_dir = _find_prompts_dir()
     except FileNotFoundError:
         logger.warning(f"Prompts directory not found for {name}")
         return None
-    
+
     manifest_path = prompts_dir / "manifest.json"
     expected_hash = None
-    
+
     # Load manifest to get current version and hash
     if manifest_path.exists():
         try:
             manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
             prompt_config = manifest.get(name, {})
-            
+
             if version is None:
                 version = prompt_config.get("current")
-            
+
             if version:
                 version_info = prompt_config.get("versions", {}).get(version, {})
                 expected_hash = version_info.get("sha256")
         except (json.JSONDecodeError, KeyError) as e:
             logger.warning(f"Failed to read manifest for {name}: {e}")
-    
+
     # If still no version, try to find latest vN
     if not version:
         prompt_dir = prompts_dir / name
@@ -92,19 +92,19 @@ def load_prompt_template(
             if versions:
                 version = versions[0].stem
                 logger.info(f"Using fallback version {version} for {name}")
-    
+
     if not version:
         logger.warning(f"No version found for prompt {name}")
         return None
-    
+
     # Load template file
     template_path = prompts_dir / name / f"{version}.txt"
     if not template_path.exists():
         logger.warning(f"Template file not found: {template_path}")
         return None
-    
+
     content = template_path.read_text(encoding="utf-8")
-    
+
     # Validate checksum
     if expected_hash:
         actual_hash = hashlib.sha256(content.encode("utf-8")).hexdigest()
@@ -114,7 +114,7 @@ def load_prompt_template(
                 raise ValueError(msg)
             else:
                 logger.warning(msg)
-    
+
     # Validate placeholders
     if required_placeholders is not None:
         missing, extra = _validate_placeholders(content, required_placeholders)
@@ -124,11 +124,15 @@ def load_prompt_template(
                 details.append(f"missing: {{{', '.join(sorted(missing))}}}")
             if extra:
                 details.append(f"unexpected: {{{', '.join(sorted(extra))}}}")
-            raise ValueError(f"Placeholder validation failed for {name}/{version}: {'; '.join(details)}")
-    
+            raise ValueError(
+                f"Placeholder validation failed for {name}/{version}: {'; '.join(details)}"
+            )
+
     # Log usage for observability
-    logger.debug(f"Loaded prompt: {name}/{version} (hash: {expected_hash[:8] if expected_hash else 'unknown'}...)")
-    
+    logger.debug(
+        f"Loaded prompt: {name}/{version} (hash: {expected_hash[:8] if expected_hash else 'unknown'}...)"
+    )
+
     return content
 
 
@@ -143,7 +147,7 @@ def build_llm_prompt(diagnostics: dict) -> str:
     context_lines = []
     for k, v in status.items():
         context_lines.append(f"- {k}: {v}")
-    
+
     if ranges:
         m = ranges.get("matrix")
         b = ranges.get("bound")
@@ -154,24 +158,28 @@ def build_llm_prompt(diagnostics: dict) -> str:
             context_lines.append(f"- Range Bound min={b[0]:.3e}, max={b[1]:.3e}")
         if m:
             context_lines.append(f"- Range Matrix min={m[0]:.3e}, max={m[1]:.3e}")
-    
+
     context_lines.append(f"- Used barrier without crossover: {used_barrier}")
-    
+
     if mixed:
         context_lines.append("- Mixed currencies seen in: " + ", ".join(mixed))
-    
+
     # Try to load template, fall back to inline
     template = load_prompt_template("llm_prompt", required_placeholders={"context"})
     if template:
         return template.replace("{context}", "\n".join(context_lines))
-    
+
     # Inline fallback
     lines = []
     lines.append("You are an LP solver expert helping diagnose a TIMES/Veda run.")
-    lines.append("Return a short, numbered action plan (<=12 items). Keep it concrete and tool-ready.")
+    lines.append(
+        "Return a short, numbered action plan (<=12 items). Keep it concrete and tool-ready."
+    )
     lines.append("Context:")
     lines.extend(context_lines)
-    lines.append("Constraints: Focus on practical steps (e.g., switch to dual simplex, unify currency to AUD25, fix tiny coefficients).")
+    lines.append(
+        "Constraints: Focus on practical steps (e.g., switch to dual simplex, unify currency to AUD25, fix tiny coefficients)."
+    )
     return "\n".join(lines)
 
 
@@ -209,13 +217,13 @@ End your output with:
 ---
 See QA_CHECK.LOG for full detail
 """
-    
+
     return f"{template}\n\nFile content:\n```\n{file_content}\n```"
 
 
 def build_extraction_prompt(file_content: str, file_type: str) -> str:
     """Build prompt for fast LLM to extract condensed line ranges from log files.
-    
+
     Args:
         file_content: The full file content with line numbers
         file_type: One of 'run_log', 'lst'
@@ -252,7 +260,7 @@ Return ONLY valid JSON in this exact format:
   ]
 }
 """
-    
+
     prompt = template.replace("{file_type}", file_type.upper())
     return f"{prompt}\n\nFile content:\n```\n{file_content}\n```"
 
@@ -263,14 +271,18 @@ def build_review_prompt(qa_check: str, run_log: str, lst_content: str) -> str:
     if not template:
         # Fallback inline version
         lines = []
-        lines.append("You are an expert TIMES/Veda energy model diagnostician. Review the following files from a TIMES run and provide:")
+        lines.append(
+            "You are an expert TIMES/Veda energy model diagnostician. Review the following files from a TIMES run and provide:"
+        )
         lines.append("1. A concise human-readable summary of what is happening in this run")
         lines.append("2. Any errors, warnings, or issues detected")
         lines.append("3. A ranked list of recommended actions the user should take")
         lines.append("")
-        lines.append("Focus on practical, actionable advice. Be specific about what files, settings, or data need attention.")
+        lines.append(
+            "Focus on practical, actionable advice. Be specific about what files, settings, or data need attention."
+        )
         template = "\n".join(lines)
-    
+
     # Append file content sections
     sections = []
     sections.append("")
@@ -284,5 +296,5 @@ def build_review_prompt(qa_check: str, run_log: str, lst_content: str) -> str:
     sections.append(lst_content if lst_content else "(file not found)")
     sections.append("")
     sections.append("Provide your analysis in markdown format with clear sections.")
-    
+
     return template + "\n".join(sections)
