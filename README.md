@@ -32,6 +32,21 @@ times-doctor --help
 
 See [INSTALL.md](INSTALL.md) for detailed installation instructions.
 
+## Compatibility
+
+**Python Versions:**
+- **Supported:** 3.9, 3.10, 3.11, 3.12
+- **Python 3.9 EOL:** October 2025 (support may be dropped in future)
+- **Python 3.10 EOL:** October 2026
+- **Minimum version:** 3.9+ (requires `>=3.9`)
+
+**Operating Systems:**
+- ✅ Linux
+- ✅ macOS
+- ✅ Windows
+
+All platforms are tested and fully supported. Windows users should use PowerShell or CMD for best results.
+
 ## Commands
 
 ### 🔍 `review` - Analyze run files with LLM (START HERE)
@@ -74,7 +89,7 @@ Found 2 run directories:
   1. parscen (original run)
   2. _td_datacheck (2025-11-09 14:23:45)
 
-Select run to review (1-2): 
+Select run to review (1-2):
 ```
 
 ---
