@@ -927,34 +927,24 @@ def review(
 @app.command()
 def update():
     """
-    Update times-doctor to the latest version from GitHub.
-    
-    Uses 'uv tool upgrade' to fetch and install the latest version.
+    Show instructions to update times-doctor.
     
     \b
     Example:
       times-doctor update
     """
-    if sys.platform == "win32":
-        print("[yellow]On Windows, times-doctor cannot update itself while running.[/yellow]")
-        print("[yellow]Please run this command in PowerShell instead:[/yellow]")
-        print("[bold cyan]uv tool upgrade times-doctor[/bold cyan]")
-        raise typer.Exit(0)
+    print("[bold]To update times-doctor:[/bold]\n")
     
-    print("[yellow]Updating times-doctor to the latest version...[/yellow]")
-    try:
-        subprocess.run(
-            ["uv", "tool", "upgrade", "times-doctor"],
-            check=True
-        )
-        print("[green]times-doctor updated successfully[/green]")
-    except subprocess.CalledProcessError as e:
-        print(f"[red]Failed to update times-doctor: {e}[/red]")
-        raise typer.Exit(1)
-    except FileNotFoundError:
-        print("[red]Error: 'uv' command not found. Please install uv first.[/red]")
-        print("Visit: https://docs.astral.sh/uv/getting-started/installation/")
-        raise typer.Exit(1)
+    print("[cyan]If installed with uv tool:[/cyan]")
+    print("  uv tool upgrade times-doctor\n")
+    
+    print("[cyan]If installed with pip:[/cyan]")
+    print("  pip install --upgrade times-doctor\n")
+    
+    print("[cyan]If using uvx (no install):[/cyan]")
+    print("  uvx automatically uses the latest version\n")
+    
+    print(f"[dim]Current version:[/dim] {__version__}")
 
 
 # Run utility commands for condensing log files
