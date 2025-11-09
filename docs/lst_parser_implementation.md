@@ -43,7 +43,7 @@ Successfully implemented a GAMS LST file parser that extracts semantic sections 
 **Sections Extracted:**
 ```
 - C o m p i l a t i o n_1 (no errors)
-- C o m p i l a t i o n_2 (no errors) 
+- C o m p i l a t i o n_2 (no errors)
 - C o m p i l a t i o n_3 (19,998 domain violations → 555 patterns)
 - C o m p i l a t i o n_4 (5,420 domain violations → 139 patterns)
 - Include File Summary (kept as-is)

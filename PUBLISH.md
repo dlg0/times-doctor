@@ -2,17 +2,15 @@
 
 1. **Update version** in `pyproject.toml`
 
-2. **Commit version bump** (this will trigger pre-commit hooks)
+2. **Run pre-commit on all files** (catches issues CI would find)
    ```bash
-   git add pyproject.toml
-   git commit -m "Bump version to X.Y.Z"
+   pre-commit run --all-files
    ```
 
-3. **Fix any linting/formatting issues** from pre-commit hooks
+3. **Commit version bump and any fixes**
    ```bash
-   # If pre-commit hooks modified files, commit the fixes
    git add -A
-   git commit -m "Fix linting/formatting"
+   git commit -m "Bump version to X.Y.Z"
    ```
 
 4. **Tag the release** (ensure tag points to the final clean commit)

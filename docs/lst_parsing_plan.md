@@ -114,7 +114,7 @@ Section Title
 #### Range Statistics
 **Processing**: Keep as-is (small, important)
 
-#### Model Statistics  
+#### Model Statistics
 **Processing**: Keep as-is (small, critical)
 
 #### Solution Report

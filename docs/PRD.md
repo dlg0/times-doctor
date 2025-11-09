@@ -1,6 +1,6 @@
 # PRD — TIMES Doctor
 
-**Owner:** David Green / CSIRO Energy  
+**Owner:** David Green / CSIRO Energy
 **Goal:** Small, deterministic CLI to *diagnose* and optionally *scan* a failed TIMES/Veda LP run and output a clear action plan.
 **LLM:** Optional adapters (OpenAI / Anthropic / AMP CLI). Offline by default.
 

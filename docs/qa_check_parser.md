@@ -94,11 +94,11 @@ DETAILED BREAKDOWN
   Inconsistent CAP_BND(UP/LO/FX) defined for process capacity :: Lower bound set equal to upper bound
     Occurrences: 2
     Indices: P=ENPS168-SNOWY2, R=SWNSW, T=2030
-  
+
   FLO_SHARE violations :: FLO_SHARE auto-relaxed
     Occurrences: 2
     Indices: CG=Power, P=Coal, R=NSW, V=ELEC
-  
+
   FLO_SHARE violations :: FLO_SHARE auto-relaxed
     Occurrences: 1
     Indices: CG=Power, P=Gas, R=VIC, V=ELEC

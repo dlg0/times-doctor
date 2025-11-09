@@ -1,6 +1,6 @@
 # CPLEX Progress Monitoring Implementation
 
-**Date:** 2025-11-09  
+**Date:** 2025-11-09
 **Feature:** Add progress monitoring to `scan` and `datacheck` commands
 
 ## Summary
@@ -75,7 +75,7 @@ Progress % = (log₁₀(μ₀) - log₁₀(μ)) / (log₁₀(μ₀) - log₁₀(
 
 Where:
 - μ₀ = first observed complementarity value
-- μ = current complementarity value  
+- μ = current complementarity value
 - μ_target = convergence tolerance (default 1e-8)
 
 This provides monotonic, meaningful progress that correlates well with actual solve time.

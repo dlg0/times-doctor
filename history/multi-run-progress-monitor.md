@@ -1,6 +1,6 @@
 # Multi-Run Progress Monitor Implementation
 
-**Date:** 2025-11-09  
+**Date:** 2025-11-09
 **Feature:** Unified progress monitoring for sequential and parallel GAMS runs
 
 ## Summary
@@ -69,7 +69,7 @@ parse_cplex_line() → dict
     RunProgress.tracker.update_mu() → % complete
         ↓
     monitor.update_display() → Rich Table
-    
+
 [IF standalone mode]
     format_progress_line() → string
         ↓
@@ -145,8 +145,8 @@ class RunProgress:
 with MultiRunProgressMonitor(profiles, title="Scan Progress") as monitor:
     for profile in profiles:
         run_gams_with_progress(
-            ..., 
-            monitor=monitor, 
+            ...,
+            monitor=monitor,
             run_name=profile
         )
 ```
@@ -162,7 +162,7 @@ with MultiRunProgressMonitor(profiles) as monitor:
         )
         t.start()
         threads.append(t)
-    
+
     for t in threads:
         t.join()
 ```

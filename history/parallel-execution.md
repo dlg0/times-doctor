@@ -1,6 +1,6 @@
 # Parallel Execution for Scan Command
 
-**Date:** 2025-11-09  
+**Date:** 2025-11-09
 **Feature:** `--parallel` flag for simultaneous solver profile testing
 
 ## Summary
@@ -47,7 +47,7 @@ if parallel:
         t = threading.Thread(target=run_profile, args=(profile, monitor, results))
         t.start()
         threads.append(t)
-    
+
     for t in threads:
         t.join()
 ```
