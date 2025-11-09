@@ -8,26 +8,36 @@ It reads your GAMS run files (QA_CHECK.LOG, run logs, .lst files), condenses the
 
 ## Quick Start
 
-No installation needed! Run directly with `uvx`:
+### Installation
 
-**macOS/Linux:**
+**1. Install uv** (if not already installed):
 ```bash
-# Review a failed run (start here!)
-uvx --from git+https://github.com/dlg0/times-doctor times-doctor review data/065Nov25-annualupto2045/parscen
+# macOS/Linux
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Windows
+powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
 ```
 
-**Windows:**
-```cmd
-uvx --from git+https://github.com/dlg0/times-doctor times-doctor review D:\path\to\run
-```
-
-### Install as Tool
-
-For repeated use, install once:
-
+**2. Install times-doctor:**
 ```bash
 uv tool install git+https://github.com/dlg0/times-doctor
-times-doctor --help
+```
+
+**3. Run it:**
+```bash
+# Review a failed run (start here!)
+times-doctor review data/065Nov25-annualupto2045/parscen
+
+# Or on Windows
+times-doctor review D:\path\to\run
+```
+
+### Updating
+
+To get the latest version:
+```bash
+uv tool upgrade times-doctor
 ```
 
 See [INSTALL.md](INSTALL.md) for detailed installation instructions.
