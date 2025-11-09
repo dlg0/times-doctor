@@ -34,29 +34,48 @@ Or install:
 uv tool install git+https://github.com/dlg0/times-doctor
 ```
 
-## Publishing to PyPI (Optional)
+## Publishing to PyPI
 
-If you want to publish to PyPI for easier installation:
+### Automated Release (Recommended)
 
-1. **Get PyPI API token**
-   - Go to https://pypi.org/manage/account/token/
-   - Create new token with scope for this project
+PyPI releases are automated via GitHub Actions using trusted publishing (OIDC):
 
-2. **Build package**
+1. **Update version in pyproject.toml**
    ```bash
-   uv build
+   # Edit version in pyproject.toml, e.g., "0.7.0"
+   git commit -am "Bump version to 0.7.0"
    ```
 
-3. **Upload to PyPI**
+2. **Create and push version tag**
    ```bash
-   uv publish --token <your-pypi-token>
+   git tag v0.7.0
+   git push && git push --tags
    ```
+
+3. **Workflow automatically:**
+   - Builds wheel and sdist with hatch/hatchling
+   - Publishes to PyPI using trusted publishing (no token needed)
+   - Creates GitHub release with changelog and artifacts
 
 4. **Users can then install via**
    ```bash
    uvx times-doctor
    # or
    uv tool install times-doctor
+   ```
+
+### Manual Release (Fallback)
+
+If needed, you can publish manually:
+
+1. **Build package**
+   ```bash
+   uv build
+   ```
+
+2. **Upload to PyPI**
+   ```bash
+   uv publish --token <your-pypi-token>
    ```
 
 ## Version Management
