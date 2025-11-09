@@ -131,11 +131,12 @@ def clear_cache(cache_dir: Path) -> int:
 
     count = 0
     cache_files = list(cache_dir.glob("cache_*.json"))
+    errors = []
     for cache_file in cache_files:
         try:
             cache_file.unlink()
             count += 1
-        except Exception:
-            pass
+        except Exception as e:
+            errors.append((cache_file, e))
 
     return count

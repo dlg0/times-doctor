@@ -1,7 +1,6 @@
 """Tests for LLM response caching."""
 
 import json
-from pathlib import Path
 
 from times_doctor.core import llm_cache
 

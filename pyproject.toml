@@ -85,6 +85,7 @@ ignore = [
 "scripts/*" = ["B007"]  # Allow unused loop vars in scripts
 "src/times_doctor/core/http_client.py" = ["S311"]  # random.uniform for retry jitter (not crypto)
 "src/times_doctor/core/llm.py" = ["S603", "PERF401", "SIM102"]  # subprocess for llm cli, allow simple loops
+"src/times_doctor/core/llm_cache.py" = ["PERF203"]  # try-except in loop acceptable for cleanup
 "src/times_doctor/core/qa_check_parser.py" = ["PERF401", "PERF403"]  # Comprehensions harder to read here
 "src/times_doctor/core/lst_parser.py" = ["PERF401"]  # List comprehensions harder to read here
 "src/times_doctor/cli.py" = ["B008", "S603", "PERF203", "E741"]  # typer patterns, subprocess trusted, perf ok
