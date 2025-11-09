@@ -218,19 +218,23 @@ def _call_openai_responses_api(
     stream_callback: Callable[[str], None] | None = None,
     log_dir: Path | None = None,
     use_cache: bool = True,
-) -> tuple[str, dict[str, Any]]:
+    instructions: str | None = None,
+    text_format: type[Any] | None = None,
+) -> tuple[str, dict[str, Any]] | tuple[Any, dict[str, Any]]:
     """Call OpenAI GPT-5 Responses API with optional streaming support.
 
     Args:
-        prompt: The prompt to send to the API
+        prompt: The user input/data to send to the API (goes to 'input' field)
         model: Model name to use
         reasoning_effort: Reasoning effort level
         stream_callback: Optional callback for streaming responses
         log_dir: Directory for logging
         use_cache: Whether to use cached responses (default: True)
+        instructions: System-level instructions (goes to 'instructions' field)
+        text_format: Optional Pydantic model for structured output
 
     Returns:
-        Tuple of (response_text, metadata)
+        Tuple of (response_text, metadata) or (parsed_model, metadata) if text_format provided
     """
     start_time = time.time()
     config = get_config()
@@ -268,14 +272,34 @@ def _call_openai_responses_api(
 
     url = "https://api.openai.com/v1/responses"
     headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
-    payload = {
+
+    # Build payload with proper field usage
+    payload: dict[str, Any] = {
         "model": model,
-        "input": [{"role": "user", "content": prompt}],
-        "text": {"format": {"type": "text"}, "verbosity": "medium"},
+        "input": prompt,  # User input as string (not message array!)
         "reasoning": {"effort": reasoning_effort, "summary": "auto"},
         "store": True,
         "stream": bool(stream_callback),
     }
+
+    # Add instructions if provided (system-level guidance)
+    if instructions:
+        payload["instructions"] = instructions
+
+    # Add text format for structured output
+    if text_format:
+        # For Pydantic models, use response_format with JSON schema
+        payload["response_format"] = {
+            "type": "json_schema",
+            "json_schema": {
+                "name": text_format.__name__,
+                "schema": text_format.model_json_schema(),
+                "strict": True,
+            },
+        }
+    else:
+        # Default text output
+        payload["text"] = {"format": {"type": "text"}, "verbosity": "medium"}
 
     try:
         # Longer timeout for reasoning models
@@ -560,6 +584,17 @@ def _call_openai_responses_api(
                     cache_dir=cache_dir,
                     reasoning_effort=reasoning_effort,
                 )
+
+            # Parse structured output if text_format provided
+            if text_format:
+                try:
+                    parsed_data = json.loads(text_content)
+                    parsed_model = text_format(**parsed_data)
+                    return parsed_model, metadata
+                except Exception as e:
+                    print(f"[dim]Warning: Failed to parse structured output: {e}[/dim]")
+                    # Fall back to returning text
+                    return text_content, metadata
 
             return text_content, metadata
         else:
@@ -1939,13 +1974,19 @@ def review_solver_options(
     use_cache: bool = True,
 ) -> LLMResult:
     from .prompts import build_solver_options_review_prompt
+    from .solver_models import SolverDiagnosis
 
-    prompt = build_solver_options_review_prompt(qa_check, run_log, lst_content, cplex_opt)
+    instructions, input_data = build_solver_options_review_prompt(
+        qa_check, run_log, lst_content, cplex_opt
+    )
 
-    def done(name: str, text: str, meta: dict[str, Any] | None = None) -> LLMResult:
-        # Log the call
+    def done(
+        name: str, text: str, meta: dict[str, Any] | None = None, structured: Any = None
+    ) -> LLMResult:
+        # Log the call (use structured output as JSON if available)
         log_meta: dict[str, Any] = meta if meta else {"provider": name}
-        log_llm_call("solver_options_review", prompt, text, log_meta, log_dir)
+        log_text = text if not structured else structured.model_dump_json(indent=2)
+        log_llm_call("solver_options_review", input_data, log_text, log_meta, log_dir)
 
         if meta:
             return LLMResult(
@@ -1964,24 +2005,34 @@ def review_solver_options(
         return done("none", "")
 
     if prov in ("auto", "openai"):
-        # Use GPT-5 with high reasoning effort for solver option review
-        t, meta = _call_openai_responses_api(
-            prompt,
+        # Use GPT-5 with high reasoning effort for solver option review with structured output
+        result, meta = _call_openai_responses_api(
+            input_data,
             model="gpt-5",
             reasoning_effort="high",
             stream_callback=stream_callback,
             log_dir=log_dir,
             use_cache=use_cache,
+            instructions=instructions,
+            text_format=SolverDiagnosis,
         )
-        if t:
-            return done("openai", t, meta)
+        if result:
+            # Handle both structured and text responses
+            if isinstance(result, SolverDiagnosis):
+                # Convert structured output to text for backward compatibility
+                text = result.model_dump_json(indent=2)
+                return done("openai", text, meta, structured=result)
+            else:
+                return done("openai", result, meta)
 
     if prov in ("auto", "anthropic"):
         # Use Sonnet for review (best balance of quality/cost)
+        # Anthropic doesn't support structured output yet, combine instructions + input
+        combined_prompt = f"{instructions}\n\n{input_data}"
         if not model:
             model = "claude-3-5-sonnet-20241022"
         t, meta = _call_anthropic_api(
-            prompt,
+            combined_prompt,
             model=model,
             stream_callback=stream_callback,
             log_dir=log_dir,
@@ -1990,12 +2041,13 @@ def review_solver_options(
         if t:
             return done("anthropic", t, meta)
 
-        t = _call_anthropic_cli(prompt)
+        t = _call_anthropic_cli(combined_prompt)
         if t:
             return done("anthropic_cli", t, {"model": "claude-cli", "provider": "anthropic"})
 
     if prov in ("auto", "amp"):
-        t = _call_amp_cli(prompt)
+        combined_prompt = f"{instructions}\n\n{input_data}"
+        t = _call_amp_cli(combined_prompt)
         if t:
             return done("amp_cli", t, {"model": "amp-cli", "provider": "amp"})
 

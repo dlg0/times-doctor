@@ -63,7 +63,7 @@ def load_prompt_template(
     try:
         prompts_dir = _find_prompts_dir()
     except FileNotFoundError:
-        logger.warning(f"Prompts directory not found for {name}")
+        logger.debug(f"Prompts directory not found for '{name}', using inline fallback")
         return None
 
     manifest_path = prompts_dir / "manifest.json"
@@ -302,8 +302,14 @@ def build_review_prompt(qa_check: str, run_log: str, lst_content: str) -> str:
 
 def build_solver_options_review_prompt(
     qa_check: str, run_log: str, lst_content: str, cplex_opt: str
-) -> str:
-    """Build solver options review prompt for feasible-but-not-optimal solutions."""
+) -> tuple[str, str]:
+    """Build solver options review prompt for feasible-but-not-optimal solutions.
+
+    Returns:
+        Tuple of (instructions, input_data) for OpenAI Responses API
+        - instructions: System-level guidance (template)
+        - input_data: Diagnostic data to analyze
+    """
     template = load_prompt_template("solver_options_review")
     if not template:
         # Fallback inline version
@@ -321,9 +327,8 @@ def build_solver_options_review_prompt(
         lines.append("3. Ranked action plan")
         template = "\n".join(lines)
 
-    # Append file content sections
+    # Build input data sections
     sections = []
-    sections.append("")
     sections.append("=== CURRENT cplex.opt CONFIGURATION ===")
     sections.append(cplex_opt if cplex_opt else "(file not found)")
     sections.append("")
@@ -335,6 +340,7 @@ def build_solver_options_review_prompt(
     sections.append("")
     sections.append("=== LST FILE (CONDENSED EXCERPTS) ===")
     sections.append(lst_content if lst_content else "(file not found)")
-    sections.append("")
 
-    return template + "\n".join(sections)
+    input_data = "\n".join(sections)
+
+    return template, input_data
