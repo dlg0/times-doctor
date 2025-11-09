@@ -98,6 +98,44 @@ uv run pytest --cov              # With coverage
 
 See [TESTING.md](TESTING.md) for full testing strategy.
 
+## LLM Response Caching
+
+To reduce API costs and improve performance, times-doctor caches LLM responses.
+
+### How It Works
+
+- Cache key computed from: prompt + model + parameters (temperature, reasoning_effort, etc.)
+- Cached responses stored in `_llm_calls/cache/` directory
+- Cache hits show `$0.0000 (cache hit)` in output
+- Streaming responses are cached after completion
+
+### CLI Flags
+
+**Bypass cache for fresh responses:**
+```bash
+times-doctor review <run_dir> --no-cache
+```
+
+**Clear all cached responses:**
+```bash
+times-doctor clear-cache <run_dir>
+times-doctor clear-cache .  # Clear cache in current directory
+```
+
+### When to Clear Cache
+
+- Switching to a different model
+- Testing prompt changes
+- Debugging incorrect responses
+- After updating the LLM integration code
+
+### Cache Storage
+
+- Location: `<run_dir>/_llm_calls/cache/cache_<hash>.json`
+- Each cache file contains: response, metadata, timestamp, model, parameters
+- Cache is directory-specific (different run dirs have separate caches)
+- Safe to delete manually if needed
+
 ## Managing AI-Generated Planning Documents
 
 AI assistants often create planning and design documents during development:

@@ -213,13 +213,47 @@ def _call_openai_responses_api(
     reasoning_effort: str = "medium",
     stream_callback=None,
     log_dir: Path = None,
+    use_cache: bool = True,
 ) -> tuple[str, dict]:
-    """Call OpenAI GPT-5 Responses API with optional streaming support."""
+    """Call OpenAI GPT-5 Responses API with optional streaming support.
+
+    Args:
+        prompt: The prompt to send to the API
+        model: Model name to use
+        reasoning_effort: Reasoning effort level
+        stream_callback: Optional callback for streaming responses
+        log_dir: Directory for logging
+        use_cache: Whether to use cached responses (default: True)
+
+    Returns:
+        Tuple of (response_text, metadata)
+    """
     start_time = time.time()
     config = get_config()
     key = config.openai_api_key
     if not key:
         return "", {}
+
+    # Check cache first (skip if streaming or cache disabled)
+    if use_cache and not stream_callback:
+        from .llm_cache import read_cache
+
+        cache_dir = (log_dir or Path.cwd() / "_llm_calls") / "cache"
+        cached = read_cache(
+            prompt=prompt,
+            model=model,
+            cache_dir=cache_dir,
+            reasoning_effort=reasoning_effort,
+        )
+        if cached:
+            text, meta = cached
+            # Add cache hit indicator to metadata
+            meta["cached"] = True
+            meta["cache_hit"] = True
+            print(
+                f"[dim]LLM: {model} (cached) | {meta.get('input_tokens', 0):,}→{meta.get('output_tokens', 0):,} tok | $0.0000 (cache hit)[/dim]"
+            )
+            return text, meta
 
     try:
         import json as json_module
@@ -369,6 +403,20 @@ def _call_openai_responses_api(
                 f"[dim]LLM: {model}{effort_str} | {in_tok:,}→{out_tok:,} tok ({window_pct:.1f}% window) | {dur:.1f}s | ${cost:.4f}[/dim]"
             )
 
+            # Write to cache (streaming mode)
+            if use_cache:
+                from .llm_cache import write_cache
+
+                cache_dir = (log_dir or Path.cwd() / "_llm_calls") / "cache"
+                write_cache(
+                    prompt=prompt,
+                    model=model,
+                    response=full_text.strip(),
+                    metadata=metadata,
+                    cache_dir=cache_dir,
+                    reasoning_effort=reasoning_effort,
+                )
+
             return full_text.strip(), metadata
 
         # Non-streaming mode (original behavior)
@@ -446,6 +494,12 @@ def _call_openai_responses_api(
                 f"[dim]LLM: {model}{effort_str} | {in_tok:,}→{out_tok:,} tok ({window_pct:.1f}% window) | {dur:.1f}s | ${cost:.4f}[/dim]"
             )
 
+            # Write to cache (non-streaming mode)
+            if use_cache:
+                from .llm_cache import write_cache
+
+                cache_dir = (log_dir or Path.cwd() / "_llm_calls") / "cache"
+
             # Extract text from response - GPT-5 Responses API uses 'output' field
             output = data.get("output", [])
             print(
@@ -487,6 +541,18 @@ def _call_openai_responses_api(
                         break
 
             print(f"[dim]DEBUG: text_content length={len(text_content)}[/dim]")
+
+            # Write to cache before returning
+            if use_cache:
+                write_cache(
+                    prompt=prompt,
+                    model=model,
+                    response=text_content,
+                    metadata=metadata,
+                    cache_dir=cache_dir,
+                    reasoning_effort=reasoning_effort,
+                )
+
             return text_content, metadata
         else:
             error_msg = f"OpenAI Responses API error {r.status_code}"
@@ -776,13 +842,51 @@ def _call_openai_api(
         return "", {}
 
 
-def _call_anthropic_api(prompt: str, model: str = "", stream_callback=None) -> tuple[str, dict]:
-    """Call Anthropic API directly with optional streaming support."""
+def _call_anthropic_api(
+    prompt: str,
+    model: str = "",
+    stream_callback=None,
+    log_dir: Path = None,
+    use_cache: bool = True,
+) -> tuple[str, dict]:
+    """Call Anthropic API directly with optional streaming support.
+
+    Args:
+        prompt: The prompt to send to the API
+        model: Model name to use
+        stream_callback: Optional callback for streaming responses
+        log_dir: Directory for logging
+        use_cache: Whether to use cached responses (default: True)
+
+    Returns:
+        Tuple of (response_text, metadata)
+    """
     start_time = time.time()
     config = get_config()
     key = config.anthropic_api_key
     if not key:
         return "", {}
+
+    # Check cache first (skip if streaming or cache disabled)
+    if use_cache and not stream_callback:
+        from .llm_cache import read_cache
+
+        cache_dir = (log_dir or Path.cwd() / "_llm_calls") / "cache"
+        cached = read_cache(
+            prompt=prompt,
+            model=model or config.anthropic_model,
+            cache_dir=cache_dir,
+            temperature=config.anthropic_temperature,
+        )
+        if cached:
+            text, meta = cached
+            # Add cache hit indicator to metadata
+            meta["cached"] = True
+            meta["cache_hit"] = True
+            print(
+                f"[dim]LLM: {model or config.anthropic_model} (cached) | {meta.get('input_tokens', 0):,}→{meta.get('output_tokens', 0):,} tok | $0.0000 (cache hit)[/dim]"
+            )
+            return text, meta
 
     try:
         import json as json_module
@@ -889,6 +993,20 @@ def _call_anthropic_api(prompt: str, model: str = "", stream_callback=None) -> t
                 "duration_seconds": round(time.time() - start_time, 2),
             }
 
+            # Write to cache (streaming mode)
+            if use_cache:
+                from .llm_cache import write_cache
+
+                cache_dir = (log_dir or Path.cwd() / "_llm_calls") / "cache"
+                write_cache(
+                    prompt=prompt,
+                    model=model,
+                    response=full_text.strip(),
+                    metadata=metadata,
+                    cache_dir=cache_dir,
+                    temperature=temperature,
+                )
+
             return full_text.strip(), metadata
 
         else:
@@ -934,7 +1052,23 @@ def _call_anthropic_api(prompt: str, model: str = "", stream_callback=None) -> t
 
                 content = data.get("content", [])
                 if content and len(content) > 0:
-                    return content[0].get("text", ""), metadata
+                    response_text = content[0].get("text", "")
+
+                    # Write to cache (non-streaming mode)
+                    if use_cache:
+                        from .llm_cache import write_cache
+
+                        cache_dir = (log_dir or Path.cwd() / "_llm_calls") / "cache"
+                        write_cache(
+                            prompt=prompt,
+                            model=model,
+                            response=response_text,
+                            metadata=metadata,
+                            cache_dir=cache_dir,
+                            temperature=temperature,
+                        )
+
+                    return response_text, metadata
             return "", {}
     except Exception as e:
         print(f"[dim]Anthropic API exception: {str(e)}[/dim]")
@@ -1525,10 +1659,16 @@ def extract_condensed_sections(
 
             if api_keys["openai"]:
                 text, meta = _call_openai_responses_api(
-                    prompt, model="gpt-5-nano", reasoning_effort="minimal", log_dir=log_dir
+                    prompt,
+                    model="gpt-5-nano",
+                    reasoning_effort="minimal",
+                    log_dir=log_dir,
+                    use_cache=True,
                 )
             elif api_keys["anthropic"]:
-                text, meta = _call_anthropic_api(prompt, model="claude-3-5-haiku-20241022")
+                text, meta = _call_anthropic_api(
+                    prompt, model="claude-3-5-haiku-20241022", log_dir=log_dir, use_cache=True
+                )
             else:
                 error_msg = "No OpenAI or Anthropic API key found. Extraction requires OPENAI_API_KEY or ANTHROPIC_API_KEY in .env file"
                 log_llm_call(
@@ -1573,10 +1713,16 @@ def extract_condensed_sections(
 
         if api_keys["openai"]:
             text, meta = _call_openai_responses_api(
-                prompt, model="gpt-5-nano", reasoning_effort="minimal", log_dir=log_dir
+                prompt,
+                model="gpt-5-nano",
+                reasoning_effort="minimal",
+                log_dir=log_dir,
+                use_cache=True,
             )
         elif api_keys["anthropic"]:
-            text, meta = _call_anthropic_api(prompt, model="claude-3-5-haiku-20241022")
+            text, meta = _call_anthropic_api(
+                prompt, model="claude-3-5-haiku-20241022", log_dir=log_dir, use_cache=True
+            )
         else:
             error_msg = "No OpenAI or Anthropic API key found. Extraction requires OPENAI_API_KEY or ANTHROPIC_API_KEY in .env file"
             log_llm_call(f"extraction_{file_type}", prompt, "", {"error": error_msg}, log_dir)
@@ -1693,6 +1839,7 @@ def review_files(
     model: str = "",
     stream_callback=None,
     log_dir: Path = None,
+    use_cache: bool = True,
 ) -> LLMResult:
     from .prompts import build_review_prompt
 
@@ -1728,6 +1875,7 @@ def review_files(
             reasoning_effort="high",
             stream_callback=stream_callback,
             log_dir=log_dir,
+            use_cache=use_cache,
         )
         if t:
             return done("openai", t, meta)
@@ -1736,7 +1884,13 @@ def review_files(
         # Use Sonnet for review (best balance of quality/cost)
         if not model:
             model = "claude-3-5-sonnet-20241022"
-        t, meta = _call_anthropic_api(prompt, model=model, stream_callback=stream_callback)
+        t, meta = _call_anthropic_api(
+            prompt,
+            model=model,
+            stream_callback=stream_callback,
+            log_dir=log_dir,
+            use_cache=use_cache,
+        )
         if t:
             return done("anthropic", t, meta)
 
