@@ -183,9 +183,13 @@ class TestScanCommand:
 
         mock_copytree.side_effect = copytree_side_effect
 
-        result = runner.invoke(
-            app, ["scan", str(mock_run_dir), "--llm", "none", "--profiles", "dual"]
-        )
+        # Create a mock _td_opt_files directory with a test .opt file
+        opt_files_dir = mock_run_dir / "_td_opt_files"
+        opt_files_dir.mkdir(parents=True, exist_ok=True)
+        (opt_files_dir / "test_config.opt").write_text("epopt 1e-7\n")
+
+        # Answer 'y' to confirmation prompt
+        result = runner.invoke(app, ["scan", str(mock_run_dir), "--llm", "none"], input="y\n")
 
         if result.exit_code != 0:
             print(result.stdout)
