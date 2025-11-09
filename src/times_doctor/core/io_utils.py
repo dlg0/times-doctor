@@ -1,10 +1,9 @@
 """Safe I/O utilities for cross-platform file operations."""
 
 from pathlib import Path
-from typing import Union
 
 
-def read_text(path: Union[str, Path], encoding: str = "utf-8", errors: str = "replace") -> str:
+def read_text(path: str | Path, encoding: str = "utf-8", errors: str = "replace") -> str:
     """Safely read text file with proper encoding handling.
 
     Args:
@@ -20,7 +19,7 @@ def read_text(path: Union[str, Path], encoding: str = "utf-8", errors: str = "re
 
 
 def write_text(
-    path: Union[str, Path], content: str, encoding: str = "utf-8", errors: str = "replace"
+    path: str | Path, content: str, encoding: str = "utf-8", errors: str = "replace"
 ) -> None:
     """Safely write text file with proper encoding handling.
 
@@ -35,7 +34,7 @@ def write_text(
     path.write_text(content, encoding=encoding, errors=errors)
 
 
-def normalize_path(path: Union[str, Path]) -> Path:
+def normalize_path(path: str | Path) -> Path:
     """Normalize path for current OS.
 
     Args:
@@ -47,7 +46,7 @@ def normalize_path(path: Union[str, Path]) -> Path:
     return Path(path).resolve()
 
 
-def quote_path(path: Union[str, Path]) -> str:
+def quote_path(path: str | Path) -> str:
     """Quote a path for use in command line arguments.
 
     Args:

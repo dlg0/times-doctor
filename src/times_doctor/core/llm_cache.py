@@ -4,7 +4,7 @@ import hashlib
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 
 def compute_cache_key(prompt: str, model: str, **kwargs: Any) -> str:
@@ -47,7 +47,7 @@ def get_cache_path(cache_key: str, cache_dir: Path) -> Path:
 
 def read_cache(
     prompt: str, model: str, cache_dir: Path, **kwargs: Any
-) -> Optional[tuple[str, dict[str, Any]]]:
+) -> tuple[str, dict[str, Any]] | None:
     """Read cached LLM response if available.
 
     Args:

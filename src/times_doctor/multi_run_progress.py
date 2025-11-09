@@ -3,7 +3,7 @@
 import threading
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Optional
+from typing import Any
 
 from rich.live import Live
 from rich.table import Table
@@ -29,12 +29,12 @@ class RunProgress:
     name: str
     status: RunStatus = RunStatus.WAITING
     phase: str = "–"
-    progress_pct: Optional[float] = None
+    progress_pct: float | None = None
     iteration: str = "–"
-    mu: Optional[float] = None
-    primal_infeas: Optional[float] = None
-    dual_infeas: Optional[float] = None
-    error_msg: Optional[str] = None
+    mu: float | None = None
+    primal_infeas: float | None = None
+    dual_infeas: float | None = None
+    error_msg: str | None = None
     tracker: cplex_progress.BarrierProgressTracker = field(
         default_factory=cplex_progress.BarrierProgressTracker
     )
@@ -84,10 +84,10 @@ class MultiRunProgressMonitor:
         self.runs: dict[str, RunProgress] = {name: RunProgress(name=name) for name in run_names}
         self.lock = threading.Lock()
         self.console = log.get_console()
-        self.live: Optional[Live] = None
+        self.live: Live | None = None
         self._should_stop = False
 
-    def update_status(self, run_name: str, status: RunStatus, error_msg: Optional[str] = None):
+    def update_status(self, run_name: str, status: RunStatus, error_msg: str | None = None) -> None:
         """Update the status of a run."""
         with self.lock:
             if run_name in self.runs:
@@ -95,7 +95,7 @@ class MultiRunProgressMonitor:
                 if error_msg:
                     self.runs[run_name].error_msg = error_msg
 
-    def update_cplex_progress(self, run_name: str, parsed: dict):
+    def update_cplex_progress(self, run_name: str, parsed: dict[str, Any]) -> None:
         """
         Update CPLEX progress for a run.
 

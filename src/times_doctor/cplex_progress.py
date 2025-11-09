@@ -2,7 +2,7 @@
 
 import math
 import re
-from typing import Optional
+from typing import Any
 
 
 class BarrierProgressTracker:
@@ -16,10 +16,10 @@ class BarrierProgressTracker:
             mu_target: Target complementarity for convergence (matches typical barrier tolerance)
         """
         self.mu_target = mu_target
-        self.mu0: Optional[float] = None  # First observed mu
+        self.mu0: float | None = None  # First observed mu
         self.in_crossover = False
 
-    def update_mu(self, mu: float) -> Optional[float]:
+    def update_mu(self, mu: float) -> float | None:
         """
         Update with new mu value and return progress percentage.
 
@@ -54,7 +54,7 @@ RE_CROSSOVER = re.compile(r"crossover", re.I)
 RE_SIMPLEX = re.compile(r"\b(?:simplex|primal|dual)\b", re.I)
 
 
-def parse_cplex_line(line: str) -> Optional[dict]:
+def parse_cplex_line(line: str) -> dict[str, Any] | None:
     """
     Parse a CPLEX iteration log line.
 
@@ -64,7 +64,7 @@ def parse_cplex_line(line: str) -> Optional[dict]:
     Returns:
         Dict with parsed values, or None if not an iteration line
     """
-    result = {}
+    result: dict[str, Any] = {}
 
     # Check for crossover
     if RE_CROSSOVER.search(line):
@@ -100,9 +100,9 @@ def parse_cplex_line(line: str) -> Optional[dict]:
 
 
 def format_progress_line(
-    parsed: dict,
-    progress_pct: Optional[float] = None,
-    tracker: Optional[BarrierProgressTracker] = None,
+    parsed: dict[str, Any],
+    progress_pct: float | None = None,
+    tracker: BarrierProgressTracker | None = None,
 ) -> str:
     """
     Format a progress line for display.
@@ -125,7 +125,8 @@ def format_progress_line(
         progress_pct = tracker.update_mu(parsed["mu"])
 
     # Format progress indicator
-    if progress_pct is not None and not tracker.in_crossover and phase == "barrier":
+    in_crossover = bool(tracker and tracker.in_crossover)
+    if progress_pct is not None and not in_crossover and phase == "barrier":
         pct_str = f"{int(progress_pct * 100)}%"
     else:
         pct_str = "–"
@@ -143,7 +144,7 @@ def format_progress_line(
 
 
 def scan_log_for_progress(
-    log_lines: list[str], tracker: Optional[BarrierProgressTracker] = None
+    log_lines: list[str], tracker: BarrierProgressTracker | None = None
 ) -> list[str]:
     """
     Scan log lines and return formatted progress lines.
@@ -158,7 +159,7 @@ def scan_log_for_progress(
     if tracker is None:
         tracker = BarrierProgressTracker()
 
-    progress_lines = []
+    progress_lines: list[str] = []
 
     for line in log_lines:
         parsed = parse_cplex_line(line)

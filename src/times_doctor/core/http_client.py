@@ -1,7 +1,7 @@
 """HTTP client utilities with timeout and retry logic."""
 
 import time
-from typing import Any, Optional
+from typing import Any
 
 from .exceptions import LlmError
 
@@ -26,8 +26,8 @@ def get_http_client():
 def make_request_with_retry(
     method: str,
     url: str,
-    headers: Optional[dict[str, str]] = None,
-    json: Optional[dict[str, Any]] = None,
+    headers: dict[str, str] | None = None,
+    json: dict[str, Any] | None = None,
     max_retries: int = 3,
     backoff_factor: float = 2.0,
 ) -> Any:
@@ -54,7 +54,7 @@ def make_request_with_retry(
     except ImportError:
         raise LlmError("httpx not installed")
 
-    last_exception = None
+    last_exception: Exception | None = None
 
     for attempt in range(max_retries):
         try:
@@ -65,14 +65,14 @@ def make_request_with_retry(
             if response.status_code == 429:
                 retry_after = response.headers.get("Retry-After", "60")
                 try:
-                    wait_time = int(retry_after)
+                    wait_time_int = int(retry_after)
                 except ValueError:
-                    wait_time = 60
+                    wait_time_int = 60
 
                 if attempt < max_retries - 1:
                     # Add jitter to avoid thundering herd
-                    jitter = random.uniform(0, min(wait_time * 0.1, 5))
-                    time.sleep(wait_time + jitter)
+                    jitter = random.uniform(0, min(wait_time_int * 0.1, 5))
+                    time.sleep(wait_time_int + jitter)
                     continue
                 else:
                     raise LlmError(f"Rate limited after {max_retries} retries")
@@ -80,7 +80,7 @@ def make_request_with_retry(
             # Handle server errors with retry
             if 500 <= response.status_code < 600:
                 if attempt < max_retries - 1:
-                    wait_time = backoff_factor**attempt
+                    wait_time = float(backoff_factor**attempt)
                     # Add jitter (±25% of wait time)
                     jitter = random.uniform(-wait_time * 0.25, wait_time * 0.25)
                     time.sleep(max(0.1, wait_time + jitter))
@@ -101,7 +101,7 @@ def make_request_with_retry(
         except httpx.TimeoutException as e:
             last_exception = e
             if attempt < max_retries - 1:
-                wait_time = backoff_factor**attempt
+                wait_time = float(backoff_factor**attempt)
                 # Add jitter (±25% of wait time)
                 jitter = random.uniform(-wait_time * 0.25, wait_time * 0.25)
                 time.sleep(max(0.1, wait_time + jitter))
@@ -112,7 +112,7 @@ def make_request_with_retry(
         except httpx.NetworkError as e:
             last_exception = e
             if attempt < max_retries - 1:
-                wait_time = backoff_factor**attempt
+                wait_time = float(backoff_factor**attempt)
                 # Add jitter (±25% of wait time)
                 jitter = random.uniform(-wait_time * 0.25, wait_time * 0.25)
                 time.sleep(max(0.1, wait_time + jitter))

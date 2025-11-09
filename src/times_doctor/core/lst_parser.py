@@ -8,6 +8,7 @@ import re
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 
 @dataclass
@@ -158,7 +159,7 @@ class CompilationProcessor:
     ELEMENT_PATTERN = re.compile(r"^(\d+)\s+'(.+?)'\s+", re.MULTILINE)
 
     @staticmethod
-    def process(section: LSTSection) -> dict:
+    def process(section: LSTSection) -> dict[str, Any]:
         """Process compilation section and aggregate errors.
 
         Returns:
@@ -167,7 +168,9 @@ class CompilationProcessor:
         content = section.content
 
         # Find all errors
-        errors = defaultdict(lambda: {"count": 0, "elements": defaultdict(int), "samples": []})
+        errors: dict[str, dict[str, Any]] = defaultdict(
+            lambda: {"count": 0, "elements": defaultdict(int), "samples": []}
+        )
 
         lines = content.split("\n")
         i = 0
@@ -229,7 +232,7 @@ class CompilationProcessor:
         }
 
     @staticmethod
-    def _create_summary(errors: dict) -> str:
+    def _create_summary(errors: dict[str, dict[str, Any]]) -> str:
         """Create human-readable summary of errors."""
         if not errors:
             return "No errors found"
@@ -257,7 +260,7 @@ class ExecutionProcessor:
     )
 
     @staticmethod
-    def process(section: LSTSection) -> dict:
+    def process(section: LSTSection) -> dict[str, Any]:
         """Process execution section and extract timing info.
 
         Returns:
@@ -266,7 +269,7 @@ class ExecutionProcessor:
         content = section.content
 
         # Track major operations (>0.5 seconds)
-        major_ops = []
+        major_ops: list[dict[str, Any]] = []
         total_time = 0.0
         peak_memory = 0
 
@@ -299,7 +302,7 @@ class ExecutionProcessor:
                     )
 
         # Sort by execution time (descending)
-        major_ops.sort(key=lambda x: x["time"], reverse=True)
+        major_ops.sort(key=lambda x: float(x["time"]), reverse=True)
 
         return {
             "section": section.name,
@@ -341,7 +344,7 @@ class ModelAnalysisProcessor:
     )
 
     @staticmethod
-    def process(section: LSTSection) -> dict:
+    def process(section: LSTSection) -> dict[str, Any]:
         """Process model analysis section.
 
         Returns:
@@ -349,7 +352,7 @@ class ModelAnalysisProcessor:
         """
         content = section.content
 
-        equations = []
+        equations: list[dict[str, Any]] = []
         total_equations = 0
         total_time = 0.0
 
@@ -399,7 +402,7 @@ class ModelAnalysisProcessor:
         return "\n".join(lines)
 
 
-def process_lst_file(lst_path: Path) -> dict:
+def process_lst_file(lst_path: Path) -> dict[str, Any]:
     """Process an LST file and return structured data.
 
     Args:
@@ -412,12 +415,12 @@ def process_lst_file(lst_path: Path) -> dict:
     sections = parser.parse()
 
     # Group sections by name (handle duplicates)
-    section_groups = defaultdict(list)
+    section_groups: dict[str, list[LSTSection]] = defaultdict(list)
     for section in sections:
         section_groups[section.name].append(section)
 
     # Process sections
-    processed = {
+    processed: dict[str, Any] = {
         "metadata": {
             "file": str(lst_path),
             "section_count": len(sections),

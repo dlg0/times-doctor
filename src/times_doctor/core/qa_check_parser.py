@@ -10,6 +10,7 @@ import re
 from collections import Counter
 from collections.abc import Iterable, Iterator, Sequence
 from pathlib import Path
+from typing import Any
 
 # ----------------------------
 # Regexes and constants
@@ -77,7 +78,7 @@ def expand_composite_key(key: str, val: str) -> dict[str, str]:
         kparts = key.split(".")
         vparts = [p.strip() for p in val.split(".")]
         if len(kparts) == len(vparts):
-            return dict(zip(kparts, vparts))
+            return dict(zip(kparts, vparts, strict=False))
     return {key: val.strip()}
 
 
@@ -131,7 +132,7 @@ def iter_events(
     if isinstance(source, Path):
         fh = source.open("r", encoding="utf-8", errors="ignore")
         should_close = True
-        lines = fh
+        lines: Iterable[str] = fh
     else:
         should_close = False
         lines = source
@@ -189,8 +190,10 @@ def condense_events(
             - 'severity', 'message', 'events' (count of individual event lines per message)
         all_index_keys: sorted list of every discovered index key (for consumers to build stable columns)
     """
-    bucket = Counter()  # (sev, msg, frozenset(idx.items())) -> count
-    msg_counts = Counter()  # (sev, msg) -> event count
+    bucket: Counter[tuple[str, str, frozenset[tuple[str, str]]]] = (
+        Counter()
+    )  # (sev, msg, frozenset(idx.items())) -> count
+    msg_counts: Counter[tuple[str, str]] = Counter()  # (sev, msg) -> event count
     all_keys: set[str] = set()
 
     for sev, msg, idx in events:
@@ -319,7 +322,7 @@ def rollup_summary_rows(
     """
     # Discover index keys present in rows
     fixed = {"severity", "message", "occurrences"}
-    discovered = set()
+    discovered: set[str] = set()
     for r in summary_rows:
         discovered.update(k for k in r if k not in fixed)
 
@@ -327,7 +330,9 @@ def rollup_summary_rows(
     if group_on_keys is None:
         group_on_keys = []
 
-    groups = {}  # key -> accumulator
+    groups: dict[
+        tuple[str, str, tuple[tuple[str, str], ...]], dict[str, Any]
+    ] = {}  # key -> accumulator
     for r in summary_rows:
         sev = r["severity"]
         msg = r["message"]
@@ -426,7 +431,7 @@ def format_condensed_output(
     lines.append("OVERVIEW BY SEVERITY")
     lines.append("-" * 80)
 
-    severity_totals = Counter()
+    severity_totals: Counter[str] = Counter()
     for row in message_counts:
         severity_totals[row["severity"]] += int(row["events"])
 
@@ -443,7 +448,7 @@ def format_condensed_output(
 
     # Group by message only (aggregate all indices including regions)
     rolled = rollup_summary_rows(summary_rows, group_on_keys=None, sample_limit=1)
-    group_on_keys = []  # No grouping keys, we aggregate everything
+    group_on_keys: list[str] = []  # No grouping keys, we aggregate everything
 
     current_severity = None
     for row in rolled:

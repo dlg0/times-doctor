@@ -1,11 +1,7 @@
 import os
-from pathlib import Path
-
-try:
-    import tomllib  # Python 3.11+
-except ModuleNotFoundError:
-    import tomli as tomllib  # Python 3.9-3.10
+import tomllib
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 
@@ -135,7 +131,7 @@ class Config:
 
         return config_data
 
-    def merge_cli_args(self, **kwargs) -> "Config":
+    def merge_cli_args(self, **kwargs: Any) -> "Config":
         """Create new Config with CLI arguments merged in (CLI args have highest priority).
 
         Args:

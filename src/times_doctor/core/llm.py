@@ -1,20 +1,24 @@
 import json
 import subprocess
 import time
+from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
+from typing import Any, cast
 
 from . import redactor
 from .config import get_config
 
 
-def which(cmd: str):
+def which(cmd: str) -> str | None:
     from shutil import which as _w
 
     return _w(cmd)
 
 
-def log_llm_call(call_type: str, prompt: str, response: str, metadata: dict, log_dir: Path = None):
+def log_llm_call(
+    call_type: str, prompt: str, response: str, metadata: dict, log_dir: Path | None = None
+) -> None:
     """Log LLM call details to _llm_calls folder for debugging.
 
     Args:
@@ -211,10 +215,10 @@ def _call_openai_responses_api(
     prompt: str,
     model: str = "gpt-5-nano",
     reasoning_effort: str = "medium",
-    stream_callback=None,
-    log_dir: Path = None,
+    stream_callback: Callable[[str], None] | None = None,
+    log_dir: Path | None = None,
     use_cache: bool = True,
-) -> tuple[str, dict]:
+) -> tuple[str, dict[str, Any]]:
     """Call OpenAI GPT-5 Responses API with optional streaming support.
 
     Args:
@@ -391,16 +395,18 @@ def _call_openai_responses_api(
             }
 
             # Print concise log
-            in_tok = metadata["input_tokens"]
-            out_tok = metadata["output_tokens"]
-            dur = metadata["duration_seconds"]
-            cost = metadata["cost_usd"]
-            window_pct = (
-                (in_tok / 400000 * 100) if model.startswith("gpt-5") else (in_tok / 200000 * 100)
+            in_tok_stream = cast(int, metadata["input_tokens"])
+            out_tok_stream = cast(int, metadata["output_tokens"])
+            dur_stream = cast(float, metadata["duration_seconds"])
+            cost_stream = cast(float, metadata["cost_usd"])
+            window_pct_stream = (
+                (in_tok_stream / 400000 * 100)
+                if model.startswith("gpt-5")
+                else (in_tok_stream / 200000 * 100)
             )
             effort_str = f" ({reasoning_effort})" if reasoning_effort else ""
             print(
-                f"[dim]LLM: {model}{effort_str} | {in_tok:,}→{out_tok:,} tok ({window_pct:.1f}% window) | {dur:.1f}s | ${cost:.4f}[/dim]"
+                f"[dim]LLM: {model}{effort_str} | {in_tok_stream:,}→{out_tok_stream:,} tok ({window_pct_stream:.1f}% window) | {dur_stream:.1f}s | ${cost_stream:.4f}[/dim]"
             )
 
             # Write to cache (streaming mode)
@@ -482,16 +488,18 @@ def _call_openai_responses_api(
             }
 
             # Print concise log
-            in_tok = metadata["input_tokens"]
-            out_tok = metadata["output_tokens"]
-            dur = metadata["duration_seconds"]
-            cost = metadata["cost_usd"]
-            window_pct = (
-                (in_tok / 400000 * 100) if model.startswith("gpt-5") else (in_tok / 200000 * 100)
+            in_tok_nonstream = cast(int, metadata["input_tokens"])
+            out_tok_nonstream = cast(int, metadata["output_tokens"])
+            dur_nonstream = cast(float, metadata["duration_seconds"])
+            cost_nonstream = cast(float, metadata["cost_usd"])
+            window_pct_nonstream = (
+                (in_tok_nonstream / 400000 * 100)
+                if model.startswith("gpt-5")
+                else (in_tok_nonstream / 200000 * 100)
             )
             effort_str = f" ({reasoning_effort})" if reasoning_effort else ""
             print(
-                f"[dim]LLM: {model}{effort_str} | {in_tok:,}→{out_tok:,} tok ({window_pct:.1f}% window) | {dur:.1f}s | ${cost:.4f}[/dim]"
+                f"[dim]LLM: {model}{effort_str} | {in_tok_nonstream:,}→{out_tok_nonstream:,} tok ({window_pct_nonstream:.1f}% window) | {dur_nonstream:.1f}s | ${cost_nonstream:.4f}[/dim]"
             )
 
             # Write to cache (non-streaming mode)
@@ -572,8 +580,11 @@ def _call_openai_responses_api(
 
 
 def _call_openai_api(
-    prompt: str, model: str = "", stream_callback=None, log_dir: Path = None
-) -> tuple[str, dict]:
+    prompt: str,
+    model: str = "",
+    stream_callback: Callable[[str], None] | None = None,
+    log_dir: Path | None = None,
+) -> tuple[str, dict[str, Any]]:
     config = get_config()
     key = config.openai_api_key
     if not key:
@@ -845,10 +856,10 @@ def _call_openai_api(
 def _call_anthropic_api(
     prompt: str,
     model: str = "",
-    stream_callback=None,
-    log_dir: Path = None,
+    stream_callback: Callable[[str], None] | None = None,
+    log_dir: Path | None = None,
     use_cache: bool = True,
-) -> tuple[str, dict]:
+) -> tuple[str, dict[str, Any]]:
     """Call Anthropic API directly with optional streaming support.
 
     Args:
@@ -872,9 +883,10 @@ def _call_anthropic_api(
         from .llm_cache import read_cache
 
         cache_dir = (log_dir or Path.cwd() / "_llm_calls") / "cache"
+        model_to_use = model or "claude-3-5-sonnet-20241022"
         cached = read_cache(
             prompt=prompt,
-            model=model or config.anthropic_model,
+            model=model_to_use,
             cache_dir=cache_dir,
             temperature=config.anthropic_temperature,
         )
@@ -884,7 +896,7 @@ def _call_anthropic_api(
             meta["cached"] = True
             meta["cache_hit"] = True
             print(
-                f"[dim]LLM: {model or config.anthropic_model} (cached) | {meta.get('input_tokens', 0):,}→{meta.get('output_tokens', 0):,} tok | $0.0000 (cache hit)[/dim]"
+                f"[dim]LLM: {model_to_use} (cached) | {meta.get('input_tokens', 0):,}→{meta.get('output_tokens', 0):,} tok | $0.0000 (cache hit)[/dim]"
             )
             return text, meta
 
@@ -1041,13 +1053,13 @@ def _call_anthropic_api(
                 }
 
                 # Print concise log
-                in_tok = metadata["input_tokens"]
-                out_tok = metadata["output_tokens"]
-                dur = metadata["duration_seconds"]
-                cost = metadata["cost_usd"]
-                window_pct = in_tok / 200000 * 100
+                in_tok_anthropic = cast(int, metadata["input_tokens"])
+                out_tok_anthropic = cast(int, metadata["output_tokens"])
+                dur_anthropic = cast(float, metadata["duration_seconds"])
+                cost_anthropic = cast(float, metadata["cost_usd"])
+                window_pct_anthropic = in_tok_anthropic / 200000 * 100
                 print(
-                    f"[dim]LLM: {model} | {in_tok:,}→{out_tok:,} tok ({window_pct:.1f}% window) | {dur:.1f}s | ${cost:.4f}[/dim]"
+                    f"[dim]LLM: {model} | {in_tok_anthropic:,}→{out_tok_anthropic:,} tok ({window_pct_anthropic:.1f}% window) | {dur_anthropic:.1f}s | ${cost_anthropic:.4f}[/dim]"
                 )
 
                 content = data.get("content", [])
@@ -1090,12 +1102,12 @@ def _call_amp_cli(prompt: str) -> str:
     return ""
 
 
-def summarize(diagnostics: dict, provider: str = "auto") -> LLMResult:
+def summarize(diagnostics: dict[str, Any], provider: str = "auto") -> LLMResult:
     from .prompts import build_llm_prompt
 
     prompt = build_llm_prompt(diagnostics)
 
-    def done(name, text, meta=None):
+    def done(name: str, text: str, meta: dict[str, Any] | None = None) -> LLMResult:
         if meta:
             return LLMResult(
                 text=text,
@@ -1130,7 +1142,9 @@ def summarize(diagnostics: dict, provider: str = "auto") -> LLMResult:
     return done("none", "")
 
 
-def _filter_run_log(file_content: str, progress_callback=None) -> dict:
+def _filter_run_log(
+    file_content: str, progress_callback: Callable[[int, int, str], None] | None = None
+) -> dict[str, Any]:
     """Filter run_log.txt to keep only condensed diagnostic content.
 
     Filtering rules:
@@ -1239,9 +1253,9 @@ def _condense_repetitive_lines(lines: list) -> list:
     def extract_numbers(line: str) -> list:
         return re.findall(r"\b\d+(?:\.\d+)?\b", line)
 
-    result = []
-    current_group = []
-    current_pattern = None
+    result: list[str] = []
+    current_group: list[str] = []
+    current_pattern: str | None = None
 
     for line in lines:
         # Skip empty lines
@@ -1300,7 +1314,7 @@ def _condense_multiline_errors(lines: list) -> list:
 
                 # Count consecutive occurrences of this error+description pair
                 count = 0
-                examples = []
+                examples: list[str] = []
                 j = i
 
                 while j + 1 < len(lines):
@@ -1355,7 +1369,7 @@ def _condense_multiline_errors(lines: list) -> list:
     return result
 
 
-def _format_group(group: list, pattern: str) -> list:
+def _format_group(group: list[str], pattern: str | None) -> list[str]:
     """Format a group of similar lines.
 
     If group has 1-2 items: return as-is
@@ -1394,7 +1408,9 @@ def _format_group(group: list, pattern: str) -> list:
     return [first_line, summary]
 
 
-def _extract_lst_pages(file_content: str, progress_callback=None) -> dict:
+def _extract_lst_pages(
+    file_content: str, progress_callback: Callable[[int, int, str], None] | None = None
+) -> dict[str, Any]:
     """Extract and condense sections from GAMS .lst file using LST parser.
 
     Uses the LST parser to extract semantic sections and aggregate repetitive content.
@@ -1535,7 +1551,7 @@ def chunk_text_by_lines(
     start_idx = 0
     while start_idx < len(lines):
         # Calculate how many lines fit in this chunk
-        chunk_lines = []
+        chunk_lines: list[str] = []
         char_count = 0
         end_idx = start_idx
 
@@ -1558,7 +1574,9 @@ def chunk_text_by_lines(
     return chunks
 
 
-def condense_qa_check(file_content: str, progress_callback=None) -> str:
+def condense_qa_check(
+    file_content: str, progress_callback: Callable[[int, int, str], None] | None = None
+) -> str:
     """Condense QA_CHECK.LOG using rule-based parsing (no LLM required).
 
     Uses structured parsing to extract and deduplicate events by severity,
@@ -1600,8 +1618,11 @@ def condense_qa_check(file_content: str, progress_callback=None) -> str:
 
 
 def extract_condensed_sections(
-    file_content: str, file_type: str, log_dir: Path = None, progress_callback=None
-) -> dict:
+    file_content: str,
+    file_type: str,
+    log_dir: Path | None = None,
+    progress_callback: Callable[[int, int, str], None] | None = None,
+) -> dict[str, Any]:
     """Extract condensed diagnostic sections from a log file using fast LLM.
 
     Args:
@@ -1655,7 +1676,7 @@ def extract_condensed_sections(
             # Call LLM for this chunk
             api_keys = check_api_keys()
             text = ""
-            meta = {}
+            meta: dict[str, Any] = {}
 
             if api_keys["openai"]:
                 text, meta = _call_openai_responses_api(
@@ -1740,10 +1761,10 @@ def extract_condensed_sections(
         json_str = json_match.group(0) if json_match else text
 
         try:
-            result = json.loads(json_str)
-            if "sections" not in result or not isinstance(result["sections"], list):
+            parsed_result: dict[str, Any] = json.loads(json_str)
+            if "sections" not in parsed_result or not isinstance(parsed_result["sections"], list):
                 raise ValueError("Invalid JSON structure")
-            return result
+            return parsed_result
         except Exception as e:
             error_msg = (
                 f"Failed to parse extraction JSON from {file_type}: {e}\nLLM response: {text[:500]}"
@@ -1763,7 +1784,7 @@ def _merge_sections(sections: list[dict]) -> list[dict]:
     sorted_sections = sorted(sections, key=lambda s: s.get("start_line", 0))
 
     # Merge overlapping or adjacent sections with same name
-    merged = []
+    merged: list[dict[str, Any]] = []
     for section in sorted_sections:
         if not merged:
             merged.append(section)
@@ -1837,17 +1858,17 @@ def review_files(
     lst_content: str,
     provider: str = "auto",
     model: str = "",
-    stream_callback=None,
-    log_dir: Path = None,
+    stream_callback: Callable[[str], None] | None = None,
+    log_dir: Path | None = None,
     use_cache: bool = True,
 ) -> LLMResult:
     from .prompts import build_review_prompt
 
     prompt = build_review_prompt(qa_check, run_log, lst_content)
 
-    def done(name, text, meta=None):
+    def done(name: str, text: str, meta: dict[str, Any] | None = None) -> LLMResult:
         # Log the call
-        log_meta = meta if meta else {"provider": name}
+        log_meta: dict[str, Any] = meta if meta else {"provider": name}
         log_llm_call("review", prompt, text, log_meta, log_dir)
 
         if meta:

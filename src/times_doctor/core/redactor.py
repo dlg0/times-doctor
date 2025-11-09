@@ -30,7 +30,7 @@ def redact_api_key(text: str) -> str:
     return result
 
 
-def redact_env_keys() -> dict[str, str]:
+def redact_env_keys() -> dict[str, str | None]:
     """Get redacted versions of sensitive environment variables.
 
     Returns:
@@ -42,7 +42,7 @@ def redact_env_keys() -> dict[str, str]:
         "AMP_API_KEY",
     ]
 
-    redacted = {}
+    redacted: dict[str, str | None] = {}
     for key in sensitive_keys:
         value = os.environ.get(key)
         if value:
@@ -65,7 +65,7 @@ def redact_dict(data: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(data, dict):
         return data
 
-    result = {}
+    result: dict[str, Any] = {}
     for key, value in data.items():
         if isinstance(value, dict):
             result[key] = redact_dict(value)

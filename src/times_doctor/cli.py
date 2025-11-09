@@ -7,7 +7,6 @@ import subprocess
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
-from typing import Optional
 
 import typer
 from rich import print
@@ -26,7 +25,7 @@ app = typer.Typer(add_completion=False)
 console = Console()
 
 
-def version_callback(value: bool):
+def version_callback(value: bool) -> None:
     if value:
         print(f"times-doctor version {__version__}")
         raise typer.Exit()
@@ -45,7 +44,7 @@ def main(
     no_color: bool = typer.Option(
         False, "--no-color", help="Disable colored output", envvar="NO_COLOR"
     ),
-):
+) -> None:
     log.init_console(no_color=no_color)
 
 
@@ -140,9 +139,9 @@ def run_gams_with_progress(
     cmd: list[str],
     cwd: str,
     max_lines: int = 30,
-    monitor: Optional[MultiRunProgressMonitor] = None,
-    run_name: Optional[str] = None,
-    timeout_seconds: Optional[int] = None,
+    monitor: MultiRunProgressMonitor | None = None,
+    run_name: str | None = None,
+    timeout_seconds: int | None = None,
 ) -> int:
     """
     Run GAMS subprocess with robust error handling and live output monitoring.
@@ -192,7 +191,8 @@ def run_gams_with_progress(
         console.print(f"[dim]Command: {' '.join(cmd)}[/dim]")
     else:
         # Update monitor status
-        monitor.update_status(run_name, RunStatus.STARTING)
+        if monitor and run_name:
+            monitor.update_status(run_name, RunStatus.STARTING)
 
     # Find the _run_log.txt file that will be created
     cwd_path = Path(cwd)
@@ -206,7 +206,7 @@ def run_gams_with_progress(
             console.print(f"[dim]GAMS process started (PID: {proc.pid})[/dim]")
     except FileNotFoundError:
         error_msg = f"GAMS executable not found: {cmd[0]}"
-        if use_monitor:
+        if use_monitor and monitor and run_name:
             monitor.update_status(run_name, RunStatus.FAILED, error_msg)
         else:
             console.print(f"[red]Error: {error_msg}[/red]")
@@ -216,14 +216,14 @@ def run_gams_with_progress(
         raise
     except Exception as e:
         error_msg = f"Error starting GAMS: {e}"
-        if use_monitor:
+        if use_monitor and monitor and run_name:
             monitor.update_status(run_name, RunStatus.FAILED, error_msg)
         else:
             console.print(f"[red]{error_msg}[/red]")
         raise
 
-    lines = []
-    log_file_lines = []
+    lines: list[str] = []
+    log_file_lines: list[str] = []
     current_log_file = None
     display_text = Text("Starting GAMS...", style="dim")
 
@@ -271,7 +271,7 @@ def run_gams_with_progress(
 
         # Standalone mode variables
         if not use_monitor:
-            nonlocal_progress_line = [None]
+            nonlocal_progress_line: list[str | None] = [None]
             live_display = Live(display_text, console=console, refresh_per_second=2)
             live_display.start()
 
@@ -281,7 +281,7 @@ def run_gams_with_progress(
                 if timeout_seconds and (time.monotonic() - start_time) > timeout_seconds:
                     timed_out = True
                     timeout_msg = f"Timed out after {timeout_seconds}s"
-                    if use_monitor:
+                    if use_monitor and monitor and run_name:
                         monitor.update_status(run_name, RunStatus.FAILED, timeout_msg)
                     else:
                         console.print(f"[yellow]Run {timeout_msg}. Terminating...[/yellow]")
@@ -327,7 +327,7 @@ def run_gams_with_progress(
                                     for new_line in new_content[len(log_file_lines) :]:
                                         parsed = cplex_progress.parse_cplex_line(new_line)
                                         if parsed:
-                                            if use_monitor:
+                                            if use_monitor and monitor and run_name:
                                                 # Report to monitor
                                                 monitor.update_cplex_progress(run_name, parsed)
                                             else:
@@ -395,7 +395,7 @@ def run_gams_with_progress(
                             live_display.update(display_text)
 
                 # Update monitor display if in monitor mode
-                if use_monitor:
+                if use_monitor and monitor:
                     monitor.update_display()
 
                 time.sleep(0.5)
@@ -414,7 +414,7 @@ def run_gams_with_progress(
         signal.signal(signal.SIGINT, old_handler)
 
         # Update final status in monitor mode
-        if use_monitor and not timed_out:
+        if use_monitor and not timed_out and monitor and run_name:
             if proc.returncode == 0:
                 monitor.update_status(run_name, RunStatus.COMPLETED)
             else:
@@ -518,7 +518,7 @@ def datacheck(
         None, "--gams-path", help="Path to gams.exe (defaults to 'gams' in PATH)"
     ),
     threads: int = typer.Option(7, help="Number of threads for CPLEX to use during datacheck"),
-):
+) -> None:
     """
     Rerun model with CPLEX datacheck mode for detailed diagnostics.
 
@@ -668,7 +668,7 @@ def scan(
         envvar="TD_TIMEOUT_SECONDS",
         help="Per-profile timeout in seconds (0=no timeout)",
     ),
-):
+) -> None:
     """
     Test multiple CPLEX solver configurations to find best approach.
 
@@ -784,7 +784,7 @@ def scan(
         raise ValueError(f"Unknown profile {name}")
 
     # Set up run directories
-    run_dirs = {}
+    run_dirs: dict[str, Path] = {}
     for p in profiles:
         wdir = scan_root / p
         if wdir.exists():
@@ -797,9 +797,9 @@ def scan(
     def run_profile(
         profile_name: str,
         monitor: MultiRunProgressMonitor,
-        results: dict,
+        results: dict[str, dict[str, str]],
         timeout_sec: int | None = None,
-    ):
+    ) -> None:
         """Run a single profile and store results."""
         try:
             wdir = run_dirs[profile_name]
@@ -886,7 +886,7 @@ def scan(
     )
 
     with MultiRunProgressMonitor(list(profiles), title="Scan Progress") as monitor:
-        results = {}  # Thread-safe dict to collect results
+        results: dict[str, dict[str, str]] = {}  # Thread-safe dict to collect results
 
         if parallel:
             # Parallel execution with ThreadPoolExecutor
@@ -963,7 +963,7 @@ def find_run_directories(base_dir: Path) -> list[tuple[Path, str, float]]:
 
     Returns list of (path, label, mtime) tuples sorted by recency.
     """
-    candidates = []
+    candidates: list[tuple[Path, str, float]] = []
 
     # Add the main directory
     lst = latest_lst(base_dir)
@@ -991,7 +991,7 @@ def find_run_directories(base_dir: Path) -> list[tuple[Path, str, float]]:
 @app.command()
 def clear_cache(
     run_dir: str = typer.Argument(".", help="Run directory containing _llm_calls/cache"),
-):
+) -> None:
     """
     Clear cached LLM responses to force fresh API calls.
 
@@ -1029,7 +1029,7 @@ def review(
     ),
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation prompts"),
     no_cache: bool = typer.Option(False, "--no-cache", help="Bypass LLM response cache"),
-):
+) -> None:
     """
     Review TIMES run files using LLM for human-readable diagnostics.
 
@@ -1109,9 +1109,9 @@ def review(
     print("[yellow]Found files:[/yellow]")
     if qa_check:
         print(f"  ✓ QA_CHECK.LOG ({len(qa_check)} chars)")
-    if run_log:
+    if run_log and run_log_path:
         print(f"  ✓ {run_log_path.name} ({len(run_log)} chars)")
-    if lst_text:
+    if lst_text and lst:
         print(f"  ✓ {lst.name} ({len(lst_text)} chars)")
 
     # Extract useful sections first
@@ -1137,13 +1137,13 @@ def review(
             total_chars += chars
             print(f"  • QA_CHECK.LOG: {chars:,} chars (~{tokens:,} tokens)")
 
-        if run_log:
+        if run_log and run_log_path:
             chars = len(run_log)
             tokens = estimate_tokens(run_log)
             total_chars += chars
             print(f"  • {run_log_path.name}: {chars:,} chars (~{tokens:,} tokens)")
 
-        if lst_text:
+        if lst_text and lst:
             chars = len(lst_text)
             tokens = estimate_tokens(lst_text)
             total_chars += chars
@@ -1204,7 +1204,7 @@ def review(
         if qa_check:
             print("[dim]  Condensing QA_CHECK.LOG...[/dim]")
 
-            def qa_progress(current, total, message):
+            def qa_progress(current: int, total: int, message: str) -> None:
                 if current == 0:
                     print(f"[dim]    {message}[/dim]")
                 else:
@@ -1215,10 +1215,10 @@ def review(
             condensed_qa_check_path.write_text(condensed_qa_check, encoding="utf-8")
             print(f"[green]  ✓ Saved {condensed_qa_check_path}[/green]")
 
-        if run_log:
+        if run_log and run_log_path:
             print(f"[dim]  Extracting from {run_log_path.name}...[/dim]")
 
-            def runlog_progress(current, total, message):
+            def runlog_progress(current: int, total: int, message: str) -> None:
                 if current == 0:
                     print(f"[dim]    {message}[/dim]")
                 else:
@@ -1242,10 +1242,10 @@ def review(
             condensed_run_log_path.write_text(condensed_run_log, encoding="utf-8")
             print(f"[green]  ✓ Saved {condensed_run_log_path}[/green]")
 
-        if lst_text:
+        if lst_text and lst:
             print(f"[dim]  Extracting from {lst.name}...[/dim]")
 
-            def lst_progress(current, total, message):
+            def lst_progress(current: int, total: int, message: str) -> None:
                 if current == 0:
                     print(f"[dim]    {message}[/dim]")
                 else:
@@ -1275,15 +1275,15 @@ def review(
     print(f"\n[bold cyan]Sending condensed files to reasoning LLM ({reasoning_model}):[/bold cyan]")
     if condensed_qa_check:
         print("  • QA_CHECK.condensed.LOG")
-    if condensed_run_log:
+    if condensed_run_log and run_log_path:
         print(f"  • {run_log_path.stem}.condensed.txt")
-    if condensed_lst:
+    if condensed_lst and lst:
         print(f"  • {lst.stem}.condensed.lst")
 
     print("\n[bold green]Reviewing...[/bold green]\n")
 
     # Create streaming callback to display output as it comes
-    def stream_output(chunk: str):
+    def stream_output(chunk: str) -> None:
         print(chunk, end="", flush=True)
 
     result = llm_mod.review_files(
@@ -1325,7 +1325,7 @@ def review(
 
 
 @app.command()
-def update():
+def update() -> None:
     """
     Show instructions to update times-doctor.
 
@@ -1361,7 +1361,7 @@ def condense_qa_check_cmd(
         "-o",
         help="Output file path (default: QA_CHECK.condensed.LOG in same directory)",
     ),
-):
+) -> None:
     """Condense a QA_CHECK.LOG file into a compact summary."""
     if not input_file.exists():
         print(f"[red]Error: File not found: {input_file}[/red]")
@@ -1372,7 +1372,7 @@ def condense_qa_check_cmd(
 
     print(f"[dim]Condensing QA_CHECK.LOG ({len(content)} chars)...[/dim]")
 
-    def progress_callback(current, total, message):
+    def progress_callback(current: int, total: int, message: str) -> None:
         print(f"[dim]  {message}[/dim]")
 
     condensed = llm_mod.condense_qa_check(content, progress_callback=progress_callback)
@@ -1394,7 +1394,7 @@ def condense_lst_cmd(
         "-o",
         help="Output file path (default: <input>.condensed.lst in same directory)",
     ),
-):
+) -> None:
     """Extract useful pages from a .lst file."""
     if not input_file.exists():
         print(f"[red]Error: File not found: {input_file}[/red]")
@@ -1405,7 +1405,7 @@ def condense_lst_cmd(
 
     print(f"[dim]Extracting useful pages from LST ({len(content)} chars)...[/dim]")
 
-    def progress_callback(current, total, message):
+    def progress_callback(current: int, total: int, message: str) -> None:
         print(f"[dim]  {message}[/dim]")
 
     result = llm_mod.extract_condensed_sections(content, "lst", progress_callback=progress_callback)
@@ -1428,7 +1428,7 @@ def condense_run_log_cmd(
         "-o",
         help="Output file path (default: <input>.condensed.txt in same directory)",
     ),
-):
+) -> None:
     """Filter a run log file to show only useful diagnostic information."""
     if not input_file.exists():
         print(f"[red]Error: File not found: {input_file}[/red]")
@@ -1439,7 +1439,7 @@ def condense_run_log_cmd(
 
     print(f"[dim]Filtering run log ({len(content)} chars)...[/dim]")
 
-    def progress_callback(current, total, message):
+    def progress_callback(current: int, total: int, message: str) -> None:
         print(f"[dim]  {message}[/dim]")
 
     result = llm_mod.extract_condensed_sections(
