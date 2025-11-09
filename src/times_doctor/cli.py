@@ -1325,6 +1325,323 @@ def review(
 
 
 @app.command()
+def review_solver_options(
+    run_dir: str,
+    llm: str = typer.Option("auto", help="LLM provider: auto|openai|anthropic|amp|none"),
+    model: str = typer.Option("", help="Specific model to use (will prompt if not specified)"),
+    dry_run: bool = typer.Option(
+        False, "--dry-run", help="Show cost estimate without making API calls"
+    ),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation prompts"),
+    no_cache: bool = typer.Option(False, "--no-cache", help="Bypass LLM response cache"),
+) -> None:
+    """
+    Review solver options for feasible-but-not-optimal solutions.
+
+    Use this command when your TIMES model has returned a FEASIBLE but NOT PROVEN OPTIMAL solution.
+    The LLM will analyze your run files and cplex.opt configuration to suggest specific parameter
+    tuning (tolerances, etc.) to improve the chances of reaching proven optimal status.
+
+    This command assumes you're using barrier method without crossover (the standard for large TIMES
+    models) and will NOT suggest changing the solver algorithm - only tuning parameters within it.
+
+    \b
+    Example:
+      times-doctor review-solver-options data/065Nov25-annualupto2045/parscen
+      times-doctor review-solver-options data/... --dry-run  # Show cost estimate first
+      times-doctor review-solver-options data/... --yes      # Skip prompts
+
+    \b
+    Output:
+      <run_dir>/times_doctor_out/solver_options_review.md  ← Read this!
+      <run_dir>/_llm_calls/                                ← API call logs
+    """
+    rd = Path(run_dir).resolve()
+
+    # Check for multiple run directories
+    run_dirs = find_run_directories(rd)
+
+    if len(run_dirs) > 1:
+        print(f"\n[bold]Found {len(run_dirs)} run directories:[/bold]")
+        for i, (_path, label, _mtime) in enumerate(run_dirs, 1):
+            print(f"  {i}. {label}")
+
+        choice = typer.prompt(f"\nSelect run to review (1-{len(run_dirs)})", type=int, default=1)
+        if 1 <= choice <= len(run_dirs):
+            rd = run_dirs[choice - 1][0]
+            print(f"[green]Selected: {rd}[/green]")
+        else:
+            print(f"[yellow]Invalid choice, using: {run_dirs[0][0]}[/yellow]")
+            rd = run_dirs[0][0]
+
+    api_keys = llm_mod.check_api_keys()
+    has_any_key = any(api_keys.values())
+
+    if llm.lower() != "none" and not has_any_key:
+        print(
+            "[yellow]No API keys found. Please configure one of the following in a .env file:[/yellow]"
+        )
+        print("  OPENAI_API_KEY=sk-...")
+        print("  ANTHROPIC_API_KEY=sk-ant-...")
+        print("  AMP_API_KEY=... (or ensure 'amp' CLI is available)")
+        print("")
+        print("[dim]Create a .env file in the current directory with one of these keys.[/dim]")
+        raise typer.Exit(1)
+
+    # Read input files
+    qa_check_path = rd / "QA_CHECK.LOG"
+    qa_check = read_text(qa_check_path) if qa_check_path.exists() else ""
+
+    run_log_path = None
+    for f in rd.glob("*_run_log.txt"):
+        run_log_path = f
+        break
+    run_log = read_text(run_log_path) if run_log_path else ""
+
+    lst = latest_lst(rd)
+    lst_text = read_text(lst) if lst else ""
+
+    # Read cplex.opt file
+    cplex_opt_path = rd / "cplex.opt"
+    cplex_opt = read_text(cplex_opt_path) if cplex_opt_path.exists() else ""
+
+    if not cplex_opt:
+        print(f"[yellow]Warning: No cplex.opt file found in {rd}[/yellow]")
+
+    if not qa_check and not run_log and not lst_text:
+        print(f"[red]No QA_CHECK.LOG, *_run_log.txt, or .lst files found in {rd}[/red]")
+        raise typer.Exit(1)
+
+    print("[yellow]Found files:[/yellow]")
+    if cplex_opt:
+        print(f"  ✓ cplex.opt ({len(cplex_opt)} chars)")
+    if qa_check:
+        print(f"  ✓ QA_CHECK.LOG ({len(qa_check)} chars)")
+    if run_log and run_log_path:
+        print(f"  ✓ {run_log_path.name} ({len(run_log)} chars)")
+    if lst_text and lst:
+        print(f"  ✓ {lst.name} ({len(lst_text)} chars)")
+
+    # Extract useful sections first
+    llm_log_dir = rd / "_llm_calls"
+
+    # Determine which fast model will be used
+    api_keys = llm_mod.check_api_keys()
+    fast_model = (
+        "gpt-5-nano"
+        if api_keys["openai"]
+        else ("claude-3-5-haiku-20241022" if api_keys["anthropic"] else "unknown")
+    )
+
+    # DRY RUN: Show cost estimate and exit
+    if dry_run:
+        print("\n[bold yellow]DRY RUN - Cost Estimation[/bold yellow]")
+        print("\n[cyan]Files to analyze:[/cyan]")
+
+        total_chars = len(cplex_opt)
+        if cplex_opt:
+            chars = len(cplex_opt)
+            tokens = estimate_tokens(cplex_opt)
+            total_chars += chars
+            print(f"  • cplex.opt: {chars:,} chars (~{tokens:,} tokens)")
+
+        if qa_check:
+            chars = len(qa_check)
+            tokens = estimate_tokens(qa_check)
+            total_chars += chars
+            print(f"  • QA_CHECK.LOG: {chars:,} chars (~{tokens:,} tokens)")
+
+        if run_log and run_log_path:
+            chars = len(run_log)
+            tokens = estimate_tokens(run_log)
+            total_chars += chars
+            print(f"  • {run_log_path.name}: {chars:,} chars (~{tokens:,} tokens)")
+
+        if lst_text and lst:
+            chars = len(lst_text)
+            tokens = estimate_tokens(lst_text)
+            total_chars += chars
+            print(f"  • {lst.name}: {chars:,} chars (~{tokens:,} tokens)")
+
+        print(f"\n[cyan]Total input size:[/cyan] {total_chars:,} chars")
+
+        # Estimate condensing costs
+        print(f"\n[cyan]Step 1: Condensing with fast model ({fast_model})[/cyan]")
+        condense_input_tokens = estimate_tokens(qa_check + run_log + lst_text)
+        # Assume condensing reduces by ~70%
+        condense_output_tokens = int(condense_input_tokens * 0.3)
+        _, _, condense_cost = estimate_cost(
+            qa_check + run_log + lst_text, " " * (condense_output_tokens * 4), fast_model
+        )
+        print(f"  Input tokens: ~{condense_input_tokens:,}")
+        print(f"  Output tokens: ~{condense_output_tokens:,} (estimated)")
+        print(f"  Cost: ${condense_cost:.4f}")
+
+        # Determine reasoning model
+        reasoning_model = (
+            "gpt-5 (high effort)"
+            if api_keys["openai"]
+            else ("claude-3-5-sonnet-20241022" if api_keys["anthropic"] else "unknown")
+        )
+        reasoning_model_name = (
+            "gpt-5"
+            if api_keys["openai"]
+            else ("claude-3-5-sonnet-20241022" if api_keys["anthropic"] else "gpt-5")
+        )
+
+        print(f"\n[cyan]Step 2: Review with reasoning model ({reasoning_model})[/cyan]")
+        review_input_tokens = condense_output_tokens + estimate_tokens(cplex_opt)
+        # Assume review generates ~2000 token response
+        review_output_tokens = 2000
+        _, _, review_cost = estimate_cost(
+            " " * (review_input_tokens * 4), " " * (review_output_tokens * 4), reasoning_model_name
+        )
+        print(f"  Input tokens: ~{review_input_tokens:,}")
+        print(f"  Output tokens: ~{review_output_tokens:,} (estimated)")
+        print(f"  Cost: ${review_cost:.4f}")
+
+        total_cost = condense_cost + review_cost
+        print(f"\n[bold green]Estimated total cost: ${total_cost:.4f} USD[/bold green]")
+        print("[dim]Note: Actual costs may vary based on content complexity[/dim]")
+        print("\n[yellow]To proceed with actual analysis, run without --dry-run flag[/yellow]")
+
+        return
+
+    print(f"\n[bold yellow]Condensing files with fast LLM ({fast_model})...[/bold yellow]")
+    print(f"[dim](LLM calls logged to {llm_log_dir})[/dim]")
+
+    condensed_qa_check = ""
+    condensed_run_log = ""
+    condensed_lst = ""
+
+    try:
+        if qa_check:
+            print("[dim]  Condensing QA_CHECK.LOG...[/dim]")
+
+            def qa_progress(current: int, total: int, message: str) -> None:
+                if current == 0:
+                    print(f"[dim]    {message}[/dim]")
+                else:
+                    print(f"[dim]    {message}[/dim]")
+
+            condensed_qa_check = llm_mod.condense_qa_check(qa_check, progress_callback=qa_progress)
+            condensed_qa_check_path = rd / "QA_CHECK.condensed.LOG"
+            condensed_qa_check_path.write_text(condensed_qa_check, encoding="utf-8")
+            print(f"[green]  ✓ Saved {condensed_qa_check_path}[/green]")
+
+        if run_log and run_log_path:
+            print(f"[dim]  Extracting from {run_log_path.name}...[/dim]")
+
+            def runlog_progress(current: int, total: int, message: str) -> None:
+                if current == 0:
+                    print(f"[dim]    {message}[/dim]")
+                else:
+                    print(f"[dim]    {message}[/dim]")
+
+            sections = llm_mod.extract_condensed_sections(
+                run_log, "run_log", log_dir=llm_log_dir, progress_callback=runlog_progress
+            )
+
+            # For run_log, we get filtered_content directly
+            if "filtered_content" in sections and sections["filtered_content"]:
+                condensed_run_log = (
+                    f"# Run Log - Filtered\n\n```\n{sections['filtered_content']}\n```\n"
+                )
+            else:
+                condensed_run_log = llm_mod.create_condensed_markdown(
+                    run_log.split("\n"), sections["sections"], "run_log"
+                )
+
+            condensed_run_log_path = rd / f"{run_log_path.stem}.condensed.txt"
+            condensed_run_log_path.write_text(condensed_run_log, encoding="utf-8")
+            print(f"[green]  ✓ Saved {condensed_run_log_path}[/green]")
+
+        if lst_text and lst:
+            print(f"[dim]  Extracting from {lst.name}...[/dim]")
+
+            def lst_progress(current: int, total: int, message: str) -> None:
+                if current == 0:
+                    print(f"[dim]    {message}[/dim]")
+                else:
+                    print(f"[dim]    {message}[/dim]")
+
+            sections = llm_mod.extract_condensed_sections(
+                lst_text, "lst", log_dir=llm_log_dir, progress_callback=lst_progress
+            )
+            condensed_lst = llm_mod.create_condensed_markdown(
+                lst_text.split("\n"), sections["sections"], "lst"
+            )
+            condensed_lst_path = rd / f"{lst.stem}.condensed.lst"
+            condensed_lst_path.write_text(condensed_lst, encoding="utf-8")
+            print(f"[green]  ✓ Saved {condensed_lst_path}[/green]")
+    except Exception as e:
+        print(f"[red]Error during extraction: {e}[/red]")
+        print(f"[yellow]Check {llm_log_dir} for detailed logs[/yellow]")
+        raise typer.Exit(1)
+
+    # Determine reasoning model
+    reasoning_model = (
+        "gpt-5 (high effort)"
+        if api_keys["openai"]
+        else ("claude-3-5-sonnet-20241022" if api_keys["anthropic"] else "unknown")
+    )
+
+    print(f"\n[bold cyan]Sending files to reasoning LLM ({reasoning_model}):[/bold cyan]")
+    if cplex_opt:
+        print("  • cplex.opt")
+    if condensed_qa_check:
+        print("  • QA_CHECK.condensed.LOG")
+    if condensed_run_log and run_log_path:
+        print(f"  • {run_log_path.stem}.condensed.txt")
+    if condensed_lst and lst:
+        print(f"  • {lst.stem}.condensed.lst")
+
+    print("\n[bold green]Reviewing solver options...[/bold green]\n")
+
+    # Create streaming callback to display output as it comes
+    def stream_output(chunk: str) -> None:
+        print(chunk, end="", flush=True)
+
+    result = llm_mod.review_solver_options(
+        condensed_qa_check,
+        condensed_run_log,
+        condensed_lst,
+        cplex_opt,
+        provider=llm,
+        model=model,
+        stream_callback=stream_output,
+        log_dir=llm_log_dir,
+        use_cache=not no_cache,
+    )
+
+    if not result.used:
+        print("[red]Failed to get LLM response. Check API keys and connectivity.[/red]")
+        raise typer.Exit(1)
+
+    # If streaming wasn't used (e.g., fallback to responses API), print the result
+    if not result.text or "\n" not in result.text:
+        print(result.text)
+
+    print("\n")  # New line after output
+
+    print(f"\n[bold cyan]LLM Provider:[/bold cyan] {result.provider}")
+    if result.model:
+        print(f"[bold cyan]Model:[/bold cyan] {result.model}")
+    if result.input_tokens > 0:
+        print(
+            f"[bold cyan]Tokens:[/bold cyan] {result.input_tokens:,} in + {result.output_tokens:,} out = {result.input_tokens + result.output_tokens:,} total"
+        )
+    if result.cost_usd > 0:
+        print(f"[bold cyan]Cost:[/bold cyan] ${result.cost_usd:.4f} USD")
+
+    out = ensure_out(rd)
+    review_path = out / "solver_options_review.md"
+    review_path.write_text(result.text, encoding="utf-8")
+
+    print(f"\n[green]Saved to {review_path}[/green]")
+
+
+@app.command()
 def update() -> None:
     """
     Show instructions to update times-doctor.

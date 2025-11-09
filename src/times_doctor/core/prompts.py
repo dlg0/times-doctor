@@ -298,3 +298,43 @@ def build_review_prompt(qa_check: str, run_log: str, lst_content: str) -> str:
     sections.append("Provide your analysis in markdown format with clear sections.")
 
     return template + "\n".join(sections)
+
+
+def build_solver_options_review_prompt(
+    qa_check: str, run_log: str, lst_content: str, cplex_opt: str
+) -> str:
+    """Build solver options review prompt for feasible-but-not-optimal solutions."""
+    template = load_prompt_template("solver_options_review")
+    if not template:
+        # Fallback inline version
+        lines = []
+        lines.append(
+            "You are a CPLEX solver expert. A large TIMES LP returned FEASIBLE but NOT PROVEN OPTIMAL."
+        )
+        lines.append("Review the run files and cplex.opt configuration to suggest improvements.")
+        lines.append("Focus on tuning tolerances (epopt, eprhs, barepcomp) and other parameters.")
+        lines.append("DO NOT suggest changing the solve algorithm (barrier without crossover).")
+        lines.append("")
+        lines.append("Provide:")
+        lines.append("1. Why the solver stopped at feasible (not proven optimal)")
+        lines.append("2. Specific cplex.opt parameter changes to try")
+        lines.append("3. Ranked action plan")
+        template = "\n".join(lines)
+
+    # Append file content sections
+    sections = []
+    sections.append("")
+    sections.append("=== CURRENT cplex.opt CONFIGURATION ===")
+    sections.append(cplex_opt if cplex_opt else "(file not found)")
+    sections.append("")
+    sections.append("=== QA_CHECK.LOG (CONDENSED) ===")
+    sections.append(qa_check if qa_check else "(file not found)")
+    sections.append("")
+    sections.append("=== RUN LOG (CONDENSED) ===")
+    sections.append(run_log if run_log else "(file not found)")
+    sections.append("")
+    sections.append("=== LST FILE (CONDENSED EXCERPTS) ===")
+    sections.append(lst_content if lst_content else "(file not found)")
+    sections.append("")
+
+    return template + "\n".join(sections)

@@ -1925,3 +1925,78 @@ def review_files(
             return done("amp_cli", t, {"model": "amp-cli", "provider": "amp"})
 
     return done("none", "")
+
+
+def review_solver_options(
+    qa_check: str,
+    run_log: str,
+    lst_content: str,
+    cplex_opt: str,
+    provider: str = "auto",
+    model: str = "",
+    stream_callback: Callable[[str], None] | None = None,
+    log_dir: Path | None = None,
+    use_cache: bool = True,
+) -> LLMResult:
+    from .prompts import build_solver_options_review_prompt
+
+    prompt = build_solver_options_review_prompt(qa_check, run_log, lst_content, cplex_opt)
+
+    def done(name: str, text: str, meta: dict[str, Any] | None = None) -> LLMResult:
+        # Log the call
+        log_meta: dict[str, Any] = meta if meta else {"provider": name}
+        log_llm_call("solver_options_review", prompt, text, log_meta, log_dir)
+
+        if meta:
+            return LLMResult(
+                text=text,
+                provider=name,
+                used=bool(text),
+                model=meta.get("model", ""),
+                input_tokens=meta.get("input_tokens", 0),
+                output_tokens=meta.get("output_tokens", 0),
+                cost_usd=meta.get("cost_usd", 0.0),
+            )
+        return LLMResult(text=text, provider=name, used=bool(text))
+
+    prov = (provider or "auto").lower()
+    if prov == "none":
+        return done("none", "")
+
+    if prov in ("auto", "openai"):
+        # Use GPT-5 with high reasoning effort for solver option review
+        t, meta = _call_openai_responses_api(
+            prompt,
+            model="gpt-5",
+            reasoning_effort="high",
+            stream_callback=stream_callback,
+            log_dir=log_dir,
+            use_cache=use_cache,
+        )
+        if t:
+            return done("openai", t, meta)
+
+    if prov in ("auto", "anthropic"):
+        # Use Sonnet for review (best balance of quality/cost)
+        if not model:
+            model = "claude-3-5-sonnet-20241022"
+        t, meta = _call_anthropic_api(
+            prompt,
+            model=model,
+            stream_callback=stream_callback,
+            log_dir=log_dir,
+            use_cache=use_cache,
+        )
+        if t:
+            return done("anthropic", t, meta)
+
+        t = _call_anthropic_cli(prompt)
+        if t:
+            return done("anthropic_cli", t, {"model": "claude-cli", "provider": "anthropic"})
+
+    if prov in ("auto", "amp"):
+        t = _call_amp_cli(prompt)
+        if t:
+            return done("amp_cli", t, {"model": "amp-cli", "provider": "amp"})
+
+    return done("none", "")

@@ -30,5 +30,13 @@
         "sha256": "62f6deb164a5d1c18a1844c1f7e1aa2fab09a27a51ab967253023d8036fd0e00"
       }
     }
+  },
+  "solver_options_review": {
+    "current": "v1",
+    "versions": {
+      "v1": {
+        "sha256": "3494b18822785666b220fc93b65f7fa7c50dfc67fdfadfc19c08e7a98b731179"
+      }
+    }
   }
 }

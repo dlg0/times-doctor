@@ -104,9 +104,9 @@ class Config:
             load_dotenv(env_path, override=True)
 
         env_mappings = {
-            "OPENAI_API_KEY": "openai_api_key",
-            "ANTHROPIC_API_KEY": "anthropic_api_key",
-            "AMP_API_KEY": "amp_api_key",
+            "OPENAI_API_KEY": "openai_api_key",  # pragma: allowlist secret
+            "ANTHROPIC_API_KEY": "anthropic_api_key",  # pragma: allowlist secret
+            "AMP_API_KEY": "amp_api_key",  # pragma: allowlist secret
             "AMP_CLI": "amp_cli",
             "OPENAI_MODEL": "openai_model",
             "OPENAI_TEMPERATURE": "openai_temperature",
