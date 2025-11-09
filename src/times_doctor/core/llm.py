@@ -263,6 +263,92 @@ def _call_openai_responses_api(
             )
             return text, meta
 
+    # Use OpenAI SDK for structured output with Pydantic models
+    if text_format and not stream_callback:
+        try:
+            from openai import OpenAI as OpenAIClient
+        except Exception:
+            return "", {}
+
+        client = OpenAIClient(api_key=key)
+
+        # Build input as message array (official SDK format)
+        input_messages = []
+        if instructions:
+            input_messages.append({"role": "system", "content": instructions})
+        input_messages.append({"role": "user", "content": prompt})
+
+        # Use responses.parse() for structured output (official SDK method)
+        try:
+            response = client.responses.parse(
+                model=model,
+                input=input_messages,
+                text_format=text_format,
+            )
+
+            # Extract parsed output (official SDK accessor)
+            parsed_output = response.output_parsed
+        except Exception as e:
+            print(f"[dim]OpenAI SDK responses.parse() failed: {e}[/dim]")
+            print("[dim]Falling back to httpx implementation[/dim]")
+            # Fall through to httpx implementation
+            parsed_output = None
+
+        if parsed_output:
+            # Extract usage and cost info
+            usage = response.usage
+            input_tokens = usage.input_tokens if usage else 0
+            output_tokens = usage.output_tokens if usage else 0
+
+            # Calculate cost
+            cost_per_1k_input = {
+                "gpt-5-nano": 0.0001,
+                "gpt-5-mini": 0.0005,
+                "gpt-5-pro": 0.01,
+                "gpt-5": 0.005,
+            }
+            cost_per_1k_output = {
+                "gpt-5-nano": 0.0004,
+                "gpt-5-mini": 0.0015,
+                "gpt-5-pro": 0.03,
+                "gpt-5": 0.015,
+            }
+
+            model_key = model
+            if model_key not in cost_per_1k_input:
+                for key_prefix in cost_per_1k_input:
+                    if model.startswith(key_prefix):
+                        model_key = key_prefix
+                        break
+
+            input_cost = input_tokens / 1000 * cost_per_1k_input.get(model_key, 0.0001)
+            output_cost = output_tokens / 1000 * cost_per_1k_output.get(model_key, 0.0004)
+
+            metadata = {
+                "model": model,
+                "provider": "openai",
+                "reasoning_effort": reasoning_effort,
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+                "total_tokens": input_tokens + output_tokens,
+                "cost_usd": input_cost + output_cost,
+                "duration_seconds": round(time.time() - start_time, 2),
+            }
+
+            # Print concise log
+            window_pct = (
+                (input_tokens / 400000 * 100)
+                if model.startswith("gpt-5")
+                else (input_tokens / 200000 * 100)
+            )
+            effort_str = f" ({reasoning_effort})" if reasoning_effort else ""
+            print(
+                f"[dim]LLM: {model}{effort_str} | {input_tokens:,}→{output_tokens:,} tok ({window_pct:.1f}% window) | {metadata['duration_seconds']:.1f}s | ${metadata['cost_usd']:.4f}[/dim]"
+            )
+
+            return parsed_output, metadata
+
+    # Fall through to httpx-based implementation for non-structured or streaming
     try:
         import json as json_module
 
@@ -286,20 +372,8 @@ def _call_openai_responses_api(
     if instructions:
         payload["instructions"] = instructions
 
-    # Add text format for structured output
-    if text_format:
-        # For Pydantic models, use response_format with JSON schema
-        payload["response_format"] = {
-            "type": "json_schema",
-            "json_schema": {
-                "name": text_format.__name__,
-                "schema": text_format.model_json_schema(),
-                "strict": True,
-            },
-        }
-    else:
-        # Default text output
-        payload["text"] = {"format": {"type": "text"}, "verbosity": "medium"}
+    # Default text output (structured output handled by SDK above)
+    payload["text"] = {"format": {"type": "text"}, "verbosity": "medium"}
 
     try:
         # Longer timeout for reasoning models
@@ -584,17 +658,6 @@ def _call_openai_responses_api(
                     cache_dir=cache_dir,
                     reasoning_effort=reasoning_effort,
                 )
-
-            # Parse structured output if text_format provided
-            if text_format:
-                try:
-                    parsed_data = json.loads(text_content)
-                    parsed_model = text_format(**parsed_data)
-                    return parsed_model, metadata
-                except Exception as e:
-                    print(f"[dim]Warning: Failed to parse structured output: {e}[/dim]")
-                    # Fall back to returning text
-                    return text_content, metadata
 
             return text_content, metadata
         else:
