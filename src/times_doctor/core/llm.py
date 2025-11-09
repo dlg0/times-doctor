@@ -2001,12 +2001,12 @@ def review_solver_options(
         return LLMResult(text=text, provider=name, used=bool(text))
 
     # Only OpenAI supported for structured output
-    prov = (provider or "openai").lower()
+    prov = (provider or "auto").lower()
 
-    if prov != "openai":
+    if prov not in ("auto", "openai"):
         raise ValueError(
             "review-solver-options only supports OpenAI provider with structured output. "
-            "Please set OPENAI_API_KEY and use --llm openai (or leave default)"
+            "Please set OPENAI_API_KEY and use --llm openai or auto (default)"
         )
 
     # Use GPT-5 with high reasoning effort for solver option review with structured output
