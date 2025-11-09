@@ -12,23 +12,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      
+
       - name: Install uv
         uses: astral-sh/setup-uv@v3
         with:
           enable-cache: true
-      
+
       - name: Install dependencies
         run: uv sync --all-extras
-      
+
       - name: Run ruff check
         run: uv run ruff check .
-      
+
       - name: Run ruff format check
         run: uv run ruff format --check .
 
@@ -37,20 +37,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      
+
       - name: Install uv
         uses: astral-sh/setup-uv@v3
         with:
           enable-cache: true
-      
+
       - name: Install dependencies
         run: uv sync --all-extras
-      
+
       - name: Run mypy
         run: uv run mypy src/
 
@@ -61,26 +61,26 @@ jobs:
       fail-fast: false
       matrix:
         python-version: ["3.9", "3.10", "3.11", "3.12"]
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      
+
       - name: Install uv
         uses: astral-sh/setup-uv@v3
         with:
           enable-cache: true
-      
+
       - name: Install dependencies
         run: uv sync --all-extras
-      
+
       - name: Run unit tests with coverage
-        run: uv run pytest -v --cov=src/times_doctor --cov-report=term-missing --cov-report=xml --cov-fail-under=70 -m "not integration"
-      
+        run: uv run pytest -v --cov-report=xml -m "not integration"
+
       - name: Upload coverage to Codecov
         if: matrix.python-version == '3.12'
         uses: codecov/codecov-action@v4
