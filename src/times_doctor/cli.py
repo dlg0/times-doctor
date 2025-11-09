@@ -135,25 +135,6 @@ def ensure_out(run_dir: Path) -> Path:
     return out
 
 
-def _extract_opt_files(text: str) -> dict[str, str]:
-    """
-    Extract .opt files from LLM response using ===OPT_FILE: / ===END_OPT_FILE delimiters.
-
-    Returns:
-        Dictionary mapping filename -> content
-    """
-    opt_files: dict[str, str] = {}
-    pattern = r"===OPT_FILE:\s*(\S+\.opt)\s*\n(.*?)===END_OPT_FILE"
-
-    matches = re.finditer(pattern, text, re.DOTALL | re.MULTILINE)
-    for match in matches:
-        filename = match.group(1).strip()
-        content = match.group(2).strip()
-        opt_files[filename] = content
-
-    return opt_files
-
-
 def run_gams_with_progress(
     cmd: list[str],
     cwd: str,
@@ -1635,75 +1616,51 @@ def review_solver_options(
     out = ensure_out(rd)
     review_path = out / "solver_options_review.md"
 
-    # Try to parse structured output first, fall back to text
-    opt_files: dict[str, str] = {}
-    try:
-        import json
+    # Parse structured output (OpenAI only)
+    import json
 
-        from times_doctor.core.solver_models import SolverDiagnosis
+    from times_doctor.core.solver_models import SolverDiagnosis
 
-        # Parse JSON response into structured model
-        data = json.loads(result.text)
-        diagnosis = SolverDiagnosis(**data)
+    # Parse JSON response into structured model
+    data = json.loads(result.text)
+    diagnosis = SolverDiagnosis(**data)
 
-        # Create markdown from structured output
-        md_lines = []
-        md_lines.append("# Solver Options Review\n")
-        md_lines.append("## Diagnosis\n")
-        md_lines.append(diagnosis.summary + "\n")
-        md_lines.append("\n## Generated Configurations\n")
-        md_lines.append(f"Generated {len(diagnosis.opt_configurations)} solver configurations:\n")
-        md_lines.extend(
-            f"- `{config.filename}`: {config.description}"
-            for config in diagnosis.opt_configurations
+    # Create markdown from structured output
+    md_lines = []
+    md_lines.append("# Solver Options Review\n")
+    md_lines.append("## Diagnosis\n")
+    md_lines.append(diagnosis.summary + "\n")
+    md_lines.append("\n## Generated Configurations\n")
+    md_lines.append(f"Generated {len(diagnosis.opt_configurations)} solver configurations:\n")
+    md_lines.extend(
+        f"- `{config.filename}`: {config.description}" for config in diagnosis.opt_configurations
+    )
+    md_lines.append("\n## Action Plan\n")
+    md_lines.extend(f"{i}. {item}" for i, item in enumerate(diagnosis.action_plan, 1))
+
+    review_text = "\n".join(md_lines)
+    review_path.write_text(review_text, encoding="utf-8")
+
+    # Extract .opt files from structured output
+    opt_dir = rd / "_td_opt_files"
+    opt_dir.mkdir(exist_ok=True)
+
+    for config in diagnosis.opt_configurations:
+        # Build .opt file content
+        opt_lines = [f"* {config.description}"]
+        opt_lines.extend(
+            f"{param.name} {param.value}  $ {param.reason}" for param in config.parameters
         )
-        md_lines.append("\n## Action Plan\n")
-        md_lines.extend(f"{i}. {item}" for i, item in enumerate(diagnosis.action_plan, 1))
 
-        review_text = "\n".join(md_lines)
-        review_path.write_text(review_text, encoding="utf-8")
+        opt_content = "\n".join(opt_lines)
+        opt_path = opt_dir / config.filename
+        opt_path.write_text(opt_content, encoding="utf-8")
 
-        # Extract .opt files from structured output
-        opt_dir = rd / "_td_opt_files"
-        opt_dir.mkdir(exist_ok=True)
-
-        for config in diagnosis.opt_configurations:
-            # Build .opt file content
-            opt_lines = [f"* {config.description}"]
-            opt_lines.extend(
-                f"{param.name} {param.value}  $ {param.reason}" for param in config.parameters
-            )
-
-            opt_content = "\n".join(opt_lines)
-            opt_path = opt_dir / config.filename
-            opt_path.write_text(opt_content, encoding="utf-8")
-            opt_files[config.filename] = opt_content
-
-        print(f"\n[green]Saved review to {review_path}[/green]")
-        print(f"[green]Extracted {len(opt_files)} solver configurations to {opt_dir}/[/green]")
-        print("[dim]Use 'times-doctor scan' to test these configurations[/dim]")
-
-    except Exception as e:
-        # Fall back to old regex-based extraction
-        print(f"[dim]Could not parse structured output, using fallback: {e}[/dim]")
-        review_path.write_text(result.text, encoding="utf-8")
-        print(f"\n[green]Saved to {review_path}[/green]")
-
-        opt_files = _extract_opt_files(result.text)
-        if opt_files:
-            opt_dir = rd / "_td_opt_files"
-            opt_dir.mkdir(exist_ok=True)
-
-            for filename, content in opt_files.items():
-                opt_path = opt_dir / filename
-                opt_path.write_text(content, encoding="utf-8")
-
-            print(
-                f"\n[green]Extracted {len(opt_files)} solver configurations to {opt_dir}/[/green]"
-            )
-            print("[dim]Use 'times-doctor scan' to test these configurations[/dim]")
-        else:
-            print("\n[yellow]No .opt files found in LLM response[/yellow]")
+    print(f"\n[green]Saved review to {review_path}[/green]")
+    print(
+        f"[green]Extracted {len(diagnosis.opt_configurations)} solver configurations to {opt_dir}/[/green]"
+    )
+    print("[dim]Use 'times-doctor scan' to test these configurations[/dim]")
 
 
 @app.command()

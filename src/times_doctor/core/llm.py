@@ -2000,55 +2000,34 @@ def review_solver_options(
             )
         return LLMResult(text=text, provider=name, used=bool(text))
 
-    prov = (provider or "auto").lower()
-    if prov == "none":
+    # Only OpenAI supported for structured output
+    prov = (provider or "openai").lower()
+
+    if prov != "openai":
+        raise ValueError(
+            "review-solver-options only supports OpenAI provider with structured output. "
+            "Please set OPENAI_API_KEY and use --llm openai (or leave default)"
+        )
+
+    # Use GPT-5 with high reasoning effort for solver option review with structured output
+    result, meta = _call_openai_responses_api(
+        input_data,
+        model="gpt-5",
+        reasoning_effort="high",
+        stream_callback=stream_callback,
+        log_dir=log_dir,
+        use_cache=use_cache,
+        instructions=instructions,
+        text_format=SolverDiagnosis,
+    )
+
+    if not result:
         return done("none", "")
 
-    if prov in ("auto", "openai"):
-        # Use GPT-5 with high reasoning effort for solver option review with structured output
-        result, meta = _call_openai_responses_api(
-            input_data,
-            model="gpt-5",
-            reasoning_effort="high",
-            stream_callback=stream_callback,
-            log_dir=log_dir,
-            use_cache=use_cache,
-            instructions=instructions,
-            text_format=SolverDiagnosis,
-        )
-        if result:
-            # Handle both structured and text responses
-            if isinstance(result, SolverDiagnosis):
-                # Convert structured output to text for backward compatibility
-                text = result.model_dump_json(indent=2)
-                return done("openai", text, meta, structured=result)
-            else:
-                return done("openai", result, meta)
-
-    if prov in ("auto", "anthropic"):
-        # Use Sonnet for review (best balance of quality/cost)
-        # Anthropic doesn't support structured output yet, combine instructions + input
-        combined_prompt = f"{instructions}\n\n{input_data}"
-        if not model:
-            model = "claude-3-5-sonnet-20241022"
-        t, meta = _call_anthropic_api(
-            combined_prompt,
-            model=model,
-            stream_callback=stream_callback,
-            log_dir=log_dir,
-            use_cache=use_cache,
-        )
-        if t:
-            return done("anthropic", t, meta)
-
-        t = _call_anthropic_cli(combined_prompt)
-        if t:
-            return done("anthropic_cli", t, {"model": "claude-cli", "provider": "anthropic"})
-
-    if prov in ("auto", "amp"):
-        combined_prompt = f"{instructions}\n\n{input_data}"
-        t = _call_amp_cli(combined_prompt)
-        if t:
-            return done("amp_cli", t, {"model": "amp-cli", "provider": "amp"})
-
-    return done("none", "")
+    # Handle both structured and text responses
+    if isinstance(result, SolverDiagnosis):
+        # Convert structured output to text for backward compatibility
+        text = result.model_dump_json(indent=2)
+        return done("openai", text, meta, structured=result)
+    else:
+        return done("openai", result, meta)
