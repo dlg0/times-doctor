@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.5] - 2025-11-09
+
 ### Added
 - GitHub Actions CI with matrix testing across Python 3.9-3.12 and Linux/Windows
 - Type safety with mypy and Protocol interfaces for LLM and GAMS providers
@@ -21,6 +23,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Consolidated dev dependencies in pyproject.toml
 - Added ruff and mypy configuration
 - Updated package classifiers to include OS support and typing
+
+### Fixed
+- Test mocking now correctly uses get_config instead of os.environ
 
 ### Security
 - API keys now redacted in all log files
@@ -52,7 +57,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Basic QA_CHECK.LOG parsing
 - LST file extraction
 
-[Unreleased]: https://github.com/dlg0/times-doctor/compare/v0.6.4...HEAD
+[Unreleased]: https://github.com/dlg0/times-doctor/compare/v0.6.5...HEAD
+[0.6.5]: https://github.com/dlg0/times-doctor/compare/v0.6.4...v0.6.5
 [0.6.4]: https://github.com/dlg0/times-doctor/compare/v0.6.0...v0.6.4
 [0.6.0]: https://github.com/dlg0/times-doctor/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/dlg0/times-doctor/releases/tag/v0.5.0
