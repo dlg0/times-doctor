@@ -1,0 +1,34 @@
+# times-doctor configuration file
+# Copy this to config.toml and customize as needed
+#
+# Priority: CLI args > environment variables > config.toml > defaults
+
+[llm]
+# LLM API Keys - uncomment and add one to enable LLM features
+# openai_api_key = "sk-proj-..."
+# anthropic_api_key = "sk-ant-..."
+# amp_api_key = "your-amp-key"
+
+# Amp CLI path (if using Amp for LLM access)
+amp_cli = "amp"
+
+# Model selection
+openai_model = "gpt-4o-mini"
+
+# Temperature settings (0.0 = deterministic, 2.0 = creative)
+openai_temperature = 0.2
+anthropic_temperature = 0.2
+
+[paths]
+# Directory for LLM call logs
+log_dir = "_llm_calls"
+
+# Directory for output files (reviews, reports)
+output_dir = "times_doctor_out"
+
+[gams]
+# Path to GAMS executable (auto-detected if not set)
+# gams_path = "/opt/gams/gams"
+
+# Number of threads for CPLEX solver
+# cplex_threads = 4

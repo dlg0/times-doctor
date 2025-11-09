@@ -207,7 +207,38 @@ uv tool upgrade times-doctor
 
 TIMES Doctor uses LLMs for intelligent analysis. You need to configure API access.
 
-### Option 1: Environment Variables
+**Configuration priority (highest to lowest):**
+1. CLI arguments (`--model`, etc.)
+2. Environment variables
+3. `config.toml` file
+4. Default values
+
+### Option 1: config.toml (Recommended)
+
+Create a `config.toml` file in your working directory:
+
+```toml
+[llm]
+openai_api_key = "sk-proj-..."
+# OR
+# anthropic_api_key = "sk-ant-..."
+
+# Optional: customize models and temperature
+openai_model = "gpt-4o-mini"
+openai_temperature = 0.2
+
+[paths]
+log_dir = "_llm_calls"
+output_dir = "times_doctor_out"
+
+[gams]
+# gams_path = "/opt/gams/gams"
+# cplex_threads = 4
+```
+
+Copy `config.toml.example` to get started.
+
+### Option 2: Environment Variables
 
 Create a `.env` file in your project directory:
 
@@ -217,9 +248,13 @@ OPENAI_API_KEY=sk-proj-...
 
 # OR Anthropic
 ANTHROPIC_API_KEY=sk-ant-...
+
+# Optional: customize behavior
+OPENAI_MODEL=gpt-4o-mini
+OPENAI_TEMPERATURE=0.2
 ```
 
-### Option 2: System Environment
+### Option 3: System Environment
 
 **macOS/Linux:**
 ```bash

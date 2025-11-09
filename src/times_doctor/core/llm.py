@@ -2,6 +2,7 @@ import os, subprocess, json, time
 from pathlib import Path
 from datetime import datetime
 from . import redactor
+from .config import get_config
 
 def which(cmd: str):
     from shutil import which as _w
@@ -86,17 +87,17 @@ def load_env():
     return False
 
 def check_api_keys() -> dict:
-    load_env()
+    config = get_config()
     return {
-        "openai": bool(os.environ.get("OPENAI_API_KEY")),
-        "anthropic": bool(os.environ.get("ANTHROPIC_API_KEY")),
-        "amp": bool(os.environ.get("AMP_API_KEY") or which(os.environ.get("AMP_CLI", "amp")))
+        "openai": bool(config.openai_api_key),
+        "anthropic": bool(config.anthropic_api_key),
+        "amp": bool(config.amp_api_key or which(config.amp_cli))
     }
 
 def list_openai_models() -> list[str]:
     """List available OpenAI models for chat completions."""
-    key = os.environ.get("OPENAI_API_KEY","")
-    if not key:
+    config = get_config()
+    if not config.openai_api_key:
         return []
     
     # GPT-5 reasoning models with effort levels
@@ -148,7 +149,8 @@ def _call_cli(cli: str, prompt: str) -> str:
 def _call_openai_responses_api(prompt: str, model: str = "gpt-5-nano", reasoning_effort: str = "medium", stream_callback=None, log_dir: Path = None) -> tuple[str, dict]:
     """Call OpenAI GPT-5 Responses API with optional streaming support."""
     start_time = time.time()
-    key = os.environ.get("OPENAI_API_KEY","")
+    config = get_config()
+    key = config.openai_api_key
     if not key:
         return "", {}
     
@@ -373,7 +375,8 @@ def _call_openai_responses_api(prompt: str, model: str = "gpt-5-nano", reasoning
         return "", {}
 
 def _call_openai_api(prompt: str, model: str = "", stream_callback=None, log_dir: Path = None) -> tuple[str, dict]:
-    key = os.environ.get("OPENAI_API_KEY","")
+    config = get_config()
+    key = config.openai_api_key
     if not key:
         return "", {}
     try:
@@ -385,7 +388,7 @@ def _call_openai_api(prompt: str, model: str = "", stream_callback=None, log_dir
         return "", {}
     
     if not model:
-        model = os.environ.get("OPENAI_MODEL","gpt-5-mini")
+        model = config.openai_model
     
     # Parse model string to extract base model and reasoning effort
     base_model = model
@@ -417,8 +420,7 @@ def _call_openai_api(prompt: str, model: str = "", stream_callback=None, log_dir
     # GPT-5 models only support temperature=1 (default), don't include it
     # Older models support configurable temperature
     if not base_model.startswith("gpt-5"):
-        temperature = float(os.environ.get("OPENAI_TEMPERATURE", "0.2"))
-        payload["temperature"] = temperature
+        payload["temperature"] = config.openai_temperature
     
     try:
         # Longer timeout for reasoning models (GPT-5, etc.)
@@ -493,7 +495,7 @@ def _call_openai_api(prompt: str, model: str = "", stream_callback=None, log_dir
             
             metadata = {
                 "model": model,
-                "temperature": 1.0 if base_model.startswith("gpt-5") else float(os.environ.get("OPENAI_TEMPERATURE", "0.2")),
+                "temperature": 1.0 if base_model.startswith("gpt-5") else config.openai_temperature,
                 "provider": "openai",
                 "input_tokens": input_tokens,
                 "output_tokens": output_tokens,
@@ -551,7 +553,7 @@ def _call_openai_api(prompt: str, model: str = "", stream_callback=None, log_dir
                 
                 metadata = {
                     "model": model,
-                    "temperature": 1.0 if base_model.startswith("gpt-5") else float(os.environ.get("OPENAI_TEMPERATURE", "0.2")),
+                    "temperature": 1.0 if base_model.startswith("gpt-5") else config.openai_temperature,
                     "provider": "openai",
                     "input_tokens": usage.get("prompt_tokens", 0),
                     "output_tokens": usage.get("completion_tokens", 0),
@@ -580,7 +582,8 @@ def _call_openai_api(prompt: str, model: str = "", stream_callback=None, log_dir
 def _call_anthropic_api(prompt: str, model: str = "", stream_callback=None) -> tuple[str, dict]:
     """Call Anthropic API directly with optional streaming support."""
     start_time = time.time()
-    key = os.environ.get("ANTHROPIC_API_KEY","")
+    config = get_config()
+    key = config.anthropic_api_key
     if not key:
         return "", {}
     
@@ -592,7 +595,7 @@ def _call_anthropic_api(prompt: str, model: str = "", stream_callback=None) -> t
     
     if not model:
         model = "claude-3-5-sonnet-20241022"
-    temperature = float(os.environ.get("ANTHROPIC_TEMPERATURE", "0.2"))
+    temperature = config.anthropic_temperature
     
     url = "https://api.anthropic.com/v1/messages"
     headers = {
@@ -736,13 +739,14 @@ def _call_anthropic_api(prompt: str, model: str = "", stream_callback=None) -> t
         return "", {}
 
 def _call_anthropic_cli(prompt: str) -> str:
-    cli = os.environ.get("ANTHROPIC_CLI") or "claude"
+    cli = "claude"
     if which(cli):
         return _call_cli(cli, prompt)
     return ""
 
 def _call_amp_cli(prompt: str) -> str:
-    cli = os.environ.get("AMP_CLI") or "amp"
+    config = get_config()
+    cli = config.amp_cli
     if which(cli):
         return _call_cli(cli, prompt)
     return ""

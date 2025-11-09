@@ -40,6 +40,9 @@ Thumbs.db
 # Environment variables
 .env
 
+# Local configuration
+config.toml
+
 # TIMES Doctor outputs
 times_doctor_out/
 _td_datacheck/
