@@ -19,6 +19,7 @@ from rich.text import Text
 from . import __version__, cplex_progress
 from . import logger as log
 from .core import llm as llm_mod
+from .core.cost_estimator import estimate_cost, estimate_tokens
 from .multi_run_progress import MultiRunProgressMonitor, RunStatus
 
 app = typer.Typer(add_completion=False)
@@ -992,6 +993,8 @@ def review(
     run_dir: str,
     llm: str = typer.Option("auto", help="LLM provider: auto|openai|anthropic|amp|none"),
     model: str = typer.Option("", help="Specific model to use (will prompt if not specified)"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show cost estimate without making API calls"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation prompts"),
 ):
     """
     Review TIMES run files using LLM for human-readable diagnostics.
@@ -1013,6 +1016,8 @@ def review(
     \b
     Example:
       times-doctor review data/065Nov25-annualupto2045/parscen
+      times-doctor review data/... --dry-run  # Show cost estimate first
+      times-doctor review data/... --yes      # Skip prompts
 
     \b
     Output:
@@ -1085,6 +1090,78 @@ def review(
         if api_keys["openai"]
         else ("claude-3-5-haiku-20241022" if api_keys["anthropic"] else "unknown")
     )
+
+    # DRY RUN: Show cost estimate and exit
+    if dry_run:
+        print("\n[bold yellow]DRY RUN - Cost Estimation[/bold yellow]")
+        print("\n[cyan]Files to analyze:[/cyan]")
+        
+        total_chars = 0
+        if qa_check:
+            chars = len(qa_check)
+            tokens = estimate_tokens(qa_check)
+            total_chars += chars
+            print(f"  • QA_CHECK.LOG: {chars:,} chars (~{tokens:,} tokens)")
+        
+        if run_log:
+            chars = len(run_log)
+            tokens = estimate_tokens(run_log)
+            total_chars += chars
+            print(f"  • {run_log_path.name}: {chars:,} chars (~{tokens:,} tokens)")
+        
+        if lst_text:
+            chars = len(lst_text)
+            tokens = estimate_tokens(lst_text)
+            total_chars += chars
+            print(f"  • {lst.name}: {chars:,} chars (~{tokens:,} tokens)")
+        
+        print(f"\n[cyan]Total input size:[/cyan] {total_chars:,} chars")
+        
+        # Estimate condensing costs
+        print(f"\n[cyan]Step 1: Condensing with fast model ({fast_model})[/cyan]")
+        condense_input_tokens = estimate_tokens(qa_check + run_log + lst_text)
+        # Assume condensing reduces by ~70% 
+        condense_output_tokens = int(condense_input_tokens * 0.3)
+        _, _, condense_cost = estimate_cost(
+            qa_check + run_log + lst_text, 
+            " " * (condense_output_tokens * 4), 
+            fast_model
+        )
+        print(f"  Input tokens: ~{condense_input_tokens:,}")
+        print(f"  Output tokens: ~{condense_output_tokens:,} (estimated)")
+        print(f"  Cost: ${condense_cost:.4f}")
+        
+        # Determine reasoning model
+        reasoning_model = (
+            "gpt-5 (high effort)"
+            if api_keys["openai"]
+            else ("claude-3-5-sonnet-20241022" if api_keys["anthropic"] else "unknown")
+        )
+        reasoning_model_name = (
+            "gpt-5"
+            if api_keys["openai"]
+            else ("claude-3-5-sonnet-20241022" if api_keys["anthropic"] else "gpt-5")
+        )
+        
+        print(f"\n[cyan]Step 2: Review with reasoning model ({reasoning_model})[/cyan]")
+        review_input_tokens = condense_output_tokens
+        # Assume review generates ~2000 token response
+        review_output_tokens = 2000
+        _, _, review_cost = estimate_cost(
+            " " * (review_input_tokens * 4),
+            " " * (review_output_tokens * 4),
+            reasoning_model_name
+        )
+        print(f"  Input tokens: ~{review_input_tokens:,}")
+        print(f"  Output tokens: ~{review_output_tokens:,} (estimated)")
+        print(f"  Cost: ${review_cost:.4f}")
+        
+        total_cost = condense_cost + review_cost
+        print(f"\n[bold green]Estimated total cost: ${total_cost:.4f} USD[/bold green]")
+        print("[dim]Note: Actual costs may vary based on content complexity[/dim]")
+        print("\n[yellow]To proceed with actual analysis, run without --dry-run flag[/yellow]")
+        
+        return
 
     print(f"\n[bold yellow]Condensing files with fast LLM ({fast_model})...[/bold yellow]")
     print(f"[dim](LLM calls logged to {llm_log_dir})[/dim]")
