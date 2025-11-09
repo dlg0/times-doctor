@@ -1,6 +1,10 @@
 import os
-import tomllib
 from pathlib import Path
+
+try:
+    import tomllib  # Python 3.11+
+except ModuleNotFoundError:
+    import tomli as tomllib  # Python 3.9-3.10
 from typing import Any
 from dataclasses import dataclass, field
 

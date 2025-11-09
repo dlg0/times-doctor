@@ -32,3 +32,10 @@ output_dir = "times_doctor_out"
 
 # Number of threads for CPLEX solver
 # cplex_threads = 4
+
+[scan]
+# Max concurrent profile runs (0 or unset = auto based on CPU/CPLEX threads)
+max_workers = 0
+
+# Per-profile timeout in seconds (0 or unset = no timeout)
+timeout_seconds = 0

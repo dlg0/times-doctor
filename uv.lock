@@ -887,6 +887,7 @@ dependencies = [
     { name = "psutil" },
     { name = "python-dotenv" },
     { name = "rich" },
+    { name = "tomli", marker = "python_full_version < '3.11'" },
     { name = "typer" },
 ]
 
@@ -916,6 +917,7 @@ requires-dist = [
     { name = "python-dotenv" },
     { name = "rich" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.8.0" },
+    { name = "tomli", marker = "python_full_version < '3.11'" },
     { name = "typer" },
 ]
 provides-extras = ["dev"]

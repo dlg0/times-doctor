@@ -1,6 +1,7 @@
-import os, re, shutil, subprocess, csv, sys
+import os, re, shutil, subprocess, csv, sys, signal, time
 from pathlib import Path
 from typing import Optional
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import typer
 from rich import print
 from rich.table import Table
@@ -122,7 +123,8 @@ def run_gams_with_progress(
     cwd: str, 
     max_lines: int = 30,
     monitor: Optional[MultiRunProgressMonitor] = None,
-    run_name: Optional[str] = None
+    run_name: Optional[str] = None,
+    timeout_seconds: Optional[int] = None
 ) -> int:
     """
     Run GAMS and show live tail of output.
@@ -217,8 +219,10 @@ def run_gams_with_progress(
     
     old_handler = signal.signal(signal.SIGINT, handle_interrupt)
     
+    start_time = time.monotonic()
+    timed_out = False
+    
     try:
-        import time
         try:
             import psutil
             has_psutil = True
@@ -236,6 +240,21 @@ def run_gams_with_progress(
         
         try:
             while proc.poll() is None:
+                # Check timeout
+                if timeout_seconds and (time.monotonic() - start_time) > timeout_seconds:
+                    timed_out = True
+                    timeout_msg = f"Timed out after {timeout_seconds}s"
+                    if use_monitor:
+                        monitor.update_status(run_name, RunStatus.FAILED, timeout_msg)
+                    else:
+                        console.print(f"[yellow]Run {timeout_msg}. Terminating...[/yellow]")
+                    proc.terminate()
+                    try:
+                        proc.wait(timeout=3)
+                    except subprocess.TimeoutExpired:
+                        proc.kill()
+                    break
+                
                 iterations += 1
                 
                 # Try to find and tail log files if no stdout
@@ -343,13 +362,17 @@ def run_gams_with_progress(
         signal.signal(signal.SIGINT, old_handler)
         
         # Update final status in monitor mode
-        if use_monitor:
+        if use_monitor and not timed_out:
             if proc.returncode == 0:
                 monitor.update_status(run_name, RunStatus.COMPLETED)
             else:
                 monitor.update_status(run_name, RunStatus.FAILED, f"Exit code: {proc.returncode}")
     
     reader.join(timeout=1)
+    
+    # Raise TimeoutError if timed out
+    if timed_out:
+        raise TimeoutError(f"GAMS run timed out after {timeout_seconds}s")
     
     # Only print diagnostics in standalone mode
     if not use_monitor:
@@ -532,7 +555,9 @@ def scan(
     profiles: list[str] = typer.Option(["dual","sift","bar_nox"], help="Solver profiles to test (dual|sift|bar_nox)"),
     threads: int = typer.Option(7, help="Number of threads for CPLEX to use"),
     llm: str = typer.Option("none", help="LLM provider for optional analysis: auto|openai|anthropic|amp|none"),
-    parallel: bool = typer.Option(False, "--parallel", help="Run profiles in parallel (faster but uses more resources)")
+    parallel: bool = typer.Option(False, "--parallel", help="Run profiles in parallel (faster but uses more resources)"),
+    max_workers: int | None = typer.Option(None, "--max-workers", envvar="TD_MAX_WORKERS", help="Max concurrent profile runs (default: auto by CPU/CPLEX threads)"),
+    timeout_seconds: int | None = typer.Option(None, "--timeout-seconds", envvar="TD_TIMEOUT_SECONDS", help="Per-profile timeout in seconds (0=no timeout)")
 ):
     """
     Test multiple CPLEX solver configurations to find best approach.
@@ -579,6 +604,18 @@ def scan(
     driver = pick_driver_gms(rd)
     scan_root = out / "scan_runs"
     scan_root.mkdir(exist_ok=True)
+    
+    # Compute worker limit based on CPU and CPLEX threads
+    def compute_workers(n_profiles: int, cplex_threads: int, override: int | None) -> int:
+        """Calculate max concurrent workers based on CPU cores and CPLEX threads."""
+        cpus = os.cpu_count() or 1
+        if override is not None and override > 0:
+            return max(1, min(override, n_profiles))
+        # Auto: allocate workers to avoid CPU oversubscription
+        per = max(1, cpus // max(1, cplex_threads))
+        return max(1, min(per, n_profiles))
+    
+    workers = compute_workers(len(profiles), threads, max_workers)
 
     def opt_lines(name: str) -> list[str]:
         if name == "dual":
@@ -600,7 +637,7 @@ def scan(
         run_dirs[p] = wdir
     
     # Helper function to run a single profile
-    def run_profile(profile_name: str, monitor: MultiRunProgressMonitor, results: dict):
+    def run_profile(profile_name: str, monitor: MultiRunProgressMonitor, results: dict, timeout_sec: int | None = None):
         """Run a single profile and store results."""
         try:
             wdir = run_dirs[profile_name]
@@ -622,7 +659,7 @@ def scan(
                 f"logfile={wdir.name}_run_log.txt",
                 f"--GDXPATH={wdir_gdx_dir}/",
                 "--ERR_ABORT=NO"
-            ], cwd=str(wdir), monitor=monitor, run_name=profile_name)
+            ], cwd=str(wdir), monitor=monitor, run_name=profile_name, timeout_seconds=timeout_sec)
 
             # Parse results
             lst = latest_lst(wdir)
@@ -642,6 +679,18 @@ def scan(
                 "dir": str(wdir),
                 "lst": str(lst) if lst else ""
             }
+        except TimeoutError as e:
+            results[profile_name] = {
+                "profile": profile_name,
+                "model_status": "ERROR",
+                "solver_status": "TIMEOUT",
+                "lp_status": "",
+                "objective": "",
+                "matrix_min": "",
+                "matrix_max": "",
+                "dir": str(run_dirs[profile_name]),
+                "lst": ""
+            }
         except Exception as e:
             console.print(f"[red]Error running profile {profile_name}: {e}[/red]")
             results[profile_name] = {
@@ -658,32 +707,29 @@ def scan(
     
     # Create monitor for tracking all profiles
     mode_str = "parallel" if parallel else "sequential"
-    console.print(f"[cyan]Running {len(profiles)} profiles in {mode_str} mode...[/cyan]")
+    worker_info = f" (max {workers} concurrent)" if parallel else ""
+    console.print(f"[cyan]Running {len(profiles)} profiles in {mode_str} mode{worker_info}...[/cyan]")
     
     with MultiRunProgressMonitor(list(profiles), title="Scan Progress") as monitor:
         results = {}  # Thread-safe dict to collect results
         
         if parallel:
-            # Parallel execution
-            import threading
-            threads = []
-            
-            for p in profiles:
-                t = threading.Thread(
-                    target=run_profile,
-                    args=(p, monitor, results),
-                    name=f"scan-{p}"
-                )
-                t.start()
-                threads.append(t)
-            
-            # Wait for all threads to complete
-            for t in threads:
-                t.join()
+            # Parallel execution with ThreadPoolExecutor
+            with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="scan") as executor:
+                future_map = {
+                    executor.submit(run_profile, p, monitor, results, timeout_seconds): p
+                    for p in profiles
+                }
+                for future in as_completed(future_map):
+                    profile_name = future_map[future]
+                    try:
+                        future.result()
+                    except Exception as e:
+                        console.print(f"[red]Worker failed for {profile_name}: {e}[/red]")
         else:
             # Sequential execution
             for p in profiles:
-                run_profile(p, monitor, results)
+                run_profile(p, monitor, results, timeout_seconds)
         
         # Convert results dict to rows list (preserve profile order)
         rows = [results[p] for p in profiles if p in results]
