@@ -77,10 +77,12 @@ def get_times_source(version: str | None = None) -> Path:
                 cmd.extend(["--branch", f"v{version}"])
             cmd.extend(["https://github.com/etsap-TIMES/TIMES_model.git", str(times_src)])
             
-            subprocess.run(cmd, check=True, capture_output=True)
+            subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=300)
         log.success(f"Downloaded TIMES source to {times_src}")
+    except subprocess.TimeoutExpired:
+        raise RuntimeError(f"Git clone timed out after 300s. Check network connection or try manual download from https://github.com/etsap-TIMES/TIMES_model")
     except subprocess.CalledProcessError as e:
-        err_msg = e.stderr.decode('utf-8', errors='ignore') if e.stderr else ""
+        err_msg = e.stderr if e.stderr else ""
         if version and "not found" in err_msg.lower():
             log.warning(f"Version v{version} not found, trying latest 4.x...")
             # Fallback to latest if specific version not found
@@ -127,14 +129,36 @@ def run_gams_with_progress(
     timeout_seconds: Optional[int] = None
 ) -> int:
     """
-    Run GAMS and show live tail of output.
+    Run GAMS subprocess with robust error handling and live output monitoring.
+    
+    Subprocess Execution Strategy:
+    - Uses subprocess.Popen for streaming output (required for live display)
+    - Arguments passed as list (proper quoting, no shell injection risk)
+    - Explicit timeout handling with graceful termination
+    - Cross-platform path handling via pathlib.Path
+    - Comprehensive error handling for FileNotFoundError and other exceptions
+    
+    GAMS Path Resolution:
+    - First: Use explicit --gams-path if provided by user
+    - Then: Check GAMS_PATH environment variable  
+    - Finally: Search system PATH for 'gams' executable
+    - On failure: Raise FileNotFoundError with actionable guidance
     
     Args:
-        cmd: GAMS command and arguments
-        cwd: Working directory
+        cmd: GAMS command and arguments as list (e.g., ['gams', 'model.gms'])
+        cwd: Working directory (normalized to Path internally)
         max_lines: Max lines to show in standalone display
         monitor: Optional MultiRunProgressMonitor for coordinated display
         run_name: Name of this run (required if monitor is provided)
+        timeout_seconds: Optional timeout in seconds (prevents hangs)
+        
+    Returns:
+        GAMS exit code (0 = success)
+        
+    Raises:
+        FileNotFoundError: GAMS executable not found
+        TimeoutError: Process exceeded timeout_seconds
+        KeyboardInterrupt: User pressed CTRL-C
     """
     import threading
     import signal

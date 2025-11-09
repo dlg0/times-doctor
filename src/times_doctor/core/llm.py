@@ -140,10 +140,43 @@ class LLMResult:
         self.cost_usd = cost_usd
 
 def _call_cli(cli: str, prompt: str) -> str:
+    """Call external CLI tool with prompt input.
+    
+    Args:
+        cli: Path to CLI executable
+        prompt: Text prompt to send via stdin
+        
+    Returns:
+        CLI output text, or empty string on error
+    """
     try:
-        p = subprocess.run([cli], input=prompt.encode('utf-8'), stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=120)
-        return p.stdout.decode('utf-8', errors='ignore').strip()
-    except Exception:
+        p = subprocess.run(
+            [cli], 
+            input=prompt, 
+            stdout=subprocess.PIPE, 
+            stderr=subprocess.PIPE, 
+            text=True,
+            timeout=120,
+            check=False  # Don't raise on non-zero exit, just return empty
+        )
+        if p.returncode != 0:
+            # Log stderr if available for debugging
+            if p.stderr:
+                import logging
+                logging.debug(f"CLI {cli} failed with code {p.returncode}: {p.stderr}")
+            return ""
+        return p.stdout.strip()
+    except subprocess.TimeoutExpired:
+        import logging
+        logging.warning(f"CLI {cli} timed out after 120s")
+        return ""
+    except FileNotFoundError:
+        import logging
+        logging.warning(f"CLI executable not found: {cli}")
+        return ""
+    except Exception as e:
+        import logging
+        logging.debug(f"Unexpected error calling CLI {cli}: {e}")
         return ""
 
 def _call_openai_responses_api(prompt: str, model: str = "gpt-5-nano", reasoning_effort: str = "medium", stream_callback=None, log_dir: Path = None) -> tuple[str, dict]:
@@ -159,6 +192,8 @@ def _call_openai_responses_api(prompt: str, model: str = "gpt-5-nano", reasoning
         import json as json_module
     except Exception:
         return "", {}
+    
+    from .http_client import get_http_client
     
     url = "https://api.openai.com/v1/responses"
     headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
@@ -178,7 +213,6 @@ def _call_openai_responses_api(prompt: str, model: str = "gpt-5-nano", reasoning
     }
     
     try:
-        timeout_seconds = 300
         
         # Log raw request
         if log_dir is None:

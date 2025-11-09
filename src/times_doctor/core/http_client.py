@@ -53,6 +53,7 @@ def make_request_with_retry(
     """
     try:
         import httpx
+        import random
     except ImportError:
         raise LlmError("httpx not installed")
     
@@ -72,7 +73,9 @@ def make_request_with_retry(
                     wait_time = 60
                 
                 if attempt < max_retries - 1:
-                    time.sleep(wait_time)
+                    # Add jitter to avoid thundering herd
+                    jitter = random.uniform(0, min(wait_time * 0.1, 5))
+                    time.sleep(wait_time + jitter)
                     continue
                 else:
                     raise LlmError(f"Rate limited after {max_retries} retries")
@@ -81,7 +84,9 @@ def make_request_with_retry(
             if 500 <= response.status_code < 600:
                 if attempt < max_retries - 1:
                     wait_time = backoff_factor ** attempt
-                    time.sleep(wait_time)
+                    # Add jitter (±25% of wait time)
+                    jitter = random.uniform(-wait_time * 0.25, wait_time * 0.25)
+                    time.sleep(max(0.1, wait_time + jitter))
                     continue
                 else:
                     raise LlmError(
@@ -102,7 +107,9 @@ def make_request_with_retry(
             last_exception = e
             if attempt < max_retries - 1:
                 wait_time = backoff_factor ** attempt
-                time.sleep(wait_time)
+                # Add jitter (±25% of wait time)
+                jitter = random.uniform(-wait_time * 0.25, wait_time * 0.25)
+                time.sleep(max(0.1, wait_time + jitter))
                 continue
             else:
                 raise LlmError(f"Request timeout after {max_retries} retries") from e
@@ -111,7 +118,9 @@ def make_request_with_retry(
             last_exception = e
             if attempt < max_retries - 1:
                 wait_time = backoff_factor ** attempt
-                time.sleep(wait_time)
+                # Add jitter (±25% of wait time)
+                jitter = random.uniform(-wait_time * 0.25, wait_time * 0.25)
+                time.sleep(max(0.1, wait_time + jitter))
                 continue
             else:
                 raise LlmError(f"Network error after {max_retries} retries") from e
