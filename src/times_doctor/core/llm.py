@@ -264,11 +264,18 @@ def _call_openai_responses_api(
             return text, meta
 
     # Use OpenAI SDK for structured output with Pydantic models
-    if text_format and not stream_callback:
+    # Only supports gpt-5 models
+    if text_format:
         try:
             from openai import OpenAI as OpenAIClient
-        except Exception:
-            return "", {}
+        except ImportError as e:
+            raise RuntimeError(f"OpenAI SDK not available for structured output: {e}")
+
+        # Enforce gpt-5 only for structured output
+        if not model.startswith("gpt-5"):
+            raise ValueError(
+                f"Structured output (text_format) only supports gpt-5 models, got: {model}"
+            )
 
         client = OpenAIClient(api_key=key)
 
@@ -278,75 +285,98 @@ def _call_openai_responses_api(
             input_messages.append({"role": "system", "content": instructions})
         input_messages.append({"role": "user", "content": prompt})
 
-        # Use responses.parse() for structured output (official SDK method)
+        # Build kwargs for SDK call
+        kwargs = {
+            "model": model,
+            "input": input_messages,
+            "text_format": text_format,
+        }
+
+        # Add reasoning parameter (gpt-5 only, no "summary" key)
+        if reasoning_effort:
+            kwargs["reasoning"] = {"effort": reasoning_effort}
+
+        # Call SDK and handle errors strictly (no fallback)
         try:
-            response = client.responses.parse(
-                model=model,
-                input=input_messages,
-                text_format=text_format,
-            )
+            if stream_callback:
+                # Streaming with structured output using SDK event API
+                with client.responses.stream(**kwargs) as stream:
+                    # Use SDK's event handler for text deltas
+                    for event in stream:
+                        if hasattr(event, "type") and event.type == "response.output_text.delta":
+                            if hasattr(event, "delta"):
+                                stream_callback(event.delta)
 
-            # Extract parsed output (official SDK accessor)
+                    # Get final response
+                    response = stream.get_final_response()
+            else:
+                # Non-streaming
+                response = client.responses.parse(**kwargs)
+
+            # Extract parsed output
             parsed_output = response.output_parsed
+
+            # Validate parse succeeded
+            if not isinstance(parsed_output, text_format):
+                raise ValueError(
+                    f"Structured parse failed: expected {text_format.__name__}, "
+                    f"got {type(parsed_output).__name__}"
+                )
+
         except Exception as e:
-            print(f"[dim]OpenAI SDK responses.parse() failed: {e}[/dim]")
-            print("[dim]Falling back to httpx implementation[/dim]")
-            # Fall through to httpx implementation
-            parsed_output = None
+            # Raise exception instead of falling back
+            raise RuntimeError(
+                f"OpenAI structured output parse failed for model {model}: {e}"
+            ) from e
 
-        if parsed_output:
-            # Extract usage and cost info
-            usage = response.usage
-            input_tokens = usage.input_tokens if usage else 0
-            output_tokens = usage.output_tokens if usage else 0
+        # Extract usage and cost info
+        usage = response.usage
+        input_tokens = usage.input_tokens if usage else 0
+        output_tokens = usage.output_tokens if usage else 0
 
-            # Calculate cost
-            cost_per_1k_input = {
-                "gpt-5-nano": 0.0001,
-                "gpt-5-mini": 0.0005,
-                "gpt-5-pro": 0.01,
-                "gpt-5": 0.005,
-            }
-            cost_per_1k_output = {
-                "gpt-5-nano": 0.0004,
-                "gpt-5-mini": 0.0015,
-                "gpt-5-pro": 0.03,
-                "gpt-5": 0.015,
-            }
+        # Calculate cost
+        cost_per_1k_input = {
+            "gpt-5-nano": 0.0001,
+            "gpt-5-mini": 0.0005,
+            "gpt-5-pro": 0.01,
+            "gpt-5": 0.005,
+        }
+        cost_per_1k_output = {
+            "gpt-5-nano": 0.0004,
+            "gpt-5-mini": 0.0015,
+            "gpt-5-pro": 0.03,
+            "gpt-5": 0.015,
+        }
 
-            model_key = model
-            if model_key not in cost_per_1k_input:
-                for key_prefix in cost_per_1k_input:
-                    if model.startswith(key_prefix):
-                        model_key = key_prefix
-                        break
+        model_key = model
+        if model_key not in cost_per_1k_input:
+            for key_prefix in cost_per_1k_input:
+                if model.startswith(key_prefix):
+                    model_key = key_prefix
+                    break
 
-            input_cost = input_tokens / 1000 * cost_per_1k_input.get(model_key, 0.0001)
-            output_cost = output_tokens / 1000 * cost_per_1k_output.get(model_key, 0.0004)
+        input_cost = input_tokens / 1000 * cost_per_1k_input.get(model_key, 0.0001)
+        output_cost = output_tokens / 1000 * cost_per_1k_output.get(model_key, 0.0004)
 
-            metadata = {
-                "model": model,
-                "provider": "openai",
-                "reasoning_effort": reasoning_effort,
-                "input_tokens": input_tokens,
-                "output_tokens": output_tokens,
-                "total_tokens": input_tokens + output_tokens,
-                "cost_usd": input_cost + output_cost,
-                "duration_seconds": round(time.time() - start_time, 2),
-            }
+        metadata = {
+            "model": model,
+            "provider": "openai",
+            "reasoning_effort": reasoning_effort,
+            "input_tokens": input_tokens,
+            "output_tokens": output_tokens,
+            "total_tokens": input_tokens + output_tokens,
+            "cost_usd": input_cost + output_cost,
+            "duration_seconds": round(time.time() - start_time, 2),
+        }
 
-            # Print concise log
-            window_pct = (
-                (input_tokens / 400000 * 100)
-                if model.startswith("gpt-5")
-                else (input_tokens / 200000 * 100)
-            )
-            effort_str = f" ({reasoning_effort})" if reasoning_effort else ""
-            print(
-                f"[dim]LLM: {model}{effort_str} | {input_tokens:,}→{output_tokens:,} tok ({window_pct:.1f}% window) | {metadata['duration_seconds']:.1f}s | ${metadata['cost_usd']:.4f}[/dim]"
-            )
+        # Print concise log
+        window_pct = input_tokens / 400000 * 100
+        effort_str = f" ({reasoning_effort})" if reasoning_effort else ""
+        print(
+            f"[dim]LLM: {model}{effort_str} | {input_tokens:,}→{output_tokens:,} tok ({window_pct:.1f}% window) | {metadata['duration_seconds']:.1f}s | ${metadata['cost_usd']:.4f}[/dim]"
+        )
 
-            return parsed_output, metadata
+        return parsed_output, metadata
 
     # Fall through to httpx-based implementation for non-structured or streaming
     try:

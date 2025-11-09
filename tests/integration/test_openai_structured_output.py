@@ -16,8 +16,8 @@ from times_doctor.core.solver_models import SolverDiagnosis
 class TestOpenAIStructuredOutput:
     """Incremental tests from docs example to our use case."""
 
-    def test_01_exact_docs_example(self):
-        """Test 1: Exact example from OpenAI docs - known to work."""
+    def test_01_simple_structured_output_gpt5(self):
+        """Test 1: Simple structured output with gpt-5."""
         from openai import OpenAI
 
         class CalendarEvent(BaseModel):
@@ -28,7 +28,7 @@ class TestOpenAIStructuredOutput:
         client = OpenAI()
 
         response = client.responses.parse(
-            model="gpt-4o-2024-08-06",
+            model="gpt-5",
             input=[
                 {"role": "system", "content": "Extract the event information."},
                 {
@@ -48,8 +48,8 @@ class TestOpenAIStructuredOutput:
         assert len(event.participants) > 0
         print(f"✓ Test 1 passed: {event}")
 
-    def test_02_switch_to_gpt_5_model(self):
-        """Test 2: Same example but with gpt-5 model instead of gpt-4o."""
+    def test_02_gpt5_with_reasoning_effort(self):
+        """Test 2: Simple structured output with gpt-5 and reasoning effort."""
         from openai import OpenAI
 
         class CalendarEvent(BaseModel):
@@ -60,7 +60,7 @@ class TestOpenAIStructuredOutput:
         client = OpenAI()
 
         response = client.responses.parse(
-            model="gpt-5",  # Changed from gpt-4o-2024-08-06
+            model="gpt-5",
             input=[
                 {"role": "system", "content": "Extract the event information."},
                 {
@@ -69,6 +69,7 @@ class TestOpenAIStructuredOutput:
                 },
             ],
             text_format=CalendarEvent,
+            reasoning={"effort": "medium"},
         )
 
         event = response.output_parsed
@@ -78,7 +79,7 @@ class TestOpenAIStructuredOutput:
         assert event.name
         assert event.date
         assert len(event.participants) > 0
-        print(f"✓ Test 2 passed with gpt-5: {event}")
+        print(f"✓ Test 2 passed with gpt-5 + reasoning: {event}")
 
     def test_03_more_complex_nested_schema(self):
         """Test 3: More complex nested schema similar to our OptFile structure."""
@@ -101,7 +102,7 @@ class TestOpenAIStructuredOutput:
         client = OpenAI()
 
         response = client.responses.parse(
-            model="gpt-4o-2024-08-06",
+            model="gpt-5",
             input=[
                 {
                     "role": "system",
@@ -126,27 +127,27 @@ class TestOpenAIStructuredOutput:
         print(f"✓ Test 3 passed: {len(analysis.configurations)} configs generated")
 
     @pytest.mark.slow
-    def test_04_our_solver_diagnosis_model_gpt4o(self):
-        """Test 4: Our actual SolverDiagnosis model with gpt-4o (may be slow)."""
+    def test_04_our_solver_diagnosis_model_gpt5_brief(self):
+        """Test 4: Our actual SolverDiagnosis model with gpt-5 (brief prompt)."""
         from openai import OpenAI
 
         client = OpenAI()
 
         response = client.responses.parse(
-            model="gpt-4o-2024-08-06",
+            model="gpt-5",
             input=[
                 {
                     "role": "system",
                     "content": (
                         "You are a CPLEX solver expert. Generate a brief diagnosis "
-                        "with exactly 3 solver configurations to test. Keep it concise."
+                        "with 10-12 solver configurations to test. Be concise."
                     ),
                 },
                 {
                     "role": "user",
                     "content": (
                         "A TIMES model returned FEASIBLE but NOT PROVEN OPTIMAL. "
-                        "The barrier method stopped early. Generate 3 test configurations."
+                        "The barrier method stopped early. Generate 10-12 test configurations."
                     ),
                 },
             ],
@@ -155,52 +156,53 @@ class TestOpenAIStructuredOutput:
 
         diagnosis = response.output_parsed
 
-        # Verify structure (relaxed requirements for faster test)
+        # Verify structure
         assert isinstance(diagnosis, SolverDiagnosis)
         assert diagnosis.summary
-        assert 3 <= len(diagnosis.opt_configurations) <= 15
+        assert 10 <= len(diagnosis.opt_configurations) <= 15
         assert len(diagnosis.action_plan) >= 3
         print(
             f"✓ Test 4 passed: {len(diagnosis.opt_configurations)} configs, {len(diagnosis.action_plan)} actions"
         )
 
     @pytest.mark.slow
-    def test_05_our_solver_diagnosis_model_gpt5(self):
-        """Test 5: Our actual SolverDiagnosis model with gpt-5 (KEY TEST - may be slow)."""
+    def test_05_our_solver_diagnosis_model_gpt5_with_reasoning(self):
+        """Test 5: SolverDiagnosis with gpt-5 and reasoning effort (KEY TEST)."""
         from openai import OpenAI
 
         client = OpenAI()
 
         response = client.responses.parse(
-            model="gpt-5",  # Using gpt-5
+            model="gpt-5",
             input=[
                 {
                     "role": "system",
                     "content": (
-                        "You are a CPLEX solver expert. Generate a brief diagnosis "
-                        "with exactly 3 solver configurations to test. Be concise."
+                        "You are a CPLEX solver expert. Generate a diagnosis "
+                        "with 10-12 solver configurations to test. Be concise."
                     ),
                 },
                 {
                     "role": "user",
                     "content": (
                         "A TIMES model returned FEASIBLE but NOT PROVEN OPTIMAL. "
-                        "The barrier method stopped early. Generate 3 test configurations."
+                        "The barrier method stopped early. Generate 10-12 test configurations."
                     ),
                 },
             ],
             text_format=SolverDiagnosis,
+            reasoning={"effort": "high"},
         )
 
         diagnosis = response.output_parsed
 
-        # Verify structure (relaxed for faster test)
+        # Verify structure
         assert isinstance(diagnosis, SolverDiagnosis)
         assert diagnosis.summary
-        assert 3 <= len(diagnosis.opt_configurations) <= 15
+        assert 10 <= len(diagnosis.opt_configurations) <= 15
         assert len(diagnosis.action_plan) >= 3
         print(
-            f"✓ Test 5 passed with gpt-5: {len(diagnosis.opt_configurations)} configs, {len(diagnosis.action_plan)} actions"
+            f"✓ Test 5 passed with gpt-5 + reasoning: {len(diagnosis.opt_configurations)} configs, {len(diagnosis.action_plan)} actions"
         )
 
     def test_06_large_input_with_diagnostics(self):
@@ -232,7 +234,7 @@ Objective value: 1.234e+10
 """.strip()
 
         response = client.responses.parse(
-            model="gpt-4o-2024-08-06",
+            model="gpt-5",
             input=[
                 {
                     "role": "system",
