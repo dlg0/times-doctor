@@ -6,6 +6,7 @@ from typing import Optional
 from enum import Enum
 from rich.table import Table
 from rich.console import Console
+from . import logger as log
 from rich.live import Live
 from . import cplex_progress
 
@@ -79,7 +80,7 @@ class MultiRunProgressMonitor:
             name: RunProgress(name=name) for name in run_names
         }
         self.lock = threading.Lock()
-        self.console = Console()
+        self.console = log.get_console()
         self.live: Optional[Live] = None
         self._should_stop = False
     

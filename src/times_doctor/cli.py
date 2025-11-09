@@ -10,6 +10,7 @@ from rich.text import Text
 from .core import llm as llm_mod
 from . import __version__
 from . import cplex_progress
+from . import logger as log
 from .multi_run_progress import MultiRunProgressMonitor, RunStatus
 
 app = typer.Typer(add_completion=False)
@@ -29,9 +30,15 @@ def main(
         help="Show version and exit",
         callback=version_callback,
         is_eager=True
+    ),
+    no_color: bool = typer.Option(
+        False,
+        "--no-color",
+        help="Disable colored output",
+        envvar="NO_COLOR"
     )
 ):
-    pass
+    log.init_console(no_color=no_color)
 
 def detect_times_version(lst_path: Path | None) -> str | None:
     """Detect TIMES version from existing .lst file."""
@@ -60,20 +67,21 @@ def get_times_source(version: str | None = None) -> Path:
         return times_src
     
     # Download with version tag if specified
-    print(f"[yellow]Downloading TIMES source code{f' v{version}' if version else ''}...[/yellow]")
+    download_msg = f"Downloading TIMES source code{f' v{version}' if version else ''}..."
     
     try:
-        cmd = ["git", "clone", "--depth=1"]
-        if version:
-            cmd.extend(["--branch", f"v{version}"])
-        cmd.extend(["https://github.com/etsap-TIMES/TIMES_model.git", str(times_src)])
-        
-        subprocess.run(cmd, check=True, capture_output=True)
-        print(f"[green]Downloaded TIMES source to {times_src}[/green]")
+        with log.spinner(download_msg):
+            cmd = ["git", "clone", "--depth=1"]
+            if version:
+                cmd.extend(["--branch", f"v{version}"])
+            cmd.extend(["https://github.com/etsap-TIMES/TIMES_model.git", str(times_src)])
+            
+            subprocess.run(cmd, check=True, capture_output=True)
+        log.success(f"Downloaded TIMES source to {times_src}")
     except subprocess.CalledProcessError as e:
         err_msg = e.stderr.decode('utf-8', errors='ignore') if e.stderr else ""
         if version and "not found" in err_msg.lower():
-            print(f"[yellow]Version v{version} not found, trying latest 4.x...[/yellow]")
+            log.warning(f"Version v{version} not found, trying latest 4.x...")
             # Fallback to latest if specific version not found
             return get_times_source(version=None)
         raise RuntimeError(f"Failed to download TIMES source. Install git or download manually from https://github.com/etsap-TIMES/TIMES_model\nError: {err_msg}")
