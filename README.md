@@ -154,11 +154,14 @@ Next step:
 **Examples:**
 
 ```bash
-# Test all default profiles
+# Test all default profiles (sequential)
 times-doctor scan data/065Nov25-annualupto2045/parscen --gams gams
 
 # Test only specific profiles
 times-doctor scan data/065Nov25-annualupto2045/parscen --profiles dual sift
+
+# Run profiles in parallel (faster!)
+times-doctor scan data/065Nov25-annualupto2045/parscen --parallel
 
 # Windows with more threads
 times-doctor scan "D:\...\msm_ref~0011" --gams "C:\GAMS\win64\49\gams.exe" --threads 12
@@ -407,6 +410,21 @@ times-doctor/
 ## Contributing
 
 See [DEPLOYMENT.md](DEPLOYMENT.md) for development setup and publishing instructions.
+
+## Known Limitations
+
+- **GAMS Required**: For `datacheck` and `scan` commands, you need GAMS installed
+- **Large Files**: Very large .lst files (>50MB) may take longer to process and cost more
+- **Windows Paths**: Spaces in paths are supported but may require quoting in some edge cases
+- **LLM Costs**: Review operations cost $0.10-$1.00 per run depending on file size
+
+## Privacy & Telemetry
+
+**TIMES Doctor does NOT collect any telemetry or usage data.** All operations are local except:
+- LLM API calls to OpenAI or Anthropic (only when using `--llm` flag)
+- Git clone operations to download TIMES source code
+
+API keys are redacted from all log files for your security.
 
 ## License
 

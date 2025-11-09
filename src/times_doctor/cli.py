@@ -1,5 +1,6 @@
 import os, re, shutil, subprocess, csv, sys
 from pathlib import Path
+from typing import Optional
 import typer
 from rich import print
 from rich.table import Table
@@ -8,6 +9,8 @@ from rich.live import Live
 from rich.text import Text
 from . import llm as llm_mod
 from . import __version__
+from . import cplex_progress
+from .multi_run_progress import MultiRunProgressMonitor, RunStatus
 
 app = typer.Typer(add_completion=False)
 console = Console()
@@ -106,15 +109,41 @@ def ensure_out(run_dir: Path) -> Path:
     out.mkdir(exist_ok=True)
     return out
 
-def run_gams_with_progress(cmd: list[str], cwd: str, max_lines: int = 30) -> int:
-    """Run GAMS and show live tail of output."""
+def run_gams_with_progress(
+    cmd: list[str], 
+    cwd: str, 
+    max_lines: int = 30,
+    monitor: Optional[MultiRunProgressMonitor] = None,
+    run_name: Optional[str] = None
+) -> int:
+    """
+    Run GAMS and show live tail of output.
+    
+    Args:
+        cmd: GAMS command and arguments
+        cwd: Working directory
+        max_lines: Max lines to show in standalone display
+        monitor: Optional MultiRunProgressMonitor for coordinated display
+        run_name: Name of this run (required if monitor is provided)
+    """
     import threading
     import signal
     from pathlib import Path
     
-    # Log the command being run
-    console.print(f"[dim]Working directory: {cwd}[/dim]")
-    console.print(f"[dim]Command: {' '.join(cmd)}[/dim]")
+    # Validate parameters
+    if monitor and not run_name:
+        raise ValueError("run_name is required when monitor is provided")
+    
+    # Use standalone display or report to monitor
+    use_monitor = monitor is not None
+    
+    if not use_monitor:
+        # Log the command being run (only in standalone mode)
+        console.print(f"[dim]Working directory: {cwd}[/dim]")
+        console.print(f"[dim]Command: {' '.join(cmd)}[/dim]")
+    else:
+        # Update monitor status
+        monitor.update_status(run_name, RunStatus.STARTING)
     
     # Find the _run_log.txt file that will be created
     cwd_path = Path(cwd)
@@ -129,19 +158,31 @@ def run_gams_with_progress(cmd: list[str], cwd: str, max_lines: int = 30) -> int
             text=False,
             bufsize=0
         )
-        console.print(f"[dim]GAMS process started (PID: {proc.pid})[/dim]")
+        if not use_monitor:
+            console.print(f"[dim]GAMS process started (PID: {proc.pid})[/dim]")
     except FileNotFoundError as e:
-        console.print(f"[red]Error: GAMS executable not found: {cmd[0]}[/red]")
-        console.print(f"[yellow]Make sure GAMS is installed and in PATH, or use --gams-path[/yellow]")
+        error_msg = f"GAMS executable not found: {cmd[0]}"
+        if use_monitor:
+            monitor.update_status(run_name, RunStatus.FAILED, error_msg)
+        else:
+            console.print(f"[red]Error: {error_msg}[/red]")
+            console.print(f"[yellow]Make sure GAMS is installed and in PATH, or use --gams-path[/yellow]")
         raise
     except Exception as e:
-        console.print(f"[red]Error starting GAMS: {e}[/red]")
+        error_msg = f"Error starting GAMS: {e}"
+        if use_monitor:
+            monitor.update_status(run_name, RunStatus.FAILED, error_msg)
+        else:
+            console.print(f"[red]{error_msg}[/red]")
         raise
     
     lines = []
     log_file_lines = []
     current_log_file = None
     display_text = Text("Starting GAMS...", style="dim")
+    
+    # CPLEX progress tracking
+    progress_tracker = cplex_progress.BarrierProgressTracker()
     
     def read_output():
         for line in iter(proc.stdout.readline, b''):
@@ -176,9 +217,16 @@ def run_gams_with_progress(cmd: list[str], cwd: str, max_lines: int = 30) -> int
         except ImportError:
             has_psutil = False
         
-        with Live(display_text, console=console, refresh_per_second=2) as live:
-            iterations = 0
-            last_log_check = 0
+        iterations = 0
+        last_log_check = 0
+        
+        # Standalone mode variables
+        if not use_monitor:
+            nonlocal_progress_line = [None]
+            live_display = Live(display_text, console=console, refresh_per_second=2)
+            live_display.start()
+        
+        try:
             while proc.poll() is None:
                 iterations += 1
                 
@@ -196,9 +244,10 @@ def run_gams_with_progress(cmd: list[str], cwd: str, max_lines: int = 30) -> int
                         
                         if new_files:
                             current_log_file = max(new_files, key=lambda p: p.stat().st_mtime)
-                            live.stop()
-                            console.print(f"[dim]Monitoring log file: {current_log_file}[/dim]")
-                            live.start()
+                            if not use_monitor:
+                                live_display.stop()
+                                console.print(f"[dim]Monitoring log file: {current_log_file}[/dim]")
+                                live_display.start()
                     
                     # Read from log file if available
                     if current_log_file and current_log_file.exists():
@@ -209,56 +258,96 @@ def run_gams_with_progress(cmd: list[str], cwd: str, max_lines: int = 30) -> int
                                     log_file_lines = new_content
                                     # Show last N non-empty lines
                                     lines = [l.rstrip() for l in new_content if l.strip()]
+                                    
+                                    # Check for CPLEX progress in new lines
+                                    for new_line in new_content[len(log_file_lines):]:
+                                        parsed = cplex_progress.parse_cplex_line(new_line)
+                                        if parsed:
+                                            if use_monitor:
+                                                # Report to monitor
+                                                monitor.update_cplex_progress(run_name, parsed)
+                                            else:
+                                                # Update standalone display
+                                                formatted = cplex_progress.format_progress_line(parsed, tracker=progress_tracker)
+                                                nonlocal_progress_line[0] = formatted
                         except Exception as e:
                             pass
                 
-                if lines:
-                    display_lines = lines[-max_lines:]
-                    display_text = Text("\n".join(display_lines))
-                    live.update(display_text)
-                else:
-                    # Show periodic heartbeat if no output
-                    if iterations % 10 == 0:
-                        elapsed = iterations * 0.5
-                        # Check if process is actually doing work (including child processes)
-                        if has_psutil:
-                            try:
-                                p = psutil.Process(proc.pid)
-                                cpu_percent = p.cpu_percent(interval=0.1)
-                                mem_mb = p.memory_info().rss / 1024 / 1024
-                                
-                                # Check for child processes (GAMS spawns gmsgennx.exe on Windows)
-                                children = p.children(recursive=True)
-                                child_info = ""
-                                if children:
-                                    child_cpu = sum(c.cpu_percent(interval=0.1) for c in children)
-                                    child_mem = sum(c.memory_info().rss for c in children) / 1024 / 1024
-                                    # Calculate approximate core usage (CPU% / 100)
-                                    cores_used = child_cpu / 100
-                                    child_info = f" + {len(children)} worker(s) using ~{cores_used:.1f} cores, {child_mem:.0f}MB"
-                                
-                                display_text = Text(
-                                    f"GAMS running... ({elapsed:.0f}s{child_info})",
-                                    style="dim yellow"
-                                )
-                            except:
+                # Update standalone display
+                if not use_monitor:
+                    if lines:
+                        display_lines = lines[-max_lines:]
+                        
+                        # Add CPLEX progress line at the top if we have one
+                        if nonlocal_progress_line[0]:
+                            display_lines = [f"[bold cyan]{nonlocal_progress_line[0]}[/bold cyan]", ""] + display_lines
+                        
+                        display_text = Text("\n".join(display_lines))
+                        live_display.update(display_text)
+                    else:
+                        # Show periodic heartbeat if no output
+                        if iterations % 10 == 0:
+                            elapsed = iterations * 0.5
+                            # Check if process is actually doing work (including child processes)
+                            if has_psutil:
+                                try:
+                                    p = psutil.Process(proc.pid)
+                                    cpu_percent = p.cpu_percent(interval=0.1)
+                                    mem_mb = p.memory_info().rss / 1024 / 1024
+                                    
+                                    # Check for child processes (GAMS spawns gmsgennx.exe on Windows)
+                                    children = p.children(recursive=True)
+                                    child_info = ""
+                                    if children:
+                                        child_cpu = sum(c.cpu_percent(interval=0.1) for c in children)
+                                        child_mem = sum(c.memory_info().rss for c in children) / 1024 / 1024
+                                        # Calculate approximate core usage (CPU% / 100)
+                                        cores_used = child_cpu / 100
+                                        child_info = f" + {len(children)} worker(s) using ~{cores_used:.1f} cores, {child_mem:.0f}MB"
+                                    
+                                    display_text = Text(
+                                        f"GAMS running... ({elapsed:.0f}s{child_info})",
+                                        style="dim yellow"
+                                    )
+                                except:
+                                    display_text = Text(f"Waiting for GAMS output... ({elapsed:.0f}s, {len(lines)} lines)", style="dim yellow")
+                            else:
                                 display_text = Text(f"Waiting for GAMS output... ({elapsed:.0f}s, {len(lines)} lines)", style="dim yellow")
-                        else:
-                            display_text = Text(f"Waiting for GAMS output... ({elapsed:.0f}s, {len(lines)} lines)", style="dim yellow")
-                        live.update(display_text)
+                            live_display.update(display_text)
+                
+                # Update monitor display if in monitor mode
+                if use_monitor:
+                    monitor.update_display()
+                
                 time.sleep(0.5)
             
-            # One final update after process ends
-            if lines:
+            # One final update after process ends (standalone mode only)
+            if not use_monitor and lines:
                 display_lines = lines[-max_lines:]
                 display_text = Text("\n".join(display_lines))
-                live.update(display_text)
+                live_display.update(display_text)
+        
+        finally:
+            # Clean up standalone display
+            if not use_monitor:
+                live_display.stop()
     finally:
         signal.signal(signal.SIGINT, old_handler)
+        
+        # Update final status in monitor mode
+        if use_monitor:
+            if proc.returncode == 0:
+                monitor.update_status(run_name, RunStatus.COMPLETED)
+            else:
+                monitor.update_status(run_name, RunStatus.FAILED, f"Exit code: {proc.returncode}")
     
     reader.join(timeout=1)
-    console.print(f"[dim]GAMS process exited with code: {proc.returncode}[/dim]")
-    console.print(f"[dim]Total output lines captured: {len(lines)}[/dim]")
+    
+    # Only print diagnostics in standalone mode
+    if not use_monitor:
+        console.print(f"[dim]GAMS process exited with code: {proc.returncode}[/dim]")
+        console.print(f"[dim]Total output lines captured: {len(lines)}[/dim]")
+    
     return proc.returncode
 
 def parse_range_stats(text: str) -> dict:
@@ -375,7 +464,9 @@ def datacheck(
         "aggind 1",
         "eprhs 1.0e-06",
         "epopt 1.0e-06",
-        "numericalemphasis 1"
+        "numericalemphasis 1",
+        "simdisplay 2",
+        "bardisplay 2"
     ])
     
     tmp_driver = pick_driver_gms(tmp)
@@ -432,7 +523,8 @@ def scan(
     gams_path: str | None = typer.Option(None, "--gams-path", help="Path to gams.exe (defaults to 'gams' in PATH)"),
     profiles: list[str] = typer.Option(["dual","sift","bar_nox"], help="Solver profiles to test (dual|sift|bar_nox)"),
     threads: int = typer.Option(7, help="Number of threads for CPLEX to use"),
-    llm: str = typer.Option("none", help="LLM provider for optional analysis: auto|openai|anthropic|amp|none")
+    llm: str = typer.Option("none", help="LLM provider for optional analysis: auto|openai|anthropic|amp|none"),
+    parallel: bool = typer.Option(False, "--parallel", help="Run profiles in parallel (faster but uses more resources)")
 ):
     """
     Test multiple CPLEX solver configurations to find best approach.
@@ -446,12 +538,16 @@ def scan(
       sift    - Sifting (lpmethod 5) - Good for huge sparse LPs
       bar_nox - Barrier without crossover (lpmethod 4) - Fast
     
+    By default, runs profiles sequentially. Use --parallel to run all
+    profiles simultaneously (faster but uses more CPU/memory).
+    
     Results summarized in CSV for easy comparison.
     
     \b
     Example:
       times-doctor scan data/065Nov25-annualupto2045/parscen
       times-doctor scan data/... --profiles dual sift
+      times-doctor scan data/... --parallel  # Run all 3 profiles at once
     
     \b
     Created directories:
@@ -478,58 +574,113 @@ def scan(
 
     def opt_lines(name: str) -> list[str]:
         if name == "dual":
-            return ["lpmethod 2","solutiontype 1","aggind 1","scaind -1",f"threads {threads}","eprhs 1e-06","epopt 1e-06","numericalemphasis 1","names no","advind 0","rerun yes","iis 0"]
+            return ["lpmethod 2","solutiontype 1","aggind 1","scaind -1",f"threads {threads}","eprhs 1e-06","epopt 1e-06","numericalemphasis 1","names no","advind 0","rerun yes","iis 0","simdisplay 2","bardisplay 2"]
         if name == "sift":
-            return ["lpmethod 5","solutiontype 1","aggind 1","scaind -1",f"threads {threads}","eprhs 1e-06","epopt 1e-06","numericalemphasis 1","names no","advind 0","rerun yes","iis 0"]
+            return ["lpmethod 5","solutiontype 1","aggind 1","scaind -1",f"threads {threads}","eprhs 1e-06","epopt 1e-06","numericalemphasis 1","names no","advind 0","rerun yes","iis 0","simdisplay 2","bardisplay 2"]
         if name == "bar_nox":
-            return ["lpmethod 4","baralg 1","barorder 1","solutiontype 2","aggind 1","scaind -1",f"threads {threads}","eprhs 1e-06","epopt 1e-06","numericalemphasis 1","names no","advind 0","rerun yes","iis 0"]
+            return ["lpmethod 4","baralg 1","barorder 1","solutiontype 2","aggind 1","scaind -1",f"threads {threads}","eprhs 1e-06","epopt 1e-06","numericalemphasis 1","names no","advind 0","rerun yes","iis 0","simdisplay 2","bardisplay 2"]
         raise ValueError(f"Unknown profile {name}")
 
-    rows = []
+    # Set up run directories
+    run_dirs = {}
     for p in profiles:
         wdir = scan_root / p
         if wdir.exists():
             shutil.rmtree(wdir)
         shutil.copytree(rd, wdir)
         (wdir / "cplex.opt").write_text("\n".join(opt_lines(p)) + "\n", encoding="utf-8")
-        
-        wdir_driver = pick_driver_gms(wdir)
-        wdir_gdx_dir = wdir / "GAMSSAVE"
-        wdir_gdx_file = wdir_gdx_dir / f"{wdir.name}.gdx"
-        
-        print(f"[yellow]Running profile '{p}' (this may take several minutes)...[/yellow]")
-        run_gams_with_progress([
-            gams_cmd, wdir_driver.name,
-            f"r={restart_file}",
-            f"idir1={wdir}",
-            f"idir2={times_src}",
-            f"idir3={dd_dir}",
-            f"gdx={wdir_gdx_file}",
-            f"gdxcompress=1",
-            "LP=CPLEX",
-            "OPTFILE=1",
-            "LOGOPTION=2",
-            f"logfile={wdir.name}_run_log.txt",
-            f"--GDXPATH={wdir_gdx_dir}/",
-            "--ERR_ABORT=NO"
-        ], cwd=str(wdir))
+        run_dirs[p] = wdir
+    
+    # Helper function to run a single profile
+    def run_profile(profile_name: str, monitor: MultiRunProgressMonitor, results: dict):
+        """Run a single profile and store results."""
+        try:
+            wdir = run_dirs[profile_name]
+            wdir_driver = pick_driver_gms(wdir)
+            wdir_gdx_dir = wdir / "GAMSSAVE"
+            wdir_gdx_file = wdir_gdx_dir / f"{wdir.name}.gdx"
+            
+            run_gams_with_progress([
+                gams_cmd, wdir_driver.name,
+                f"r={restart_file}",
+                f"idir1={wdir}",
+                f"idir2={times_src}",
+                f"idir3={dd_dir}",
+                f"gdx={wdir_gdx_file}",
+                f"gdxcompress=1",
+                "LP=CPLEX",
+                "OPTFILE=1",
+                "LOGOPTION=2",
+                f"logfile={wdir.name}_run_log.txt",
+                f"--GDXPATH={wdir_gdx_dir}/",
+                "--ERR_ABORT=NO"
+            ], cwd=str(wdir), monitor=monitor, run_name=profile_name)
 
-        lst = latest_lst(wdir)
-        text = read_text(lst) if lst else ""
-        st = parse_statuses(text)
-        rng = parse_range_stats(text)
-        rows.append({
-            "profile": p,
-            "model_status": st.get("model_status",""),
-            "solver_status": st.get("solver_status",""),
-            "lp_status": st.get("lp_status_text",""),
-            "objective": st.get("objective",""),
-            "matrix_min": f"{rng.get('matrix',(None,None))[0]:.3e}" if rng.get("matrix") else "",
-            "matrix_max": f"{rng.get('matrix',(None,None))[1]:.3e}" if rng.get("matrix") else "",
-            "dir": str(wdir),
-            "lst": str(lst) if lst else ""
-        })
-
+            # Parse results
+            lst = latest_lst(wdir)
+            text = read_text(lst) if lst else ""
+            st = parse_statuses(text)
+            rng = parse_range_stats(text)
+            
+            # Store in thread-safe dict
+            results[profile_name] = {
+                "profile": profile_name,
+                "model_status": st.get("model_status",""),
+                "solver_status": st.get("solver_status",""),
+                "lp_status": st.get("lp_status_text",""),
+                "objective": st.get("objective",""),
+                "matrix_min": f"{rng.get('matrix',(None,None))[0]:.3e}" if rng.get("matrix") else "",
+                "matrix_max": f"{rng.get('matrix',(None,None))[1]:.3e}" if rng.get("matrix") else "",
+                "dir": str(wdir),
+                "lst": str(lst) if lst else ""
+            }
+        except Exception as e:
+            console.print(f"[red]Error running profile {profile_name}: {e}[/red]")
+            results[profile_name] = {
+                "profile": profile_name,
+                "model_status": "ERROR",
+                "solver_status": str(e),
+                "lp_status": "",
+                "objective": "",
+                "matrix_min": "",
+                "matrix_max": "",
+                "dir": str(run_dirs[profile_name]),
+                "lst": ""
+            }
+    
+    # Create monitor for tracking all profiles
+    mode_str = "parallel" if parallel else "sequential"
+    console.print(f"[cyan]Running {len(profiles)} profiles in {mode_str} mode...[/cyan]")
+    
+    with MultiRunProgressMonitor(list(profiles), title="Scan Progress") as monitor:
+        results = {}  # Thread-safe dict to collect results
+        
+        if parallel:
+            # Parallel execution
+            import threading
+            threads = []
+            
+            for p in profiles:
+                t = threading.Thread(
+                    target=run_profile,
+                    args=(p, monitor, results),
+                    name=f"scan-{p}"
+                )
+                t.start()
+                threads.append(t)
+            
+            # Wait for all threads to complete
+            for t in threads:
+                t.join()
+        else:
+            # Sequential execution
+            for p in profiles:
+                run_profile(p, monitor, results)
+        
+        # Convert results dict to rows list (preserve profile order)
+        rows = [results[p] for p in profiles if p in results]
+    
+    # Show summary table
     t = Table(title="Scan Summary")
     for col in ["profile","model_status","solver_status","lp_status","objective","matrix_min","matrix_max"]:
         t.add_column(col)

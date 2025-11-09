@@ -123,13 +123,15 @@ class TestRealDataProcessing:
         """
         from times_doctor.llm import _extract_lst_pages
         
-        # Find .lst files
+        # Find .lst files (prefer non-condensed files)
         lst_files = list(data_dir.rglob("*.lst"))
         
         if len(lst_files) == 0:
             pytest.skip("No .lst files found in data/ directory")
         
-        lst_path = lst_files[0]
+        # Filter out condensed files first
+        non_condensed = [f for f in lst_files if "condensed" not in f.name.lower()]
+        lst_path = non_condensed[0] if non_condensed else lst_files[0]
         content = lst_path.read_text(encoding='utf-8', errors='ignore')
         
         # Track progress
