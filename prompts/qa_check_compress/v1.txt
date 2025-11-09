@@ -1,4 +1,4 @@
-You are analyzing a TIMES/Veda QA_CHECK.LOG file that contains warnings and errors.
+You are analyzing a TIMES QA_CHECK.LOG file that contains warnings and errors.
 
 Your task: Reduce this to a concise warning/error list where instead of a row for every region/tech combo for the same warning/error, just give a single row for that warning/error but indicate the set of indices it applies to.
 

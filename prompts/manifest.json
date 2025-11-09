@@ -1,0 +1,34 @@
+{
+  "qa_check_compress": {
+    "current": "v1",
+    "versions": {
+      "v1": {
+        "sha256": "d328b3a59e3fd62eb5584c20d3707e4f9d978fc0bff73737fe0be9483a30df21"
+      }
+    }
+  },
+  "extraction_sections": {
+    "current": "v1",
+    "versions": {
+      "v1": {
+        "sha256": "79ead9d3329a60219e554c07acce4b98ac5c9df9e2baacedb559e6b02f3f11ab"
+      }
+    }
+  },
+  "review": {
+    "current": "v1",
+    "versions": {
+      "v1": {
+        "sha256": "b4b33ae42f2a94a6d0383fb30b8bf173af2edc119ba165bbd98ba55eaf08c726"
+      }
+    }
+  },
+  "llm_prompt": {
+    "current": "v1",
+    "versions": {
+      "v1": {
+        "sha256": "62f6deb164a5d1c18a1844c1f7e1aa2fab09a27a51ab967253023d8036fd0e00"
+      }
+    }
+  }
+}

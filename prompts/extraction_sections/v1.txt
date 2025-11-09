@@ -1,4 +1,4 @@
-You are analyzing a TIMES/Veda {file_type} file to identify ONLY the useful diagnostic sections.
+You are analyzing a TIMES {file_type} file to identify ONLY the useful diagnostic sections.
 
 Your task:
 1. Identify line ranges containing useful diagnostic information

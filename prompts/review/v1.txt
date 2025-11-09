@@ -105,4 +105,4 @@ The files provided are "condensed" versions that removed repetitive/redundant in
 - Explain why it would be useful
 - Suggest looking at the original files if needed
 
-Do NOT assume gaps mean the solve failed - check the entire file for completion markers. The condensing process preserves critical sections (errors, warnings, solver status, summary statistics) while removing verbose repetition. 
+Do NOT assume gaps mean the solve failed - check the entire file for completion markers. The condensing process preserves critical sections (errors, warnings, solver status, summary statistics) while removing verbose repetition.
