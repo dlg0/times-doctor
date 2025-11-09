@@ -789,7 +789,7 @@ def scan(
         wdir = scan_root / p
         if wdir.exists():
             shutil.rmtree(wdir)
-        shutil.copytree(rd, wdir)
+        shutil.copytree(rd, wdir, ignore=shutil.ignore_patterns("times_doctor_out"))
         (wdir / "cplex.opt").write_text("\n".join(opt_lines(p)) + "\n", encoding="utf-8")
         run_dirs[p] = wdir
 
