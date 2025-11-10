@@ -1,12 +1,15 @@
 import contextlib
 import csv
+import gc
 import os
 import re
 import shutil
 import signal
+import stat
 import subprocess
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -51,6 +54,67 @@ def main(
     ),
 ) -> None:
     log.init_console(no_color=no_color)
+
+
+def _make_writable_and_retry(func, path, exc_info):
+    """Helper for shutil.rmtree to handle read-only files on Windows."""
+    with contextlib.suppress(Exception):
+        os.chmod(path, stat.S_IWRITE)
+    with contextlib.suppress(Exception):
+        func(path)
+
+
+def remove_tree_robust(
+    path: Path, retries: int = 15, base_sleep: float = 0.1, max_sleep: float = 2.0
+) -> bool:
+    """
+    Remove directory tree with Windows-safe retry and fallback strategies.
+
+    On Windows, files can be locked by:
+    - GAMS processes that haven't fully released handles
+    - Windows file system delays
+    - Antivirus software scanning files
+
+    This function:
+    1. Tries to delete with chmod on read-only files (up to ~23s with backoff)
+    2. If still locked, renames to .stale.<timestamp> quarantine
+    3. Returns False only if both delete and rename fail
+
+    Args:
+        path: Directory to remove
+        retries: Number of retry attempts (default: 15)
+        base_sleep: Initial sleep duration in seconds (default: 0.1)
+        max_sleep: Maximum sleep duration in seconds (default: 2.0)
+
+    Returns:
+        True if deleted or quarantined, False if completely failed
+    """
+    if not path.exists():
+        return True
+
+    for i in range(retries):
+        try:
+            shutil.rmtree(path, onerror=_make_writable_and_retry)
+            return True
+        except FileNotFoundError:
+            return True
+        except (PermissionError, OSError):
+            gc.collect()  # Help release Python-side handles
+            sleep_time = min(max_sleep, base_sleep * (2**i))
+            time.sleep(sleep_time)
+
+    # Quarantine rename as fallback
+    try:
+        ts = datetime.now().strftime("%Y%m%d-%H%M%S")
+        quarantine = path.with_name(f"{path.name}.stale.{ts}")
+        path.rename(quarantine)
+        console.print(
+            f"[yellow]Could not delete {path.name} (locked by another process); moved to {quarantine.name}[/yellow]"
+        )
+        return True
+    except Exception as e:
+        console.print(f"[red]Failed to delete or rename {path.name}: {e}[/red]")
+        return False
 
 
 def detect_times_version(lst_path: Path | None) -> str | None:
@@ -853,7 +917,16 @@ def scan(
             status.update(f"[bold green]({idx}/{total}) Preparing {p}...")
 
             if wdir.exists():
-                shutil.rmtree(wdir)
+                ok = remove_tree_robust(wdir)
+                if not ok:
+                    # Final fallback: use fresh timestamped subdir for this run
+                    ts = datetime.now().strftime("%Y%m%d-%H%M%S")
+                    wdir = scan_root / p / ts
+                    wdir.parent.mkdir(parents=True, exist_ok=True)
+                    console.print(
+                        f"[yellow]Using alternate directory due to locks: {wdir}[/yellow]"
+                    )
+
             shutil.copytree(
                 rd, wdir, ignore=shutil.ignore_patterns("times_doctor_out", "_td_opt_files")
             )
