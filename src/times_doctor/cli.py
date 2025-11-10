@@ -7,6 +7,7 @@ import subprocess
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import typer
 from rich import print
@@ -20,6 +21,9 @@ from . import logger as log
 from .core import llm as llm_mod
 from .core.cost_estimator import estimate_cost, estimate_tokens
 from .multi_run_progress import MultiRunProgressMonitor, RunStatus
+
+if TYPE_CHECKING:
+    from .core.solver_models import SolverDiagnosis
 
 app = typer.Typer(add_completion=False)
 console = Console()
@@ -133,6 +137,61 @@ def ensure_out(run_dir: Path) -> Path:
     out = run_dir / "times_doctor_out"
     out.mkdir(exist_ok=True)
     return out
+
+
+def _render_solver_diagnosis(
+    diagnosis: "SolverDiagnosis",
+    created_files: list[Path],
+    md_path: Path,
+) -> None:
+    """Render a clean summary of solver diagnosis to terminal."""
+    from textwrap import shorten
+
+    from rich.box import SIMPLE_HEAD
+    from rich.console import Console
+    from rich.panel import Panel
+    from rich.table import Table
+    from rich.text import Text
+
+    console = Console()
+
+    # 1) Diagnosis summary panel
+    console.print(
+        Panel(
+            Text(diagnosis.summary.strip()),
+            title="[bold]Diagnosis[/bold]",
+            border_style="cyan",
+        )
+    )
+
+    # 2) Action plan panel
+    steps = "\n".join(f"{i+1}. {step}" for i, step in enumerate(diagnosis.action_plan))
+    console.print(
+        Panel(
+            Text(steps),
+            title="[bold]Action Plan[/bold]",
+            border_style="green",
+        )
+    )
+
+    # 3) Generated .opt files table
+    table = Table(
+        "File", "Params", "Description", box=SIMPLE_HEAD, title="Generated Configurations"
+    )
+    max_desc = max(30, min(80, console.width - 35))
+    for cfg in diagnosis.opt_configurations:
+        table.add_row(
+            f"[cyan]{cfg.filename}[/cyan]",
+            str(len(cfg.parameters)),
+            shorten(cfg.description, width=max_desc, placeholder="…"),
+        )
+    console.print(table)
+
+    # 4) Footer info
+    print(f"\n[green]✓ Detailed report:[/green] {md_path}")
+    if created_files:
+        out_dir = created_files[0].parent
+        print(f"[green]✓ Created {len(created_files)} .opt files:[/green] {out_dir}/")
 
 
 def run_gams_with_progress(
@@ -1577,53 +1636,43 @@ def review_solver_options(
 
     print("\n[bold green]Reviewing solver options...[/bold green]\n")
 
-    # Create streaming callback to display output as it comes
-    def stream_output(chunk: str) -> None:
-        print(chunk, end="", flush=True)
+    # For structured output, don't stream - use a spinner instead
+    from rich.console import Console
 
-    result = llm_mod.review_solver_options(
-        condensed_qa_check,
-        condensed_run_log,
-        condensed_lst,
-        cplex_opt,
-        provider=llm,
-        model=model,
-        stream_callback=stream_output,
-        log_dir=llm_log_dir,
-        use_cache=not no_cache,
-    )
+    console = Console()
+
+    with console.status("[cyan]Analyzing solver results with LLM...[/cyan]", spinner="dots"):
+        result = llm_mod.review_solver_options(
+            condensed_qa_check,
+            condensed_run_log,
+            condensed_lst,
+            cplex_opt,
+            provider=llm,
+            model=model,
+            stream_callback=None,  # No streaming for structured output
+            log_dir=llm_log_dir,
+            use_cache=not no_cache,
+        )
 
     if not result.used:
         print("[red]Failed to get LLM response. Check API keys and connectivity.[/red]")
         raise typer.Exit(1)
 
-    # If streaming wasn't used (e.g., fallback to responses API), print the result
-    if not result.text or "\n" not in result.text:
-        print(result.text)
-
-    print("\n")  # New line after output
-
-    print(f"\n[bold cyan]LLM Provider:[/bold cyan] {result.provider}")
-    if result.model:
-        print(f"[bold cyan]Model:[/bold cyan] {result.model}")
-    if result.input_tokens > 0:
-        print(
-            f"[bold cyan]Tokens:[/bold cyan] {result.input_tokens:,} in + {result.output_tokens:,} out = {result.input_tokens + result.output_tokens:,} total"
-        )
-    if result.cost_usd > 0:
-        print(f"[bold cyan]Cost:[/bold cyan] ${result.cost_usd:.4f} USD")
-
     out = ensure_out(rd)
     review_path = out / "solver_options_review.md"
 
-    # Parse structured output (OpenAI only)
-    import json
-
+    # Parse structured output (result.text is the Pydantic model instance)
     from times_doctor.core.solver_models import SolverDiagnosis
 
-    # Parse JSON response into structured model
-    data = json.loads(result.text)
-    diagnosis = SolverDiagnosis(**data)
+    # Result.text is the Pydantic model instance when using structured output
+    if isinstance(result.text, SolverDiagnosis):
+        diagnosis = result.text
+    else:
+        # Fallback: parse JSON if for some reason we got a string
+        import json
+
+        data = json.loads(result.text)
+        diagnosis = SolverDiagnosis(**data)
 
     # Create markdown from structured output
     md_lines = []
@@ -1645,6 +1694,7 @@ def review_solver_options(
     opt_dir = rd / "_td_opt_files"
     opt_dir.mkdir(exist_ok=True)
 
+    created_files = []
     for config in diagnosis.opt_configurations:
         # Build .opt file content
         opt_lines = [f"* {config.description}"]
@@ -1655,12 +1705,21 @@ def review_solver_options(
         opt_content = "\n".join(opt_lines)
         opt_path = opt_dir / config.filename
         opt_path.write_text(opt_content, encoding="utf-8")
+        created_files.append(opt_path)
 
-    print(f"\n[green]Saved review to {review_path}[/green]")
-    print(
-        f"[green]Extracted {len(diagnosis.opt_configurations)} solver configurations to {opt_dir}/[/green]"
-    )
-    print("[dim]Use 'times-doctor scan' to test these configurations[/dim]")
+    # Render clean terminal output
+    _render_solver_diagnosis(diagnosis, created_files, review_path)
+
+    # Show token/cost stats
+    print(f"\n[bold cyan]LLM:[/bold cyan] {result.provider}/{result.model}")
+    if result.input_tokens > 0:
+        print(
+            f"[bold cyan]Tokens:[/bold cyan] {result.input_tokens:,} in → {result.output_tokens:,} out = {result.input_tokens + result.output_tokens:,} total"
+        )
+    if result.cost_usd > 0:
+        print(f"[bold cyan]Cost:[/bold cyan] ${result.cost_usd:.4f} USD")
+
+    print(f"\n[dim]Next: times-doctor scan {rd}[/dim]")
 
 
 @app.command()
