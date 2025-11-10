@@ -1,3 +1,4 @@
+import contextlib
 import csv
 import os
 import re
@@ -312,7 +313,16 @@ def run_gams_with_progress(
             proc.kill()
         raise KeyboardInterrupt()
 
-    old_handler = signal.signal(signal.SIGINT, handle_interrupt)
+    # Only register signal handler from main thread (worker threads can't do this on Windows)
+    old_handler = None
+    signal_handler_installed = False
+    if threading.current_thread() is threading.main_thread():
+        try:
+            old_handler = signal.signal(signal.SIGINT, handle_interrupt)
+            signal_handler_installed = True
+        except (ValueError, RuntimeError):
+            # Signal handling not available in this context
+            pass
 
     start_time = time.monotonic()
     timed_out = False
@@ -470,7 +480,10 @@ def run_gams_with_progress(
             if not use_monitor:
                 live_display.stop()
     finally:
-        signal.signal(signal.SIGINT, old_handler)
+        # Restore signal handler only if we installed one
+        if signal_handler_installed and old_handler is not None:
+            with contextlib.suppress(ValueError, RuntimeError):
+                signal.signal(signal.SIGINT, old_handler)
 
         # Update final status in monitor mode
         if use_monitor and not timed_out and monitor and run_name:
@@ -814,22 +827,47 @@ def scan(
     # Map config names to their .opt file paths
     opt_file_map = {f.stem: f for f in opt_files}
 
-    # Set up run directories and copy .opt files
+    # Show setup summary BEFORE starting the work
+    console.print(f"\n[bold]Preparing {len(profiles)} run directories under:[/bold] {scan_root}")
+    console.print(
+        f"[dim]Mode: {'parallel' if parallel else 'sequential'}, "
+        f"max_workers={workers}, CPLEX threads/run={threads}[/dim]"
+    )
+    console.print(f"[dim]GAMS: {gams_cmd}, TIMES: {times_src}[/dim]")
+
+    console.print("\n[bold]Jobs to launch:[/bold]")
+    for i, p in enumerate(profiles, 1):
+        console.print(f"  {i:>2}. {p}  ->  {scan_root / p}")
+
+    # Set up run directories and copy .opt files with progress feedback
+    setup_start = time.monotonic()
+    console.print(
+        f"\n[yellow]Setting up run directories (copying base run {len(profiles)} times - may take several minutes)...[/yellow]"
+    )
+
     run_dirs: dict[str, Path] = {}
-    for p in profiles:
-        wdir = scan_root / p
-        if wdir.exists():
-            shutil.rmtree(wdir)
-        shutil.copytree(
-            rd, wdir, ignore=shutil.ignore_patterns("times_doctor_out", "_td_opt_files")
-        )
+    total = len(profiles)
+    with console.status("[bold green]Preparing run directories...") as status:
+        for idx, p in enumerate(profiles, 1):
+            wdir = scan_root / p
+            status.update(f"[bold green]({idx}/{total}) Preparing {p}...")
 
-        # Copy the corresponding .opt file as cplex.opt
-        src_opt = opt_file_map[p]
-        dst_opt = wdir / "cplex.opt"
-        shutil.copy2(src_opt, dst_opt)
+            if wdir.exists():
+                shutil.rmtree(wdir)
+            shutil.copytree(
+                rd, wdir, ignore=shutil.ignore_patterns("times_doctor_out", "_td_opt_files")
+            )
 
-        run_dirs[p] = wdir
+            # Copy the corresponding .opt file as cplex.opt
+            src_opt = opt_file_map[p]
+            dst_opt = wdir / "cplex.opt"
+            shutil.copy2(src_opt, dst_opt)
+
+            run_dirs[p] = wdir
+
+    setup_elapsed = time.monotonic() - setup_start
+    console.print(f"[green]Setup complete in {setup_elapsed:.1f}s[/green]")
+    console.print("\n[bold]Launching jobs...[/bold]")
 
     # Helper function to run a single profile
     def run_profile(
