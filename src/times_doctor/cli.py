@@ -929,9 +929,9 @@ def scan(
         cpus = os.cpu_count() or 1
         if override is not None and override > 0:
             return max(1, min(override, n_profiles))
-        # Auto: allocate workers to avoid CPU oversubscription
+        # Auto: allocate workers to avoid CPU oversubscription, cap at 6
         per = max(1, cpus // max(1, cplex_threads))
-        return max(1, min(per, n_profiles))
+        return max(1, min(per, n_profiles, 6))
 
     workers = compute_workers(len(profiles), threads, max_workers)
 
