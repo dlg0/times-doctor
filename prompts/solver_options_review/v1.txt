@@ -96,6 +96,8 @@ These will be automatically extracted and used for systematic testing.
 For each configuration, use this EXACT format:
 
 ===OPT_FILE: descriptive_name.opt
+lpmethod 4       $ Use barrier algorithm
+solutiontype 2   $ Barrier without crossover
 parameter_name value  $ reason for this setting
 ...
 ===END_OPT_FILE
