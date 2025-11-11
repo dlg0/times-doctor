@@ -1,5 +1,10 @@
 # Publishing a New Release
 
+0. **Ensure the tests pass**
+   ```bash
+   uv run pytest
+   ```
+
 1. **Update version** in `pyproject.toml`
 
 2. **Run pre-commit on all files** (catches issues CI would find)

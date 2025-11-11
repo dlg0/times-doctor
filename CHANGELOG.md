@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.15] - 2025-11-11
+
+### Fixed
+- Scan command cancellation now properly kills entire process trees (GAMS + CPLEX children)
+- Jobs no longer start if already marked for cancellation (parallel mode race condition)
+- Cancel menu now shows jobs immediately when they begin spawning
+- Reduced polling interval from 0.5s to 0.2s for faster cancel response
+- Process termination now uses `os.killpg()` on POSIX and `taskkill /T /F` on Windows
+
 ## [0.6.5] - 2025-11-09
 
 ### Added

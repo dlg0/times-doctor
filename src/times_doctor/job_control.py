@@ -273,6 +273,72 @@ def _terminate_process_group(pid: int, pgid: int | None, grace_seconds: float) -
             pass
 
 
+def terminate_process_tree(proc: subprocess.Popen, grace_seconds: float = 5.0) -> None:
+    """
+    Terminate a process and all its children.
+
+    Uses process group termination on POSIX and taskkill on Windows
+    to ensure child processes (CPLEX, gmsgennx.exe, etc.) are killed.
+
+    Args:
+        proc: Process to terminate
+        grace_seconds: Time to wait for graceful shutdown before force kill
+    """
+    if proc.poll() is not None:
+        return  # Already dead
+
+    pid = proc.pid
+
+    if os.name == "posix":
+        # POSIX: Use process group kill
+        try:
+            pgid = os.getpgid(pid)
+            os.killpg(pgid, signal.SIGTERM)
+        except (ProcessLookupError, OSError):
+            return  # Already dead
+
+        # Wait for graceful exit
+        t0 = time.time()
+        while time.time() - t0 < grace_seconds:
+            try:
+                os.kill(pid, 0)  # Check if alive
+            except OSError:
+                return  # Exited successfully
+            time.sleep(0.2)
+
+        # Force kill if still alive
+        try:
+            pgid = os.getpgid(pid)
+            os.killpg(pgid, signal.SIGKILL)
+        except (ProcessLookupError, OSError):
+            pass
+
+    else:
+        # Windows: Use taskkill for tree termination
+        if shutil.which("taskkill"):
+            try:
+                subprocess.run(  # noqa: S603
+                    ["taskkill", "/T", "/F", "/PID", str(pid)],  # noqa: S607
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    timeout=grace_seconds,
+                )
+                return
+            except Exception:
+                pass
+
+        # Fallback: direct termination
+        try:
+            proc.terminate()
+            try:
+                proc.wait(timeout=grace_seconds)
+                return
+            except subprocess.TimeoutExpired:
+                proc.kill()
+        except Exception:
+            pass
+
+
 def create_process_group_kwargs() -> dict:
     """
     Get kwargs for subprocess.Popen to create a new process group.

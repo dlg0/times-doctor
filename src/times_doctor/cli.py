@@ -25,11 +25,11 @@ from . import __version__, cplex_progress
 from . import logger as log
 from .core import llm as llm_mod
 from .core.cost_estimator import estimate_cost, estimate_tokens
+from .job_control import JobRegistry, terminate_process_tree
 from .multi_run_progress import MultiRunProgressMonitor, RunStatus
 
 if TYPE_CHECKING:
     from .core.solver_models import SolverDiagnosis
-    from .job_control import JobRegistry
 
 app = typer.Typer(add_completion=False)
 console = Console()
@@ -329,6 +329,10 @@ def run_gams_with_progress(
     try:
         from .job_control import create_process_group_kwargs
 
+        # Set status to "starting" before spawn so cancel menu can see it
+        if job_registry and run_name:
+            job_registry.set_status(run_name, "starting")
+
         # Create process in its own group for clean cancellation
         pg_kwargs = create_process_group_kwargs()
 
@@ -349,6 +353,17 @@ def run_gams_with_progress(
 
         if not use_monitor:
             console.print(f"[dim]GAMS process started (PID: {proc.pid})[/dim]")
+
+        # Check if cancelled immediately after spawn (before entering main loop)
+        if cancel_event and cancel_event.is_set():
+            if use_monitor and monitor and run_name:
+                monitor.update_status(run_name, RunStatus.CANCELLED)
+            if job_registry and run_name:
+                job_registry.cancel(run_name, grace_seconds=5)
+            else:
+                terminate_process_tree(proc, grace_seconds=5)
+            raise KeyboardInterrupt("Job cancelled before start")
+
     except FileNotFoundError:
         error_msg = f"GAMS executable not found: {cmd[0]}"
         if use_monitor and monitor and run_name:
@@ -390,12 +405,7 @@ def run_gams_with_progress(
 
     def handle_interrupt(signum, frame):
         console.print("\n[yellow]Received CTRL-C, terminating GAMS process...[/yellow]")
-        proc.terminate()
-        try:
-            proc.wait(timeout=3)
-        except subprocess.TimeoutExpired:
-            console.print("[red]Process did not terminate, killing...[/red]")
-            proc.kill()
+        terminate_process_tree(proc, grace_seconds=3)
         raise KeyboardInterrupt()
 
     # Only register signal handler from main thread (worker threads can't do this on Windows)
@@ -439,11 +449,9 @@ def run_gams_with_progress(
                         console.print("[yellow]Run cancelled. Terminating...[/yellow]")
                     if job_registry and run_name:
                         job_registry.set_status(run_name, "cancelled")
-                    proc.terminate()
-                    try:
-                        proc.wait(timeout=3)
-                    except subprocess.TimeoutExpired:
-                        proc.kill()
+                        job_registry.cancel(run_name, grace_seconds=5)
+                    else:
+                        terminate_process_tree(proc, grace_seconds=5)
                     raise KeyboardInterrupt("Job cancelled")
 
                 # Check timeout
@@ -456,11 +464,9 @@ def run_gams_with_progress(
                         console.print(f"[yellow]Run {timeout_msg}. Terminating...[/yellow]")
                     if job_registry and run_name:
                         job_registry.set_status(run_name, "failed")
-                    proc.terminate()
-                    try:
-                        proc.wait(timeout=3)
-                    except subprocess.TimeoutExpired:
-                        proc.kill()
+                        job_registry.cancel(run_name, grace_seconds=5)
+                    else:
+                        terminate_process_tree(proc, grace_seconds=5)
                     break
 
                 iterations += 1
@@ -571,7 +577,7 @@ def run_gams_with_progress(
                 if use_monitor and monitor:
                     monitor.update_display()
 
-                time.sleep(0.5)
+                time.sleep(0.2)
 
             # One final update after process ends (standalone mode only)
             if not use_monitor and lines:
@@ -1011,6 +1017,26 @@ def scan(
         registry: "JobRegistry | None" = None,
     ) -> None:
         """Run a single profile and store results."""
+        # Check if already cancelled before spawning
+        if cancel_event and cancel_event.is_set():
+            monitor.update_status(profile_name, RunStatus.CANCELLED)
+            if registry:
+                registry.set_status(profile_name, "cancelled")
+            results[profile_name] = {
+                "profile": profile_name,
+                "model_status": "CANCELLED",
+                "solver_status": "CANCELLED",
+                "lp_status": "",
+                "objective": "",
+                "runtime": "",
+                "runtime_seconds": "",
+                "matrix_min": "",
+                "matrix_max": "",
+                "dir": str(run_dirs[profile_name]),
+                "lst": "",
+            }
+            return
+
         try:
             wdir = run_dirs[profile_name]
             wdir_driver = pick_driver_gms(wdir)
@@ -1121,8 +1147,6 @@ def scan(
             }
 
     # Create job registry for cancellation support
-    from .job_control import JobRegistry
-
     job_registry = JobRegistry(state_path=scan_root / "scan_state.json")
 
     # Create monitor for tracking all profiles
