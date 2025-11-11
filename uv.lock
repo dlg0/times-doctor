@@ -825,7 +825,7 @@ wheels = [
 
 [[package]]
 name = "times-doctor"
-version = "0.9.10"
+version = "0.9.11"
 source = { editable = "." }
 dependencies = [
     { name = "httpx" },

@@ -229,17 +229,19 @@ class TestSolverDiagnosisValidation:
         assert any("solutiontype" in e.lower() for e in errors)
 
 
-@pytest.mark.skipif(
-    True,  # Skip by default - expensive LLM test
-    reason="LLM integration test - run manually with pytest -m llm",
-)
 @pytest.mark.llm
 class TestSolverOptionsLLMIntegration:
     """Integration tests that actually call the LLM (expensive, run manually)."""
 
     def test_llm_generates_valid_opt_files(self):
         """Test that LLM actually generates valid opt files with lpmethod."""
+        import os
+
         from times_doctor.core.llm import review_solver_options
+
+        # Skip if no API key
+        if not os.getenv("OPENAI_API_KEY"):
+            pytest.skip("OPENAI_API_KEY not set")
 
         # Minimal test inputs
         qa_check = "No major issues found."
@@ -247,7 +249,7 @@ class TestSolverOptionsLLMIntegration:
         lst_content = "Matrix range: 1e-6 to 1e6"
         cplex_opt = "* Default CPLEX options"
 
-        # Call LLM (expensive!)
+        # Call LLM (expensive! Uses GPT-5 with high reasoning)
         result = review_solver_options(
             qa_check,
             run_log,
