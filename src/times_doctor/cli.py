@@ -926,9 +926,21 @@ def scan(
                     console.print(
                         f"[yellow]Using alternate directory due to locks: {wdir}[/yellow]"
                     )
+                elif wdir.exists():
+                    # Directory still exists after remove_tree_robust (rare race condition)
+                    # Use timestamped alternative
+                    ts = datetime.now().strftime("%Y%m%d-%H%M%S")
+                    wdir = scan_root / p / ts
+                    wdir.parent.mkdir(parents=True, exist_ok=True)
+                    console.print(
+                        f"[yellow]Directory still locked after cleanup, using: {wdir}[/yellow]"
+                    )
 
             shutil.copytree(
-                rd, wdir, ignore=shutil.ignore_patterns("times_doctor_out", "_td_opt_files")
+                rd,
+                wdir,
+                ignore=shutil.ignore_patterns("times_doctor_out", "_td_opt_files"),
+                dirs_exist_ok=True,
             )
 
             # Copy the corresponding .opt file as cplex.opt
