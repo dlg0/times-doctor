@@ -230,8 +230,15 @@ class MultiRunProgressMonitor:
     def pause_display(self):
         """Pause the live display for interactive input."""
         if self.live:
-            with self.live.pause():
+            # Stop display for interactive input, then restart
+            was_started = self.live.is_started
+            if was_started:
+                self.live.stop()
+            try:
                 yield
+            finally:
+                if was_started:
+                    self.live.start()
         else:
             yield
 
