@@ -93,6 +93,9 @@ Concise explanation of why the solver stopped at feasible rather than proven opt
 You MUST generate approximately 12 different cplex.opt configurations to test different parameter combinations.
 These will be automatically extracted and used for systematic testing.
 
+**IMPORTANT**: Order your configurations from most likely to succeed (try first) to least likely (try last).
+The configurations will be numbered 01, 02, 03, etc. when written to disk, so put your best recommendations first.
+
 For each configuration, use this EXACT format:
 
 ===OPT_FILE: descriptive_name.opt
@@ -106,13 +109,15 @@ parameter_name value  $ reason for this setting
 - Use descriptive names like: tight_tolerances.opt, moderate_scaling.opt, aggressive_barrier.opt
 - Keep names lowercase with underscores
 - Make names meaningful so users understand what each config tests
+- DO NOT add number prefixes - they will be added automatically based on order
 
 **Configuration strategy**:
+- **Order matters**: Put most promising configurations first, experimental ones last
 - Test different tolerance levels (e.g., epopt: 1e-7, 1e-8, 1e-9)
 - Test combinations of related parameters (e.g., matching epopt/eprhs pairs)
 - Test scaling and numerical emphasis variations
 - Create a progression from conservative to aggressive tuning
-- Include at least one "baseline_tighter" config with just slightly tighter tolerances
+- Include at least one "baseline_tighter" config early in the list
 - Include configs that test specific hypotheses from your diagnosis
 
 Example:

@@ -4,7 +4,7 @@
 
 2. **Run pre-commit on all files** (catches issues CI would find)
    ```bash
-   pre-commit run --all-files
+   uv run pre-commit run --all-files
    ```
 
 3. **Commit version bump and any fixes**

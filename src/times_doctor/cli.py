@@ -2011,20 +2011,28 @@ def review_solver_options(
     review_text = "\n".join(md_lines)
     review_path.write_text(review_text, encoding="utf-8")
 
+    # Extract solver algorithm settings from original cplex.opt
+    from times_doctor.core.opt_renderer import extract_solver_algorithm, render_opt_lines
+
+    base_algorithm = extract_solver_algorithm(cplex_opt)
+    if not base_algorithm.get("lpmethod"):
+        print("[yellow]Warning: Could not extract lpmethod from original cplex.opt[/yellow]")
+    if not base_algorithm.get("solutiontype"):
+        print("[yellow]Warning: Could not extract solutiontype from original cplex.opt[/yellow]")
+
     # Extract .opt files from structured output
     opt_dir = rd / "_td_opt_files"
     opt_dir.mkdir(exist_ok=True)
 
     created_files = []
-    for config in diagnosis.opt_configurations:
-        # Build .opt file content
-        opt_lines = [f"* {config.description}"]
-        opt_lines.extend(
-            f"{param.name} {param.value}  $ {param.reason}" for param in config.parameters
-        )
-
+    for i, config in enumerate(diagnosis.opt_configurations, start=1):
+        # Render .opt file lines with enforced algorithm settings
+        opt_lines = render_opt_lines(config, base_algorithm, warn_on_override=True)
         opt_content = "\n".join(opt_lines)
-        opt_path = opt_dir / config.filename
+
+        # Add numeric prefix to order files by priority (01_, 02_, etc.)
+        prefixed_filename = f"{i:02d}_{config.filename}"
+        opt_path = opt_dir / prefixed_filename
         opt_path.write_text(opt_content, encoding="utf-8")
         created_files.append(opt_path)
 

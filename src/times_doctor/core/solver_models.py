@@ -16,7 +16,7 @@ class OptFileConfig(BaseModel):
 
     filename: str = Field(
         pattern=r"^[a-z][a-z0-9_]*\.opt$",
-        description="Filename like 'tight_tolerances.opt' (lowercase, underscores)",
+        description="Filename like 'tight_tolerances.opt' (lowercase, underscores, no number prefix)",
     )
     description: str = Field(description="Brief description of what this configuration tests")
     parameters: list[OptParameter] = Field(
