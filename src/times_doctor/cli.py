@@ -1046,6 +1046,10 @@ def scan(
             st = parse_statuses(text)
             rng = parse_range_stats(text)
 
+            # Get elapsed time from monitor
+            elapsed_time = monitor.runs[profile_name].get_elapsed_time()
+            time_str = monitor.runs[profile_name].format_elapsed() if elapsed_time else ""
+
             # Store in thread-safe dict
             results[profile_name] = {
                 "profile": profile_name,
@@ -1053,6 +1057,8 @@ def scan(
                 "solver_status": st.get("solver_status", ""),
                 "lp_status": st.get("lp_status_text", ""),
                 "objective": st.get("objective", ""),
+                "runtime": time_str,
+                "runtime_seconds": f"{elapsed_time:.1f}" if elapsed_time else "",
                 "matrix_min": f"{rng.get('matrix', (None, None))[0]:.3e}"
                 if rng.get("matrix")
                 else "",
@@ -1063,24 +1069,32 @@ def scan(
                 "lst": str(lst) if lst else "",
             }
         except TimeoutError:
+            elapsed_time = monitor.runs[profile_name].get_elapsed_time()
+            time_str = monitor.runs[profile_name].format_elapsed() if elapsed_time else ""
             results[profile_name] = {
                 "profile": profile_name,
                 "model_status": "ERROR",
                 "solver_status": "TIMEOUT",
                 "lp_status": "",
                 "objective": "",
+                "runtime": time_str,
+                "runtime_seconds": f"{elapsed_time:.1f}" if elapsed_time else "",
                 "matrix_min": "",
                 "matrix_max": "",
                 "dir": str(run_dirs[profile_name]),
                 "lst": "",
             }
         except KeyboardInterrupt:
+            elapsed_time = monitor.runs[profile_name].get_elapsed_time()
+            time_str = monitor.runs[profile_name].format_elapsed() if elapsed_time else ""
             results[profile_name] = {
                 "profile": profile_name,
                 "model_status": "CANCELLED",
                 "solver_status": "CANCELLED",
                 "lp_status": "",
                 "objective": "",
+                "runtime": time_str,
+                "runtime_seconds": f"{elapsed_time:.1f}" if elapsed_time else "",
                 "matrix_min": "",
                 "matrix_max": "",
                 "dir": str(run_dirs[profile_name]),
@@ -1088,12 +1102,16 @@ def scan(
             }
         except Exception as e:
             console.print(f"[red]Error running profile {profile_name}: {e}[/red]")
+            elapsed_time = monitor.runs[profile_name].get_elapsed_time()
+            time_str = monitor.runs[profile_name].format_elapsed() if elapsed_time else ""
             results[profile_name] = {
                 "profile": profile_name,
                 "model_status": "ERROR",
                 "solver_status": str(e),
                 "lp_status": "",
                 "objective": "",
+                "runtime": time_str,
+                "runtime_seconds": f"{elapsed_time:.1f}" if elapsed_time else "",
                 "matrix_min": "",
                 "matrix_max": "",
                 "dir": str(run_dirs[profile_name]),
@@ -1228,6 +1246,8 @@ def scan(
                             "solver_status": "CANCELLED",
                             "lp_status": "",
                             "objective": "",
+                            "runtime": "",
+                            "runtime_seconds": "",
                             "matrix_min": "",
                             "matrix_max": "",
                             "dir": str(run_dirs[p]),
@@ -1252,6 +1272,7 @@ def scan(
         "solver_status",
         "lp_status",
         "objective",
+        "runtime",
         "matrix_min",
         "matrix_max",
     ]:
@@ -1266,6 +1287,7 @@ def scan(
                     "solver_status",
                     "lp_status",
                     "objective",
+                    "runtime",
                     "matrix_min",
                     "matrix_max",
                 ]

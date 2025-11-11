@@ -1,6 +1,7 @@
 """Multi-run progress monitoring for parallel GAMS execution."""
 
 import threading
+import time
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from enum import Enum
@@ -40,6 +41,8 @@ class RunProgress:
     tracker: cplex_progress.BarrierProgressTracker = field(
         default_factory=cplex_progress.BarrierProgressTracker
     )
+    start_time: float | None = None
+    end_time: float | None = None
 
     def format_progress(self) -> str:
         """Format progress percentage for display."""
@@ -62,6 +65,24 @@ class RunProgress:
             parts.append(f"P={self.primal_infeas:.2e}")
             parts.append(f"D={self.dual_infeas:.2e}")
         return " ".join(parts) if parts else "–"
+
+    def get_elapsed_time(self) -> float | None:
+        """Get elapsed time in seconds (if started)."""
+        if self.start_time is None:
+            return None
+        end = self.end_time if self.end_time is not None else time.monotonic()
+        return end - self.start_time
+
+    def format_elapsed(self) -> str:
+        """Format elapsed time for display."""
+        elapsed = self.get_elapsed_time()
+        if elapsed is None:
+            return "–"
+        if elapsed < 60:
+            return f"{int(elapsed)}s"
+        mins = int(elapsed // 60)
+        secs = int(elapsed % 60)
+        return f"{mins}m{secs:02d}s"
 
 
 class MultiRunProgressMonitor:
@@ -93,9 +114,19 @@ class MultiRunProgressMonitor:
         """Update the status of a run."""
         with self.lock:
             if run_name in self.runs:
-                self.runs[run_name].status = status
+                run = self.runs[run_name]
+                run.status = status
                 if error_msg:
-                    self.runs[run_name].error_msg = error_msg
+                    run.error_msg = error_msg
+
+                # Track timing
+                if status == RunStatus.RUNNING and run.start_time is None:
+                    run.start_time = time.monotonic()
+                elif (
+                    status in (RunStatus.COMPLETED, RunStatus.FAILED, RunStatus.CANCELLED)
+                    and run.end_time is None
+                ):
+                    run.end_time = time.monotonic()
 
     def update_cplex_progress(self, run_name: str, parsed: dict[str, Any]) -> None:
         """
@@ -142,6 +173,7 @@ class MultiRunProgressMonitor:
         table.add_column("Phase", style="magenta")
         table.add_column("Progress", justify="right", style="green")
         table.add_column("Iteration", justify="right")
+        table.add_column("Time", justify="right", style="blue")
         table.add_column("Details", style="dim")
 
         with self.lock:
@@ -167,6 +199,7 @@ class MultiRunProgressMonitor:
                     run.phase,
                     run.format_progress(),
                     run.format_iteration(),
+                    run.format_elapsed(),
                     details,
                 )
 
