@@ -231,47 +231,60 @@ class TestSolverDiagnosisValidation:
 
 @pytest.mark.llm
 class TestSolverOptionsLLMIntegration:
-    """Integration tests that actually call the LLM (expensive, run manually)."""
+    """Integration tests that actually call the LLM (expensive, run manually).
+
+    To run these tests:
+        export OPENAI_API_KEY=sk-...
+        pytest -m llm -xvs --no-cov
+
+    These tests use gpt-5-nano with minimal reasoning for speed/cost (~$0.01 per test).
+    """
 
     def test_llm_generates_valid_opt_files(self):
-        """Test that LLM actually generates valid opt files with lpmethod."""
+        """Test that LLM actually generates valid opt files with lpmethod.
+
+        NOTE: This test uses GPT-5-nano with minimal reasoning for speed/cost.
+        For production, the actual command uses GPT-5 with high reasoning.
+        """
         import os
 
-        from times_doctor.core.llm import review_solver_options
+        from times_doctor.core.llm import _call_openai_responses_api
+        from times_doctor.core.prompts import build_solver_options_review_prompt
+        from times_doctor.core.solver_models import SolverDiagnosis
 
         # Skip if no API key
         if not os.getenv("OPENAI_API_KEY"):
             pytest.skip("OPENAI_API_KEY not set")
 
-        # Minimal test inputs
+        # Build the prompt
         qa_check = "No major issues found."
         run_log = "Solver stopped at FEASIBLE."
         lst_content = "Matrix range: 1e-6 to 1e6"
         cplex_opt = "* Default CPLEX options"
 
-        # Call LLM (expensive! Uses GPT-5 with high reasoning)
-        result = review_solver_options(
-            qa_check,
-            run_log,
-            lst_content,
-            cplex_opt,
-            provider="openai",
+        instructions, input_data = build_solver_options_review_prompt(
+            qa_check, run_log, lst_content, cplex_opt
         )
 
-        assert result.used, "LLM should have been called"
-        assert result.text, "LLM should return output"
+        # Call LLM with fast/cheap settings for testing
+        # Using gpt-5-nano with minimal reasoning (much faster than gpt-5 high)
+        result, meta = _call_openai_responses_api(
+            input_data,
+            model="gpt-5-nano",
+            reasoning_effort="minimal",
+            instructions=instructions,
+            text_format=SolverDiagnosis,
+            use_cache=True,
+        )
 
-        # Parse structured output
-        if hasattr(result, "structured") and result.structured:
-            diagnosis = result.structured
+        assert result, "LLM should return result"
+        assert isinstance(result, SolverDiagnosis), "Should return structured SolverDiagnosis"
 
-            # Validate all opt files
-            validator = TestSolverDiagnosisValidation()
-            all_errors = []
-            for config in diagnosis.opt_configurations:
-                errors = validator.validate_opt_file_config(config)
-                all_errors.extend(errors)
+        # Validate all opt files
+        validator = TestSolverDiagnosisValidation()
+        all_errors = []
+        for config in result.opt_configurations:
+            errors = validator.validate_opt_file_config(config)
+            all_errors.extend(errors)
 
-            assert len(all_errors) == 0, "LLM generated invalid opt files:\n" + "\n".join(
-                all_errors
-            )
+        assert len(all_errors) == 0, "LLM generated invalid opt files:\n" + "\n".join(all_errors)
