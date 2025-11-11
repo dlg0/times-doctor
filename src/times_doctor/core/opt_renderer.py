@@ -64,9 +64,10 @@ def render_opt_lines(
     """
     lines = []
 
-    # Add description as comment
+    # Add description as comment header
     if config.description:
         lines.append(f"* {config.description}")
+        lines.append("*")
 
     # Build dict of LLM-provided parameters (case-insensitive)
     llm_params: dict[str, OptParameter] = {}
@@ -114,14 +115,17 @@ def render_opt_lines(
                     f"overriding to {req_value} (from original run)"
                 )
 
-        lines.append(f"{req_param.name} {req_param.value}  $ {req_param.reason}")
+        # Add parameter comment on its own line, then the parameter value
+        lines.append(f"* {req_param.reason}")
+        lines.append(f"{req_param.name} {req_param.value}")
 
     # Add remaining LLM parameters (excluding the ones we already handled)
     required_keys = {p.name.lower() for p in required_params}
-    lines.extend(
-        f"{param.name} {param.value}  $ {param.reason}"
-        for param in config.parameters
-        if param.name.strip().lower() not in required_keys
-    )
+    for param in config.parameters:
+        key = param.name.strip().lower()
+        if key not in required_keys:
+            # Add parameter comment on its own line, then the parameter value
+            lines.append(f"* {param.reason}")
+            lines.append(f"{param.name} {param.value}")
 
     return lines

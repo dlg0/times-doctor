@@ -76,11 +76,21 @@ class TestRenderOptLines:
 
         lines = render_opt_lines(config, base_algorithm, warn_on_override=False)
 
+        # Check header
         assert "* Tighter tolerances" in lines
-        assert "lpmethod 4  $ Use barrier algorithm" in lines
-        assert "solutiontype 2  $ Barrier without crossover" in lines
-        assert "epopt 1e-8  $ Tight optimality" in lines
-        assert "eprhs 1e-8  $ Tight feasibility" in lines
+        assert "*" in lines
+
+        # Check algorithm parameters (comment + value on separate lines)
+        assert "* Use barrier algorithm" in lines
+        assert "lpmethod 4" in lines
+        assert "* Barrier without crossover" in lines
+        assert "solutiontype 2" in lines
+
+        # Check other parameters
+        assert "* Tight optimality" in lines
+        assert "epopt 1e-8" in lines
+        assert "* Tight feasibility" in lines
+        assert "eprhs 1e-8" in lines
 
     def test_preserve_order_algorithm_first(self):
         """Ensure algorithm parameters come before other parameters."""
@@ -96,10 +106,12 @@ class TestRenderOptLines:
 
         lines = render_opt_lines(config, base_algorithm)
 
-        # Find indices
-        lpmethod_idx = next(i for i, line in enumerate(lines) if "lpmethod" in line)
-        solutiontype_idx = next(i for i, line in enumerate(lines) if "solutiontype" in line)
-        epopt_idx = next(i for i, line in enumerate(lines) if "epopt" in line)
+        # Find indices (only count actual parameter lines, not comments)
+        lpmethod_idx = next(i for i, line in enumerate(lines) if line.startswith("lpmethod"))
+        solutiontype_idx = next(
+            i for i, line in enumerate(lines) if line.startswith("solutiontype")
+        )
+        epopt_idx = next(i for i, line in enumerate(lines) if line.startswith("epopt"))
 
         assert lpmethod_idx < epopt_idx
         assert solutiontype_idx < epopt_idx
@@ -120,13 +132,15 @@ class TestRenderOptLines:
         lines = render_opt_lines(config, base_algorithm, warn_on_override=False)
 
         # Should use base algorithm values, not LLM values
-        assert "lpmethod 4  $ Use barrier algorithm" in lines
-        assert "solutiontype 2  $ Barrier without crossover" in lines
-        # Should not duplicate lpmethod/solutiontype
-        assert sum(1 for line in lines if "lpmethod" in line) == 1
-        assert sum(1 for line in lines if "solutiontype" in line) == 1
+        assert "lpmethod 4" in lines
+        assert "solutiontype 2" in lines
+
+        # Should not duplicate lpmethod/solutiontype (only one non-comment line each)
+        assert sum(1 for line in lines if line.startswith("lpmethod")) == 1
+        assert sum(1 for line in lines if line.startswith("solutiontype")) == 1
+
         # Other params should still be there
-        assert "epopt 1e-7  $ Tolerance" in lines
+        assert "epopt 1e-7" in lines
 
     def test_case_insensitive_deduplication(self):
         """Deduplicate parameters case-insensitively."""
@@ -142,8 +156,8 @@ class TestRenderOptLines:
 
         lines = render_opt_lines(config, base_algorithm)
 
-        # Should only have one lpmethod line (not case-sensitive duplicate)
-        lpmethod_lines = [line for line in lines if "lpmethod" in line.lower()]
+        # Should only have one lpmethod parameter line (not case-sensitive duplicate)
+        lpmethod_lines = [line for line in lines if line.lower().startswith("lpmethod")]
         assert len(lpmethod_lines) == 1
 
     def test_preserve_llm_matching_values(self):
@@ -162,8 +176,8 @@ class TestRenderOptLines:
         lines = render_opt_lines(config, base_algorithm)
 
         # Should still inject at top, no duplicates
-        assert sum(1 for line in lines if "lpmethod" in line.lower()) == 1
-        assert sum(1 for line in lines if "solutiontype" in line.lower()) == 1
+        assert sum(1 for line in lines if line.lower().startswith("lpmethod")) == 1
+        assert sum(1 for line in lines if line.lower().startswith("solutiontype")) == 1
 
     def test_handle_empty_base_algorithm(self):
         """Handle case where base algorithm extraction failed."""
@@ -180,10 +194,12 @@ class TestRenderOptLines:
 
         # Should only have description and the parameter from LLM
         assert "* Test" in lines
-        assert "epopt 1e-7  $ Tolerance" in lines
-        # Should not have empty lpmethod/solutiontype lines
-        assert not any("lpmethod" in line for line in lines)
-        assert not any("solutiontype" in line for line in lines)
+        assert "* Tolerance" in lines
+        assert "epopt 1e-7" in lines
+
+        # Should not have lpmethod/solutiontype parameter lines
+        assert not any(line.startswith("lpmethod") for line in lines)
+        assert not any(line.startswith("solutiontype") for line in lines)
 
     def test_preserve_non_barrier_algorithm(self):
         """Preserve non-barrier algorithms from original run."""
@@ -200,5 +216,7 @@ class TestRenderOptLines:
         lines = render_opt_lines(config, base_algorithm)
 
         # Should preserve original algorithm (not force barrier)
-        assert "lpmethod 2  $ Solver algorithm (from original run)" in lines
-        assert "solutiontype 1  $ Solution type (from original run)" in lines
+        assert "* Solver algorithm (from original run)" in lines
+        assert "lpmethod 2" in lines
+        assert "* Solution type (from original run)" in lines
+        assert "solutiontype 1" in lines
