@@ -237,14 +237,16 @@ class TestSolverOptionsLLMIntegration:
         export OPENAI_API_KEY=sk-...
         pytest -m llm -xvs --no-cov
 
-    These tests use gpt-5-nano with minimal reasoning for speed/cost (~$0.01 per test).
+    These tests use gpt-5 with low reasoning for balance (~30s, ~$0.05 per test).
     """
 
     def test_llm_generates_valid_opt_files(self):
         """Test that LLM actually generates valid opt files with lpmethod.
 
-        NOTE: This test uses GPT-5-nano with minimal reasoning for speed/cost.
-        For production, the actual command uses GPT-5 with high reasoning.
+        NOTE: This test uses GPT-5 with low reasoning for balance of speed/cost/quality.
+        - gpt-5-nano was too weak to follow structured output requirements reliably
+        - gpt-5 low: ~30s, ~$0.05 per test
+        - Production uses gpt-5 high: ~5min, ~$0.50 per run
         """
         import os
 
@@ -266,12 +268,12 @@ class TestSolverOptionsLLMIntegration:
             qa_check, run_log, lst_content, cplex_opt
         )
 
-        # Call LLM with fast/cheap settings for testing
-        # Using gpt-5-nano with minimal reasoning (much faster than gpt-5 high)
+        # Call LLM with moderate settings for testing
+        # Using gpt-5 with low reasoning (faster/cheaper than high, but reliable)
         result, meta = _call_openai_responses_api(
             input_data,
-            model="gpt-5-nano",
-            reasoning_effort="minimal",
+            model="gpt-5",
+            reasoning_effort="low",
             instructions=instructions,
             text_format=SolverDiagnosis,
             use_cache=True,
