@@ -1,6 +1,6 @@
 [project]
 name = "times-doctor"
-version = "0.9.9"
+version = "0.9.10"
 description = "Diagnose and scan failed TIMES/Veda runs; optional LLM advice"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -25,7 +25,7 @@ classifiers = [
 
 dependencies = [
   "typer",
-  "rich",
+  "rich>=13.0.0",
   "python-dotenv",
   "httpx",
   "psutil",

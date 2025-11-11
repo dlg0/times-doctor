@@ -19,10 +19,15 @@ Review the provided run files (QA_CHECK.LOG, run log, and LST file) and the curr
 
 ## Important Constraints
 
-**DO NOT suggest changing the solve algorithm**:
-- This model uses **barrier method without crossover** (lpmethod 4, solutiontype 2) for speed on large LPs
-- Keep this algorithm - focus on tuning tolerances and other parameters within barrier method
-- Barrier without crossover is the standard for large TIMES models and should not be changed unless absolutely necessary
+**Algorithm Settings**:
+- This model should use **barrier method without crossover** (lpmethod 4, solutiontype 2) for speed on large LPs
+- **EVERY .opt file MUST include these two lines**:
+  ```
+  lpmethod 4        $ Use barrier algorithm
+  solutiontype 2    $ Barrier without crossover
+  ```
+- Focus on tuning tolerances and other parameters within the barrier method
+- Barrier without crossover is the standard for large TIMES models
 
 ## What to Focus On
 
@@ -110,11 +115,15 @@ parameter_name value  $ reason for this setting
 
 Example:
 ===OPT_FILE: baseline_tighter.opt
+lpmethod 4       $ Use barrier algorithm
+solutiontype 2   $ Barrier without crossover
 epopt 1e-7       $ Slightly tighter than default 1e-6
 eprhs 1e-7       $ Match feasibility tolerance to epopt
 ===END_OPT_FILE
 
 ===OPT_FILE: tight_tolerances.opt
+lpmethod 4       $ Use barrier algorithm
+solutiontype 2   $ Barrier without crossover
 epopt 1e-8       $ Very tight optimality tolerance
 eprhs 1e-8       $ Very tight feasibility tolerance
 barepcomp 1e-10  $ Very tight barrier convergence

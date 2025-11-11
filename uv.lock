@@ -825,7 +825,7 @@ wheels = [
 
 [[package]]
 name = "times-doctor"
-version = "0.9.8"
+version = "0.9.9"
 source = { editable = "." }
 dependencies = [
     { name = "httpx" },
@@ -870,7 +870,7 @@ requires-dist = [
     { name = "pytest-mock", marker = "extra == 'dev'", specifier = ">=3.10" },
     { name = "python-dotenv" },
     { name = "respx", marker = "extra == 'dev'", specifier = ">=0.21.0" },
-    { name = "rich" },
+    { name = "rich", specifier = ">=13.0.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.8.0" },
     { name = "typer" },
 ]
