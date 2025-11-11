@@ -1,6 +1,7 @@
 """Multi-run progress monitoring for parallel GAMS execution."""
 
 import threading
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
@@ -20,6 +21,7 @@ class RunStatus(Enum):
     RUNNING = "running"
     COMPLETED = "completed"
     FAILED = "failed"
+    CANCELLED = "cancelled"
 
 
 @dataclass
@@ -151,6 +153,7 @@ class MultiRunProgressMonitor:
                     RunStatus.RUNNING: "green",
                     RunStatus.COMPLETED: "bold green",
                     RunStatus.FAILED: "bold red",
+                    RunStatus.CANCELLED: "bold yellow",
                 }[run.status]
 
                 status_text = f"[{status_style}]{run.status.value}[/{status_style}]"
@@ -186,6 +189,15 @@ class MultiRunProgressMonitor:
         if self.live:
             self.live.update(self.get_table())
 
+    @contextmanager
+    def pause_display(self):
+        """Pause the live display for interactive input."""
+        if self.live:
+            with self.live.pause():
+                yield
+        else:
+            yield
+
     def __enter__(self):
         """Context manager entry."""
         self.start_live_display()
@@ -197,10 +209,11 @@ class MultiRunProgressMonitor:
         return False
 
     def all_completed(self) -> bool:
-        """Check if all runs are completed or failed."""
+        """Check if all runs are completed, failed, or cancelled."""
         with self.lock:
             return all(
-                run.status in (RunStatus.COMPLETED, RunStatus.FAILED) for run in self.runs.values()
+                run.status in (RunStatus.COMPLETED, RunStatus.FAILED, RunStatus.CANCELLED)
+                for run in self.runs.values()
             )
 
     def get_summary(self) -> dict[str, int]:
@@ -213,6 +226,7 @@ class MultiRunProgressMonitor:
                 "running": 0,
                 "completed": 0,
                 "failed": 0,
+                "cancelled": 0,
             }
             for run in self.runs.values():
                 summary[run.status.value] += 1

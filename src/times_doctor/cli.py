@@ -7,6 +7,7 @@ import shutil
 import signal
 import stat
 import subprocess
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
@@ -28,6 +29,7 @@ from .multi_run_progress import MultiRunProgressMonitor, RunStatus
 
 if TYPE_CHECKING:
     from .core.solver_models import SolverDiagnosis
+    from .job_control import JobRegistry
 
 app = typer.Typer(add_completion=False)
 console = Console()
@@ -230,7 +232,7 @@ def _render_solver_diagnosis(
     )
 
     # 2) Action plan panel
-    steps = "\n".join(f"{i+1}. {step}" for i, step in enumerate(diagnosis.action_plan))
+    steps = "\n".join(f"{i + 1}. {step}" for i, step in enumerate(diagnosis.action_plan))
     console.print(
         Panel(
             Text(steps),
@@ -266,6 +268,8 @@ def run_gams_with_progress(
     monitor: MultiRunProgressMonitor | None = None,
     run_name: str | None = None,
     timeout_seconds: int | None = None,
+    cancel_event: threading.Event | None = None,
+    job_registry: "JobRegistry | None" = None,
 ) -> int:
     """
     Run GAMS subprocess with robust error handling and live output monitoring.
@@ -323,9 +327,26 @@ def run_gams_with_progress(
     log_files_before = set(cwd_path.glob("*_run_log.txt"))
 
     try:
+        from .job_control import create_process_group_kwargs
+
+        # Create process in its own group for clean cancellation
+        pg_kwargs = create_process_group_kwargs()
+
         proc = subprocess.Popen(
-            cmd, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=False, bufsize=0
+            cmd,
+            cwd=cwd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=False,
+            bufsize=0,
+            **pg_kwargs,
         )
+
+        # Register process with job registry if provided
+        if job_registry and run_name:
+            job_registry.attach_popen(run_name, proc)
+            job_registry.set_status(run_name, "running")
+
         if not use_monitor:
             console.print(f"[dim]GAMS process started (PID: {proc.pid})[/dim]")
     except FileNotFoundError:
@@ -410,6 +431,21 @@ def run_gams_with_progress(
 
         try:
             while proc.poll() is None:
+                # Check for cancellation
+                if cancel_event and cancel_event.is_set():
+                    if use_monitor and monitor and run_name:
+                        monitor.update_status(run_name, RunStatus.CANCELLED)
+                    else:
+                        console.print("[yellow]Run cancelled. Terminating...[/yellow]")
+                    if job_registry and run_name:
+                        job_registry.set_status(run_name, "cancelled")
+                    proc.terminate()
+                    try:
+                        proc.wait(timeout=3)
+                    except subprocess.TimeoutExpired:
+                        proc.kill()
+                    raise KeyboardInterrupt("Job cancelled")
+
                 # Check timeout
                 if timeout_seconds and (time.monotonic() - start_time) > timeout_seconds:
                     timed_out = True
@@ -418,6 +454,8 @@ def run_gams_with_progress(
                         monitor.update_status(run_name, RunStatus.FAILED, timeout_msg)
                     else:
                         console.print(f"[yellow]Run {timeout_msg}. Terminating...[/yellow]")
+                    if job_registry and run_name:
+                        job_registry.set_status(run_name, "failed")
                     proc.terminate()
                     try:
                         proc.wait(timeout=3)
@@ -551,10 +589,17 @@ def run_gams_with_progress(
 
         # Update final status in monitor mode
         if use_monitor and not timed_out and monitor and run_name:
-            if proc.returncode == 0:
+            # Check if already marked as cancelled
+            if cancel_event and cancel_event.is_set():
+                pass  # Already set to CANCELLED above
+            elif proc.returncode == 0:
                 monitor.update_status(run_name, RunStatus.COMPLETED)
+                if job_registry and run_name:
+                    job_registry.set_status(run_name, "completed")
             else:
                 monitor.update_status(run_name, RunStatus.FAILED, f"Exit code: {proc.returncode}")
+                if job_registry and run_name:
+                    job_registry.set_status(run_name, "failed")
 
     reader.join(timeout=1)
 
@@ -960,6 +1005,8 @@ def scan(
         monitor: MultiRunProgressMonitor,
         results: dict[str, dict[str, str]],
         timeout_sec: int | None = None,
+        cancel_event: threading.Event | None = None,
+        registry: "JobRegistry | None" = None,
     ) -> None:
         """Run a single profile and store results."""
         try:
@@ -989,6 +1036,8 @@ def scan(
                 monitor=monitor,
                 run_name=profile_name,
                 timeout_seconds=timeout_sec,
+                cancel_event=cancel_event,
+                job_registry=registry,
             )
 
             # Parse results
@@ -1025,6 +1074,18 @@ def scan(
                 "dir": str(run_dirs[profile_name]),
                 "lst": "",
             }
+        except KeyboardInterrupt:
+            results[profile_name] = {
+                "profile": profile_name,
+                "model_status": "CANCELLED",
+                "solver_status": "CANCELLED",
+                "lp_status": "",
+                "objective": "",
+                "matrix_min": "",
+                "matrix_max": "",
+                "dir": str(run_dirs[profile_name]),
+                "lst": "",
+            }
         except Exception as e:
             console.print(f"[red]Error running profile {profile_name}: {e}[/red]")
             results[profile_name] = {
@@ -1039,6 +1100,11 @@ def scan(
                 "lst": "",
             }
 
+    # Create job registry for cancellation support
+    from .job_control import JobRegistry
+
+    job_registry = JobRegistry(state_path=scan_root / "scan_state.json")
+
     # Create monitor for tracking all profiles
     mode_str = "parallel" if parallel else "sequential"
     worker_info = f" (max {workers} concurrent)" if parallel else ""
@@ -1046,26 +1112,134 @@ def scan(
         f"[cyan]Running {len(profiles)} profiles in {mode_str} mode{worker_info}...[/cyan]"
     )
 
+    # Install SIGINT handler for interactive cancellation
+    prev_handler = signal.getsignal(signal.SIGINT)
+    menu_open = threading.Event()
+
+    def show_cancel_menu(signum, frame):
+        """Handle Ctrl+C to show cancellation menu."""
+        if menu_open.is_set():
+            # Double Ctrl+C: cancel all and abort
+            console.print("\n[bold red]Double Ctrl+C detected - cancelling all jobs...[/bold red]")
+            job_registry.cancel_all()
+            raise typer.Exit(130)
+
+        menu_open.set()
+        try:
+            with monitor.pause_display():
+                console.print("\n[bold yellow]═══ Cancel Menu ═══[/bold yellow]")
+                console.print("1) Cancel specific runs (enter names/numbers)")
+                console.print("2) Cancel all running jobs")
+                console.print("3) Abort scan (cancel all and exit)")
+                console.print("4) Resume (continue)")
+                console.print("\n[dim]Press Ctrl+C again to immediately cancel all and abort[/dim]")
+
+                choice = typer.prompt("Select option", default="4", show_default=False)
+
+                if choice == "1":
+                    # Show list of jobs
+                    running = job_registry.get_running_jobs()
+                    if not running:
+                        console.print("[yellow]No jobs currently running[/yellow]")
+                    else:
+                        console.print("\n[bold]Running jobs:[/bold]")
+                        for i, name in enumerate(running, 1):
+                            console.print(f"  {i}. {name}")
+                        selection = typer.prompt(
+                            "Enter job names or numbers (comma-separated)", default=""
+                        )
+                        if selection.strip():
+                            # Parse selection
+                            targets = []
+                            for item in selection.split(","):
+                                item = item.strip()
+                                if item.isdigit():
+                                    idx = int(item) - 1
+                                    if 0 <= idx < len(running):
+                                        targets.append(running[idx])
+                                else:
+                                    if item in running:
+                                        targets.append(item)
+                            # Cancel selected
+                            for name in targets:
+                                console.print(f"[yellow]Cancelling {name}...[/yellow]")
+                                job_registry.cancel(name)
+                                monitor.update_status(name, RunStatus.CANCELLED)
+
+                elif choice == "2":
+                    console.print("[yellow]Cancelling all running jobs...[/yellow]")
+                    job_registry.cancel_all()
+                    for name in profiles:
+                        if job_registry.get_cancel_event(name).is_set():
+                            monitor.update_status(name, RunStatus.CANCELLED)
+
+                elif choice == "3":
+                    console.print("[yellow]Aborting scan...[/yellow]")
+                    job_registry.cancel_all()
+                    for name in profiles:
+                        monitor.update_status(name, RunStatus.CANCELLED)
+                    raise typer.Exit(130)
+
+        finally:
+            menu_open.clear()
+
+    signal.signal(signal.SIGINT, show_cancel_menu)
+
     with MultiRunProgressMonitor(list(profiles), title="Scan Progress") as monitor:
         results: dict[str, dict[str, str]] = {}  # Thread-safe dict to collect results
 
-        if parallel:
-            # Parallel execution with ThreadPoolExecutor
-            with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="scan") as executor:
-                future_map = {
-                    executor.submit(run_profile, p, monitor, results, timeout_seconds): p
-                    for p in profiles
-                }
-                for future in as_completed(future_map):
-                    profile_name = future_map[future]
-                    try:
-                        future.result()
-                    except Exception as e:
-                        console.print(f"[red]Worker failed for {profile_name}: {e}[/red]")
-        else:
-            # Sequential execution
-            for p in profiles:
-                run_profile(p, monitor, results, timeout_seconds)
+        # Register all jobs
+        cancel_events = {p: job_registry.register(p) for p in profiles}
+
+        try:
+            if parallel:
+                # Parallel execution with ThreadPoolExecutor
+                with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="scan") as executor:
+                    future_map = {
+                        executor.submit(
+                            run_profile,
+                            p,
+                            monitor,
+                            results,
+                            timeout_seconds,
+                            cancel_events[p],
+                            job_registry,
+                        ): p
+                        for p in profiles
+                    }
+                    for future in as_completed(future_map):
+                        profile_name = future_map[future]
+                        try:
+                            future.result()
+                        except KeyboardInterrupt:
+                            # Job was cancelled
+                            pass
+                        except Exception as e:
+                            console.print(f"[red]Worker failed for {profile_name}: {e}[/red]")
+            else:
+                # Sequential execution
+                for p in profiles:
+                    # Check if cancelled before starting
+                    if cancel_events[p].is_set():
+                        monitor.update_status(p, RunStatus.CANCELLED)
+                        results[p] = {
+                            "profile": p,
+                            "model_status": "CANCELLED",
+                            "solver_status": "CANCELLED",
+                            "lp_status": "",
+                            "objective": "",
+                            "matrix_min": "",
+                            "matrix_max": "",
+                            "dir": str(run_dirs[p]),
+                            "lst": "",
+                        }
+                        continue
+                    run_profile(
+                        p, monitor, results, timeout_seconds, cancel_events[p], job_registry
+                    )
+        finally:
+            # Restore signal handler
+            signal.signal(signal.SIGINT, prev_handler)
 
         # Convert results dict to rows list (preserve profile order)
         rows = [results[p] for p in profiles if p in results]
