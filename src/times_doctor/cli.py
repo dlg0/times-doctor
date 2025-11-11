@@ -490,12 +490,14 @@ def run_gams_with_progress(
                             with open(current_log_file, encoding="utf-8", errors="ignore") as f:
                                 new_content = f.readlines()
                                 if len(new_content) > len(log_file_lines):
+                                    # Get new lines before updating log_file_lines
+                                    old_len = len(log_file_lines)
                                     log_file_lines = new_content
                                     # Show last N non-empty lines
                                     lines = [l.rstrip() for l in new_content if l.strip()]
 
                                     # Check for CPLEX progress in new lines
-                                    for new_line in new_content[len(log_file_lines) :]:
+                                    for new_line in new_content[old_len:]:
                                         parsed = cplex_progress.parse_cplex_line(new_line)
                                         if parsed:
                                             if use_monitor and monitor and run_name:
