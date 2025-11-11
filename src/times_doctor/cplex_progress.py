@@ -92,8 +92,8 @@ def parse_cplex_line(line: str) -> dict[str, Any] | None:
     if dinf_match:
         result["dual_infeas"] = float(dinf_match.group(1))
 
-    # Check for simplex
-    if not result.get("phase") and RE_SIMPLEX.search(line):
+    # Check for simplex (only if no mu found - mu is barrier-specific)
+    if not result.get("phase") and not mu_match and RE_SIMPLEX.search(line):
         result["phase"] = "simplex"
 
     return result if result else None

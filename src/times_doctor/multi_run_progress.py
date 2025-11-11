@@ -141,7 +141,11 @@ class MultiRunProgressMonitor:
                 return
 
             run = self.runs[run_name]
-            run.status = RunStatus.RUNNING
+            # Set status to RUNNING and track timing
+            if run.status != RunStatus.RUNNING:
+                run.status = RunStatus.RUNNING
+                if run.start_time is None:
+                    run.start_time = time.monotonic()
 
             # Update phase
             if "phase" in parsed:
