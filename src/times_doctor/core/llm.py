@@ -2059,7 +2059,8 @@ def review_solver_options(
     qa_check: str,
     run_log: str,
     lst_content: str,
-    cplex_opt: str,
+    opt_content: str,
+    solver: str = "cplex",
     provider: str = "auto",
     model: str = "",
     stream_callback: Callable[[str], None] | None = None,
@@ -2070,7 +2071,7 @@ def review_solver_options(
     from .solver_models import SolverDiagnosis
 
     instructions, input_data = build_solver_options_review_prompt(
-        qa_check, run_log, lst_content, cplex_opt
+        qa_check, run_log, lst_content, opt_content, solver
     )
 
     def done(

@@ -12,7 +12,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import typer
 from rich import print
@@ -21,7 +21,7 @@ from rich.live import Live
 from rich.table import Table
 from rich.text import Text
 
-from . import __version__, cplex_progress
+from . import __version__, cplex_progress, gurobi_progress
 from . import logger as log
 from .core import llm as llm_mod
 from .core.cost_estimator import estimate_cost, estimate_tokens
@@ -117,6 +117,78 @@ def remove_tree_robust(
     except Exception as e:
         console.print(f"[red]Failed to delete or rename {path.name}: {e}[/red]")
         return False
+
+
+def write_default_opt(solver: str, path: Path, threads: int = 7) -> None:
+    """
+    Write default solver .opt file with conservative settings.
+
+    Args:
+        solver: Solver type ('cplex' or 'gurobi')
+        path: Path to write .opt file
+        threads: Number of threads for solver to use
+    """
+    lines = []
+    if solver == "cplex":
+        lines = [
+            "names yes",
+            f"threads {threads}",
+            "lpmethod 2",
+            "solutiontype 1",
+            "eprhs 1.0e-06",
+            "epopt 1.0e-06",
+            "scaind -1",
+            "aggind 1",
+            "simdisplay 2",
+        ]
+    elif solver == "gurobi":
+        lines = [
+            f"Threads {threads}",
+            "Method 1",
+            "Crossover 1",
+            "FeasibilityTol 1e-06",
+            "OptimalityTol 1e-06",
+            "NumericFocus 1",
+        ]
+
+    path.write_text("\n".join(lines) + "\n")
+
+
+def resolve_opt_file(run_dir: Path, solver: str, opt_file: str | None) -> Path | None:
+    """
+    Resolve .opt file from various sources.
+
+    Args:
+        run_dir: Run directory to search in
+        solver: Solver type ('cplex' or 'gurobi')
+        opt_file: Optional path or name to resolve
+
+    Returns:
+        Path to .opt file, or None if not found
+    """
+    # If explicit path provided
+    if opt_file:
+        opt_path = Path(opt_file)
+        if opt_path.exists():
+            return opt_path
+
+        # Try as a name in _td_opt_files/<solver>/
+        opt_files_dir = run_dir / "_td_opt_files" / solver
+        if opt_files_dir.exists():
+            candidate = (
+                opt_files_dir / f"{opt_file}.opt"
+                if not opt_file.endswith(".opt")
+                else opt_files_dir / opt_file
+            )
+            if candidate.exists():
+                return candidate
+
+    # Look for existing solver.opt in run_dir
+    existing = run_dir / f"{solver}.opt"
+    if existing.exists():
+        return existing
+
+    return None
 
 
 def detect_times_version(lst_path: Path | None) -> str | None:
@@ -270,6 +342,8 @@ def run_gams_with_progress(
     timeout_seconds: int | None = None,
     cancel_event: threading.Event | None = None,
     job_registry: "JobRegistry | None" = None,
+    parse_line_func: Any | None = None,
+    progress_tracker: Any | None = None,
 ) -> int:
     """
     Run GAMS subprocess with robust error handling and live output monitoring.
@@ -294,6 +368,8 @@ def run_gams_with_progress(
         monitor: Optional MultiRunProgressMonitor for coordinated display
         run_name: Name of this run (required if monitor is provided)
         timeout_seconds: Optional timeout in seconds (prevents hangs)
+        parse_line_func: Optional solver-specific line parser (defaults to CPLEX)
+        progress_tracker: Optional solver-specific progress tracker (defaults to CPLEX)
 
     Returns:
         GAMS exit code (0 = success)
@@ -387,8 +463,11 @@ def run_gams_with_progress(
     current_log_file = None
     display_text = Text("Starting GAMS...", style="dim")
 
-    # CPLEX progress tracking
-    progress_tracker = cplex_progress.BarrierProgressTracker()
+    # Solver progress tracking (defaults to CPLEX if not specified)
+    if parse_line_func is None:
+        parse_line_func = cplex_progress.parse_cplex_line
+    if progress_tracker is None:
+        progress_tracker = cplex_progress.BarrierProgressTracker()
 
     def read_output():
         for line in iter(proc.stdout.readline, b""):
@@ -502,9 +581,9 @@ def run_gams_with_progress(
                                     # Show last N non-empty lines
                                     lines = [l.rstrip() for l in new_content if l.strip()]
 
-                                    # Check for CPLEX progress in new lines
+                                    # Check for solver progress in new lines
                                     for new_line in new_content[old_len:]:
-                                        parsed = cplex_progress.parse_cplex_line(new_line)
+                                        parsed = parse_line_func(new_line)
                                         if parsed:
                                             if use_monitor and monitor and run_name:
                                                 # Report to monitor
@@ -523,7 +602,7 @@ def run_gams_with_progress(
                     if lines:
                         display_lines = lines[-max_lines:]
 
-                        # Add CPLEX progress line at the top if we have one
+                        # Add solver progress line at the top if we have one
                         if nonlocal_progress_line[0]:
                             display_lines = [
                                 f"[bold cyan]{nonlocal_progress_line[0]}[/bold cyan]",
@@ -830,12 +909,158 @@ def datacheck(
 
 
 @app.command()
-def scan(
+def rerun(
     run_dir: str,
+    solver: str = typer.Option("cplex", "--solver", help="Solver to use: cplex|gurobi"),
+    opt_file: str | None = typer.Option(
+        None, "--opt-file", help="Path or name of .opt file to use"
+    ),
+    threads: int = typer.Option(
+        7, help="Number of threads for solver to use (used in default .opt)"
+    ),
     gams_path: str | None = typer.Option(
         None, "--gams-path", help="Path to gams.exe (defaults to 'gams' in PATH)"
     ),
-    threads: int = typer.Option(7, help="Number of threads for CPLEX to use"),
+    label: str | None = typer.Option(None, "--label", help="Optional label for rerun directory"),
+) -> None:
+    """
+    Rerun model with chosen solver and options.
+
+    Creates '_td_rerun/<solver>/<label-or-timestamp>' directory, copies your run,
+    and runs GAMS with the specified solver.
+
+    If --opt-file is provided, uses that configuration.
+    Otherwise writes default solver options.
+
+    After rerun completes, you can run 'review-solver-options' to generate
+    alternative configurations, then use 'scan' to test them all.
+
+    \b
+    Example:
+      times-doctor rerun data/065Nov25-annualupto2045/parscen --solver gurobi
+      times-doctor rerun data/065Nov25-annualupto2045/parscen --solver cplex --opt-file tight_tolerances
+
+    \b
+    Created directories:
+      <run_dir>/_td_rerun/<solver>/<label>/       - Rerun directory
+      <run_dir>/_td_rerun/<solver>/<label>/*.lst  - Listing with solver output
+    """
+    rd = Path(run_dir).resolve()
+    solver = solver.lower()
+
+    if solver not in ("cplex", "gurobi"):
+        console.print(f"[red]Error: solver must be 'cplex' or 'gurobi', got '{solver}'[/red]")
+        raise typer.Exit(1)
+
+    gams_cmd = gams_path if gams_path else "gams"
+
+    # Detect TIMES version
+    lst = latest_lst(rd)
+    times_version = detect_times_version(lst)
+    times_src = get_times_source(version=times_version)
+
+    pick_driver_gms(rd)
+
+    # Create rerun directory
+    rerun_base = rd / "_td_rerun" / solver
+    rerun_base.mkdir(parents=True, exist_ok=True)
+
+    if label:
+        tmp = rerun_base / label
+    else:
+        ts = datetime.now().strftime("%Y%m%d-%H%M%S")
+        tmp = rerun_base / ts
+
+    if tmp.exists():
+        console.print(f"[yellow]Removing existing rerun directory: {tmp}[/yellow]")
+        remove_tree_robust(tmp)
+
+    console.print(f"[yellow]Creating rerun directory: {tmp}[/yellow]")
+    shutil.copytree(rd, tmp)
+
+    # Resolve and prepare .opt file
+    opt_dst = tmp / f"{solver}.opt"
+    resolved_opt = resolve_opt_file(rd, solver, opt_file)
+
+    if resolved_opt:
+        console.print(f"[yellow]Using {solver}.opt from: {resolved_opt}[/yellow]")
+        shutil.copy(resolved_opt, opt_dst)
+    else:
+        console.print(f"[yellow]Writing default {solver}.opt with {threads} threads[/yellow]")
+        write_default_opt(solver, opt_dst, threads)
+
+    tmp_driver = pick_driver_gms(tmp)
+    dd_dir = rd.parent
+    restart_file = times_src / "_times.g00"
+    gdx_dir = tmp / "GAMSSAVE"
+    gdx_file = gdx_dir / f"{tmp.name}.gdx"
+
+    console.print(
+        f"[yellow]Running GAMS with {solver.upper()} solver (this may take several minutes)...[/yellow]"
+    )
+
+    # Choose parser and tracker based on solver
+    if solver == "gurobi":
+        parse_func = gurobi_progress.parse_gurobi_line
+        tracker: Any = gurobi_progress.BarrierProgressTracker()
+    else:
+        parse_func = cplex_progress.parse_cplex_line
+        tracker = cplex_progress.BarrierProgressTracker()
+
+    run_gams_with_progress(
+        [
+            gams_cmd,
+            tmp_driver.name,
+            f"r={restart_file}",
+            f"idir1={tmp}",
+            f"idir2={times_src}",
+            f"idir3={dd_dir}",
+            f"gdx={gdx_file}",
+            "gdxcompress=1",
+            f"LP={solver.upper()}",
+            "OPTFILE=1",
+            "LOGOPTION=2",
+            f"logfile={tmp.name}_run_log.txt",
+            f"--GDXPATH={gdx_dir}/",
+            "--ERR_ABORT=NO",
+        ],
+        cwd=str(tmp),
+        parse_line_func=parse_func,
+        progress_tracker=tracker,
+    )
+
+    console.print(f"\n[green]✓ GAMS {solver.upper()} run complete[/green]")
+    console.print(f"[green]✓ Output saved to: {tmp}[/green]")
+
+    # Parse and display basic status
+    lst = latest_lst(tmp)
+    if lst:
+        lst_text = read_text(lst)
+        status = parse_statuses(lst_text)
+
+        if status:
+            console.print("\n[bold cyan]Status:[/bold cyan]")
+            console.print(f"  Model Status:  {status.get('model_status', 'N/A')}")
+            console.print(f"  Solver Status: {status.get('solver_status', 'N/A')}")
+            console.print(f"  LP Status:     {status.get('lp_status_text', 'N/A')}")
+
+    console.print("\n[bold yellow]Next step:[/bold yellow]")
+    console.print(
+        f"  Run 'times-doctor review-solver-options {run_dir} --solver {solver}' to generate alternative configurations."
+    )
+    console.print(
+        f"  Then run 'times-doctor scan {run_dir} --solver {solver}' to test all configurations."
+    )
+
+
+@app.command()
+def scan(
+    run_dir: str,
+    solver: str = typer.Option("auto", "--solver", help="Solver to scan: auto|cplex|gurobi|both"),
+    gams_path: str | None = typer.Option(
+        None, "--gams-path", help="Path to gams.exe (defaults to 'gams' in PATH)"
+    ),
+    threads: int = typer.Option(7, help="Number of threads for solver to use"),
     llm: str = typer.Option(
         "none", help="LLM provider for optional analysis: auto|openai|anthropic|amp|none"
     ),
@@ -846,7 +1071,7 @@ def scan(
         None,
         "--max-workers",
         envvar="TD_MAX_WORKERS",
-        help="Max concurrent profile runs (default: auto by CPU/CPLEX threads)",
+        help="Max concurrent profile runs (default: auto by CPU/solver threads)",
     ),
     timeout_seconds: int | None = typer.Option(
         None,
@@ -856,12 +1081,12 @@ def scan(
     ),
 ) -> None:
     """
-    Test multiple CPLEX solver configurations to find best approach.
+    Test multiple solver configurations to find best approach.
 
-    Scans the run directory for LLM-generated solver .opt files in _td_opt_files/
+    Scans the run directory for LLM-generated solver .opt files in _td_opt_files/<solver>/
     and runs your model with each configuration to compare behavior.
 
-    Use 'times-doctor review-solver-options' first to generate configurations.
+    Use 'times-doctor review-solver-options --solver <solver>' first to generate configurations.
 
     By default, runs configurations sequentially. Use --parallel to run all
     configurations simultaneously (faster but uses more CPU/memory).
@@ -870,50 +1095,65 @@ def scan(
 
     \b
     Example:
-      times-doctor review-solver-options data/065Nov25-annualupto2045/parscen
-      times-doctor scan data/065Nov25-annualupto2045/parscen
-      times-doctor scan data/... --parallel  # Run all configs at once
+      times-doctor review-solver-options data/065Nov25-annualupto2045/parscen --solver cplex
+      times-doctor scan data/065Nov25-annualupto2045/parscen --solver cplex
+      times-doctor scan data/... --solver gurobi --parallel  # Run all configs at once
+      times-doctor scan data/... --solver both  # Test both CPLEX and GUROBI
 
     \b
     Created directories:
-      <run_dir>/times_doctor_out/scan_runs/<config_name>/
-      <run_dir>/times_doctor_out/scan_report.csv
+      <run_dir>/_td_scan/<solver>/<config_name>/
+      <run_dir>/_td_scan/scan_report.csv
     """
     rd = Path(run_dir).resolve()
+    solver = solver.lower()
 
-    # Check for _td_opt_files directory
-    opt_files_dir = rd / "_td_opt_files"
-    if not opt_files_dir.exists() or not opt_files_dir.is_dir():
-        print("[red]Error: No _td_opt_files/ directory found.[/red]")
-        print(
-            "\n[yellow]Run 'times-doctor review-solver-options' first to generate solver configurations.[/yellow]"
+    # Discover solver profiles
+    profiles: list[tuple[str, Path, str]] = []  # List of (solver_name, opt_file_path, config_name)
+
+    opt_files_base = rd / "_td_opt_files"
+    if not opt_files_base.exists():
+        console.print("[red]Error: No _td_opt_files/ directory found.[/red]")
+        console.print(
+            "\n[yellow]Run 'times-doctor review-solver-options --solver <solver>' first to generate solver configurations.[/yellow]"
         )
         raise typer.Exit(1)
 
-    # Find all .opt files in the directory
-    opt_files = sorted(opt_files_dir.glob("*.opt"))
-    if not opt_files:
-        print("[red]Error: No .opt files found in _td_opt_files/[/red]")
-        print(
-            "\n[yellow]Run 'times-doctor review-solver-options' first to generate solver configurations.[/yellow]"
+    # Discover based on --solver flag
+    if solver in ("auto", "cplex", "both"):
+        cplex_dir = opt_files_base / "cplex"
+        if cplex_dir.exists():
+            cplex_files = sorted(cplex_dir.glob("*.opt"))
+            profiles.extend(("cplex", f, f.stem) for f in cplex_files)
+
+    if solver in ("auto", "gurobi", "both"):
+        gurobi_dir = opt_files_base / "gurobi"
+        if gurobi_dir.exists():
+            gurobi_files = sorted(gurobi_dir.glob("*.opt"))
+            profiles.extend(("gurobi", f, f.stem) for f in gurobi_files)
+
+    # Fallback: Check for flat structure (backward compatibility)
+    if not profiles and solver == "auto":
+        flat_files = sorted(opt_files_base.glob("*.opt"))
+        if flat_files:
+            console.print("[yellow]Found .opt files in flat structure, treating as CPLEX[/yellow]")
+            profiles.extend(("cplex", f, f.stem) for f in flat_files)
+
+    if not profiles:
+        console.print(f"[red]Error: No .opt files found for solver(s): {solver}[/red]")
+        console.print(
+            "\n[yellow]Run 'times-doctor review-solver-options --solver <solver>' first to generate configurations.[/yellow]"
         )
         raise typer.Exit(1)
 
-    # Extract config names (filename without .opt extension)
-    config_names = [f.stem for f in opt_files]
+    # Show discovered profiles
+    console.print(f"\n[bold]Found {len(profiles)} solver configuration(s):[/bold]")
+    for i, (slvr, _opt_path, cfg_name) in enumerate(profiles, 1):
+        console.print(f"  {i:>2}. [{slvr.upper()}] {cfg_name}")
 
-    # Prompt user to confirm
-    print(f"\n[bold]Found {len(opt_files)} solver configurations in _td_opt_files/:[/bold]")
-    for i, name in enumerate(config_names, 1):
-        print(f"  {i}. {name}")
-
-    if not typer.confirm(f"\nRun scan with these {len(opt_files)} configurations?", default=True):
-        print("[yellow]Scan cancelled.[/yellow]")
+    if not typer.confirm(f"\nRun scan with these {len(profiles)} configurations?", default=True):
+        console.print("[yellow]Scan cancelled.[/yellow]")
         raise typer.Exit(0)
-
-    # Now continue with the scan using these config names
-    profiles = config_names
-    rd = Path(run_dir).resolve()
 
     gams_cmd = gams_path if gams_path else "gams"
 
@@ -924,37 +1164,34 @@ def scan(
 
     dd_dir = rd.parent
     restart_file = times_src / "_times.g00"
-    out = ensure_out(rd)
     pick_driver_gms(rd)
-    scan_root = out / "scan_runs"
+    scan_root = rd / "_td_scan"
     scan_root.mkdir(exist_ok=True)
 
-    # Compute worker limit based on CPU and CPLEX threads
-    def compute_workers(n_profiles: int, cplex_threads: int, override: int | None) -> int:
-        """Calculate max concurrent workers based on CPU cores and CPLEX threads."""
+    # Compute worker limit based on CPU and solver threads
+    def compute_workers(n_profiles: int, solver_threads: int, override: int | None) -> int:
+        """Calculate max concurrent workers based on CPU cores and solver threads."""
         cpus = os.cpu_count() or 1
         if override is not None and override > 0:
             return max(1, min(override, n_profiles))
         # Auto: allocate workers to avoid CPU oversubscription, cap at 6
-        per = max(1, cpus // max(1, cplex_threads))
+        per = max(1, cpus // max(1, solver_threads))
         return max(1, min(per, n_profiles, 6))
 
     workers = compute_workers(len(profiles), threads, max_workers)
-
-    # Map config names to their .opt file paths
-    opt_file_map = {f.stem: f for f in opt_files}
 
     # Show setup summary BEFORE starting the work
     console.print(f"\n[bold]Preparing {len(profiles)} run directories under:[/bold] {scan_root}")
     console.print(
         f"[dim]Mode: {'parallel' if parallel else 'sequential'}, "
-        f"max_workers={workers}, CPLEX threads/run={threads}[/dim]"
+        f"max_workers={workers}, solver threads/run={threads}[/dim]"
     )
     console.print(f"[dim]GAMS: {gams_cmd}, TIMES: {times_src}[/dim]")
 
     console.print("\n[bold]Jobs to launch:[/bold]")
-    for i, p in enumerate(profiles, 1):
-        console.print(f"  {i:>2}. {p}  ->  {scan_root / p}")
+    for i, (slvr, _opt_path, cfg_name) in enumerate(profiles, 1):
+        run_path = scan_root / slvr / cfg_name
+        console.print(f"  {i:>2}. [{slvr.upper()}] {cfg_name}  ->  {run_path}")
 
     # Set up run directories and copy .opt files with progress feedback
     setup_start = time.monotonic()
@@ -962,19 +1199,20 @@ def scan(
         f"\n[yellow]Setting up run directories (copying base run {len(profiles)} times - may take several minutes)...[/yellow]"
     )
 
-    run_dirs: dict[str, Path] = {}
+    run_dirs: dict[str, tuple[str, Path]] = {}  # profile_name -> (solver, wdir)
     total = len(profiles)
     with console.status("[bold green]Preparing run directories...") as status:
-        for idx, p in enumerate(profiles, 1):
-            wdir = scan_root / p
-            status.update(f"[bold green]({idx}/{total}) Preparing {p}...")
+        for idx, (slvr, opt_path, cfg_name) in enumerate(profiles, 1):
+            wdir = scan_root / slvr / cfg_name
+            profile_key = f"{slvr}:{cfg_name}"  # Unique key for this profile
+            status.update(f"[bold green]({idx}/{total}) Preparing [{slvr.upper()}] {cfg_name}...")
 
             if wdir.exists():
                 ok = remove_tree_robust(wdir)
                 if not ok:
                     # Final fallback: use fresh timestamped subdir for this run
                     ts = datetime.now().strftime("%Y%m%d-%H%M%S")
-                    wdir = scan_root / p / ts
+                    wdir = scan_root / slvr / cfg_name / ts
                     wdir.parent.mkdir(parents=True, exist_ok=True)
                     console.print(
                         f"[yellow]Using alternate directory due to locks: {wdir}[/yellow]"
@@ -983,25 +1221,27 @@ def scan(
                     # Directory still exists after remove_tree_robust (rare race condition)
                     # Use timestamped alternative
                     ts = datetime.now().strftime("%Y%m%d-%H%M%S")
-                    wdir = scan_root / p / ts
+                    wdir = scan_root / slvr / cfg_name / ts
                     wdir.parent.mkdir(parents=True, exist_ok=True)
                     console.print(
                         f"[yellow]Directory still locked after cleanup, using: {wdir}[/yellow]"
                     )
 
+            wdir.parent.mkdir(parents=True, exist_ok=True)
             shutil.copytree(
                 rd,
                 wdir,
-                ignore=shutil.ignore_patterns("times_doctor_out", "_td_opt_files"),
+                ignore=shutil.ignore_patterns(
+                    "times_doctor_out", "_td_opt_files", "_td_scan", "_td_rerun"
+                ),
                 dirs_exist_ok=True,
             )
 
-            # Copy the corresponding .opt file as cplex.opt
-            src_opt = opt_file_map[p]
-            dst_opt = wdir / "cplex.opt"
-            shutil.copy2(src_opt, dst_opt)
+            # Copy the corresponding .opt file with correct solver name
+            dst_opt = wdir / f"{slvr}.opt"
+            shutil.copy2(opt_path, dst_opt)
 
-            run_dirs[p] = wdir
+            run_dirs[profile_key] = (slvr, wdir)
 
     setup_elapsed = time.monotonic() - setup_start
     console.print(f"[green]Setup complete in {setup_elapsed:.1f}s[/green]")
@@ -1010,6 +1250,7 @@ def scan(
     # Helper function to run a single profile
     def run_profile(
         profile_name: str,
+        profile_solver: str,
         monitor: MultiRunProgressMonitor,
         results: dict[str, dict[str, str]],
         timeout_sec: int | None = None,
@@ -1024,6 +1265,7 @@ def scan(
                 registry.set_status(profile_name, "cancelled")
             results[profile_name] = {
                 "profile": profile_name,
+                "solver": profile_solver.upper(),
                 "model_status": "CANCELLED",
                 "solver_status": "CANCELLED",
                 "lp_status": "",
@@ -1032,16 +1274,24 @@ def scan(
                 "runtime_seconds": "",
                 "matrix_min": "",
                 "matrix_max": "",
-                "dir": str(run_dirs[profile_name]),
+                "dir": str(run_dirs[profile_name][1]),
                 "lst": "",
             }
             return
 
         try:
-            wdir = run_dirs[profile_name]
+            slvr, wdir = run_dirs[profile_name]
             wdir_driver = pick_driver_gms(wdir)
             wdir_gdx_dir = wdir / "GAMSSAVE"
             wdir_gdx_file = wdir_gdx_dir / f"{wdir.name}.gdx"
+
+            # Choose parser and tracker based on solver
+            if slvr == "gurobi":
+                parse_func = gurobi_progress.parse_gurobi_line
+                tracker: Any = gurobi_progress.BarrierProgressTracker()
+            else:
+                parse_func = cplex_progress.parse_cplex_line
+                tracker = cplex_progress.BarrierProgressTracker()
 
             run_gams_with_progress(
                 [
@@ -1053,7 +1303,7 @@ def scan(
                     f"idir3={dd_dir}",
                     f"gdx={wdir_gdx_file}",
                     "gdxcompress=1",
-                    "LP=CPLEX",
+                    f"LP={slvr.upper()}",
                     "OPTFILE=1",
                     "LOGOPTION=2",
                     f"logfile={wdir.name}_run_log.txt",
@@ -1066,6 +1316,8 @@ def scan(
                 timeout_seconds=timeout_sec,
                 cancel_event=cancel_event,
                 job_registry=registry,
+                parse_line_func=parse_func,
+                progress_tracker=tracker,
             )
 
             # Parse results
@@ -1081,6 +1333,7 @@ def scan(
             # Store in thread-safe dict
             results[profile_name] = {
                 "profile": profile_name,
+                "solver": slvr.upper(),
                 "model_status": st.get("model_status", ""),
                 "solver_status": st.get("solver_status", ""),
                 "lp_status": st.get("lp_status_text", ""),
@@ -1097,10 +1350,12 @@ def scan(
                 "lst": str(lst) if lst else "",
             }
         except TimeoutError:
+            slvr, wdir = run_dirs[profile_name]
             elapsed_time = monitor.runs[profile_name].get_elapsed_time()
             time_str = monitor.runs[profile_name].format_elapsed() if elapsed_time else ""
             results[profile_name] = {
                 "profile": profile_name,
+                "solver": slvr.upper(),
                 "model_status": "ERROR",
                 "solver_status": "TIMEOUT",
                 "lp_status": "",
@@ -1109,14 +1364,16 @@ def scan(
                 "runtime_seconds": f"{elapsed_time:.1f}" if elapsed_time else "",
                 "matrix_min": "",
                 "matrix_max": "",
-                "dir": str(run_dirs[profile_name]),
+                "dir": str(wdir),
                 "lst": "",
             }
         except KeyboardInterrupt:
+            slvr, wdir = run_dirs[profile_name]
             elapsed_time = monitor.runs[profile_name].get_elapsed_time()
             time_str = monitor.runs[profile_name].format_elapsed() if elapsed_time else ""
             results[profile_name] = {
                 "profile": profile_name,
+                "solver": slvr.upper(),
                 "model_status": "CANCELLED",
                 "solver_status": "CANCELLED",
                 "lp_status": "",
@@ -1125,15 +1382,17 @@ def scan(
                 "runtime_seconds": f"{elapsed_time:.1f}" if elapsed_time else "",
                 "matrix_min": "",
                 "matrix_max": "",
-                "dir": str(run_dirs[profile_name]),
+                "dir": str(wdir),
                 "lst": "",
             }
         except Exception as e:
+            slvr, wdir = run_dirs[profile_name]
             console.print(f"[red]Error running profile {profile_name}: {e}[/red]")
             elapsed_time = monitor.runs[profile_name].get_elapsed_time()
             time_str = monitor.runs[profile_name].format_elapsed() if elapsed_time else ""
             results[profile_name] = {
                 "profile": profile_name,
+                "solver": slvr.upper(),
                 "model_status": "ERROR",
                 "solver_status": str(e),
                 "lp_status": "",
@@ -1142,7 +1401,7 @@ def scan(
                 "runtime_seconds": f"{elapsed_time:.1f}" if elapsed_time else "",
                 "matrix_min": "",
                 "matrix_max": "",
-                "dir": str(run_dirs[profile_name]),
+                "dir": str(wdir),
                 "lst": "",
             }
 
@@ -1213,14 +1472,14 @@ def scan(
                 elif choice == "2":
                     console.print("[yellow]Cancelling all running jobs...[/yellow]")
                     job_registry.cancel_all()
-                    for name in profiles:
+                    for name in profile_keys:
                         if job_registry.get_cancel_event(name).is_set():
                             monitor.update_status(name, RunStatus.CANCELLED)
 
                 elif choice == "3":
                     console.print("[yellow]Aborting scan...[/yellow]")
                     job_registry.cancel_all()
-                    for name in profiles:
+                    for name in profile_keys:
                         monitor.update_status(name, RunStatus.CANCELLED)
                     raise typer.Exit(130)
 
@@ -1229,11 +1488,14 @@ def scan(
 
     signal.signal(signal.SIGINT, show_cancel_menu)
 
-    with MultiRunProgressMonitor(list(profiles), title="Scan Progress") as monitor:
+    # Build profile keys for monitoring
+    profile_keys = [f"{slvr}:{cfg_name}" for slvr, _, cfg_name in profiles]
+
+    with MultiRunProgressMonitor(profile_keys, title="Scan Progress") as monitor:
         results: dict[str, dict[str, str]] = {}  # Thread-safe dict to collect results
 
         # Register all jobs
-        cancel_events = {p: job_registry.register(p) for p in profiles}
+        cancel_events = {p: job_registry.register(p) for p in profile_keys}
 
         try:
             if parallel:
@@ -1242,14 +1504,16 @@ def scan(
                     future_map = {
                         executor.submit(
                             run_profile,
-                            p,
+                            profile_key,
+                            slvr,
                             monitor,
                             results,
                             timeout_seconds,
-                            cancel_events[p],
+                            cancel_events[profile_key],
                             job_registry,
-                        ): p
-                        for p in profiles
+                        ): profile_key
+                        for slvr, _, cfg_name in profiles
+                        for profile_key in [f"{slvr}:{cfg_name}"]
                     }
                     for future in as_completed(future_map):
                         profile_name = future_map[future]
@@ -1262,12 +1526,14 @@ def scan(
                             console.print(f"[red]Worker failed for {profile_name}: {e}[/red]")
             else:
                 # Sequential execution
-                for p in profiles:
+                for slvr, _opt_path, cfg_name in profiles:
+                    profile_key = f"{slvr}:{cfg_name}"
                     # Check if cancelled before starting
-                    if cancel_events[p].is_set():
-                        monitor.update_status(p, RunStatus.CANCELLED)
-                        results[p] = {
-                            "profile": p,
+                    if cancel_events[profile_key].is_set():
+                        monitor.update_status(profile_key, RunStatus.CANCELLED)
+                        results[profile_key] = {
+                            "profile": cfg_name,
+                            "solver": slvr.upper(),
                             "model_status": "CANCELLED",
                             "solver_status": "CANCELLED",
                             "lp_status": "",
@@ -1276,24 +1542,31 @@ def scan(
                             "runtime_seconds": "",
                             "matrix_min": "",
                             "matrix_max": "",
-                            "dir": str(run_dirs[p]),
+                            "dir": str(run_dirs[profile_key][1]),
                             "lst": "",
                         }
                         continue
                     run_profile(
-                        p, monitor, results, timeout_seconds, cancel_events[p], job_registry
+                        profile_key,
+                        slvr,
+                        monitor,
+                        results,
+                        timeout_seconds,
+                        cancel_events[profile_key],
+                        job_registry,
                     )
         finally:
             # Restore signal handler
             signal.signal(signal.SIGINT, prev_handler)
 
         # Convert results dict to rows list (preserve profile order)
-        rows = [results[p] for p in profiles if p in results]
+        rows = [results[p] for p in profile_keys if p in results]
 
     # Show summary table
     t = Table(title="Scan Summary")
     for col in [
         "profile",
+        "solver",
         "model_status",
         "solver_status",
         "lp_status",
@@ -1309,6 +1582,7 @@ def scan(
                 r[c]
                 for c in [
                     "profile",
+                    "solver",
                     "model_status",
                     "solver_status",
                     "lp_status",
@@ -1321,7 +1595,7 @@ def scan(
         )
     console.print(t)
 
-    csvp = out / "scan_report.csv"
+    csvp = scan_root / "scan_report.csv"
     with csvp.open("w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
         w.writeheader()
@@ -1336,7 +1610,7 @@ def scan(
         }
         res = llm_mod.summarize(diag, provider=llm)
         if res.used:
-            (out / "scan_llm_advice.md").write_text(res.text, encoding="utf-8")
+            (scan_root / "scan_llm_advice.md").write_text(res.text, encoding="utf-8")
 
     print(f"[green]Wrote[/green] {csvp}")
 
@@ -1710,6 +1984,7 @@ def review(
 @app.command()
 def review_solver_options(
     run_dir: str,
+    solver: str = typer.Option("auto", "--solver", help="Solver type: auto|cplex|gurobi"),
     llm: str = typer.Option("auto", help="LLM provider: auto|openai|anthropic|amp|none"),
     model: str = typer.Option("", help="Specific model to use (will prompt if not specified)"),
     dry_run: bool = typer.Option(
@@ -1722,7 +1997,7 @@ def review_solver_options(
     Review solver options for feasible-but-not-optimal solutions.
 
     Use this command when your TIMES model has returned a FEASIBLE but NOT PROVEN OPTIMAL solution.
-    The LLM will analyze your run files and cplex.opt configuration to suggest specific parameter
+    The LLM will analyze your run files and solver .opt configuration to suggest specific parameter
     tuning (tolerances, etc.) to improve the chances of reaching proven optimal status.
 
     This command assumes you're using barrier method without crossover (the standard for large TIMES
@@ -1730,13 +2005,15 @@ def review_solver_options(
 
     \b
     Example:
-      times-doctor review-solver-options data/065Nov25-annualupto2045/parscen
+      times-doctor review-solver-options data/065Nov25-annualupto2045/parscen --solver cplex
+      times-doctor review-solver-options data/... --solver gurobi
       times-doctor review-solver-options data/... --dry-run  # Show cost estimate first
       times-doctor review-solver-options data/... --yes      # Skip prompts
 
     \b
     Output:
       <run_dir>/times_doctor_out/solver_options_review.md  ← Read this!
+      <run_dir>/_td_opt_files/<solver>/                    ← Generated .opt files
       <run_dir>/_llm_calls/                                ← API call logs
     """
     rd = Path(run_dir).resolve()
@@ -1784,20 +2061,52 @@ def review_solver_options(
     lst = latest_lst(rd)
     lst_text = read_text(lst) if lst else ""
 
-    # Read cplex.opt file
-    cplex_opt_path = rd / "cplex.opt"
-    cplex_opt = read_text(cplex_opt_path) if cplex_opt_path.exists() else ""
+    # Detect solver if auto
+    detected_solver = solver.lower()
+    if detected_solver == "auto":
+        # Strategy: Check which .opt file exists in the current run directory
+        # This tells us which solver was actually used for this run
 
-    if not cplex_opt:
-        print(f"[yellow]Warning: No cplex.opt file found in {rd}[/yellow]")
+        if (rd / "gurobi.opt").exists() and not (rd / "cplex.opt").exists():
+            detected_solver = "gurobi"
+            print("[dim]Auto-detected solver: GUROBI (found gurobi.opt)[/dim]")
+        elif (rd / "cplex.opt").exists() and not (rd / "gurobi.opt").exists():
+            detected_solver = "cplex"
+            print("[dim]Auto-detected solver: CPLEX (found cplex.opt)[/dim]")
+        elif (rd / "gurobi.opt").exists() and (rd / "cplex.opt").exists():
+            # Both exist - check which is newer
+            gurobi_mtime = (rd / "gurobi.opt").stat().st_mtime
+            cplex_mtime = (rd / "cplex.opt").stat().st_mtime
+            if gurobi_mtime > cplex_mtime:
+                detected_solver = "gurobi"
+                print("[dim]Auto-detected solver: GUROBI (gurobi.opt is newer)[/dim]")
+            else:
+                detected_solver = "cplex"
+                print("[dim]Auto-detected solver: CPLEX (cplex.opt is newer)[/dim]")
+        else:
+            # No .opt files found - default to CPLEX
+            detected_solver = "cplex"
+            print("[yellow]No solver .opt file found, defaulting to CPLEX[/yellow]")
+            print(
+                "[yellow]Tip: Use --solver cplex or --solver gurobi to specify explicitly[/yellow]"
+            )
+    else:
+        print(f"[dim]Using specified solver: {detected_solver.upper()}[/dim]")
+
+    # Read solver .opt file
+    opt_path = rd / f"{detected_solver}.opt"
+    opt_content = read_text(opt_path) if opt_path.exists() else ""
+
+    if not opt_content:
+        print(f"[yellow]Warning: No {detected_solver}.opt file found in {rd}[/yellow]")
 
     if not qa_check and not run_log and not lst_text:
         print(f"[red]No QA_CHECK.LOG, *_run_log.txt, or .lst files found in {rd}[/red]")
         raise typer.Exit(1)
 
     print("[yellow]Found files:[/yellow]")
-    if cplex_opt:
-        print(f"  ✓ cplex.opt ({len(cplex_opt)} chars)")
+    if opt_content:
+        print(f"  ✓ {detected_solver}.opt ({len(opt_content)} chars)")
     if qa_check:
         print(f"  ✓ QA_CHECK.LOG ({len(qa_check)} chars)")
     if run_log and run_log_path:
@@ -1821,12 +2130,12 @@ def review_solver_options(
         print("\n[bold yellow]DRY RUN - Cost Estimation[/bold yellow]")
         print("\n[cyan]Files to analyze:[/cyan]")
 
-        total_chars = len(cplex_opt)
-        if cplex_opt:
-            chars = len(cplex_opt)
-            tokens = estimate_tokens(cplex_opt)
+        total_chars = len(opt_content)
+        if opt_content:
+            chars = len(opt_content)
+            tokens = estimate_tokens(opt_content)
             total_chars += chars
-            print(f"  • cplex.opt: {chars:,} chars (~{tokens:,} tokens)")
+            print(f"  • {detected_solver}.opt: {chars:,} chars (~{tokens:,} tokens)")
 
         if qa_check:
             chars = len(qa_check)
@@ -1873,7 +2182,7 @@ def review_solver_options(
         )
 
         print(f"\n[cyan]Step 2: Review with reasoning model ({reasoning_model})[/cyan]")
-        review_input_tokens = condense_output_tokens + estimate_tokens(cplex_opt)
+        review_input_tokens = condense_output_tokens + estimate_tokens(opt_content)
         # Assume review generates ~2000 token response
         review_output_tokens = 2000
         _, _, review_cost = estimate_cost(
@@ -1970,8 +2279,8 @@ def review_solver_options(
     )
 
     print(f"\n[bold cyan]Sending files to reasoning LLM ({reasoning_model}):[/bold cyan]")
-    if cplex_opt:
-        print("  • cplex.opt")
+    if opt_content:
+        print(f"  • {detected_solver}.opt")
     if condensed_qa_check:
         print("  • QA_CHECK.condensed.LOG")
     if condensed_run_log and run_log_path:
@@ -1991,7 +2300,8 @@ def review_solver_options(
             condensed_qa_check,
             condensed_run_log,
             condensed_lst,
-            cplex_opt,
+            opt_content,
+            solver=detected_solver,
             provider=llm,
             model=model,
             stream_callback=None,  # No streaming for structured output
@@ -2035,28 +2345,30 @@ def review_solver_options(
     review_text = "\n".join(md_lines)
     review_path.write_text(review_text, encoding="utf-8")
 
-    # Extract solver algorithm settings from original cplex.opt
+    # Extract solver algorithm settings from original solver .opt
     from times_doctor.core.opt_renderer import extract_solver_algorithm, render_opt_lines
 
-    base_algorithm = extract_solver_algorithm(cplex_opt)
-    if not base_algorithm.get("lpmethod"):
-        print("[yellow]Warning: Could not extract lpmethod from original cplex.opt[/yellow]")
-    if not base_algorithm.get("solutiontype"):
-        print("[yellow]Warning: Could not extract solutiontype from original cplex.opt[/yellow]")
+    base_algorithm = extract_solver_algorithm(opt_content)
+    if detected_solver == "cplex":
+        if not base_algorithm.get("lpmethod"):
+            print("[yellow]Warning: Could not extract lpmethod from original cplex.opt[/yellow]")
+        if not base_algorithm.get("solutiontype"):
+            print(
+                "[yellow]Warning: Could not extract solutiontype from original cplex.opt[/yellow]"
+            )
 
-    # Extract .opt files from structured output
-    opt_dir = rd / "_td_opt_files"
-    opt_dir.mkdir(exist_ok=True)
+    # Extract .opt files from structured output into solver-specific subdirectory
+    opt_dir = rd / "_td_opt_files" / detected_solver
+    opt_dir.mkdir(parents=True, exist_ok=True)
 
     created_files = []
-    for i, config in enumerate(diagnosis.opt_configurations, start=1):
+    for _i, config in enumerate(diagnosis.opt_configurations, start=1):
         # Render .opt file lines with enforced algorithm settings
         opt_lines = render_opt_lines(config, base_algorithm, warn_on_override=True)
         opt_content = "\n".join(opt_lines)
 
-        # Add numeric prefix to order files by priority (01_, 02_, etc.)
-        prefixed_filename = f"{i:02d}_{config.filename}"
-        opt_path = opt_dir / prefixed_filename
+        # Use filename as-is (no numeric prefix - scan will handle ordering)
+        opt_path = opt_dir / config.filename
         opt_path.write_text(opt_content, encoding="utf-8")
         created_files.append(opt_path)
 
@@ -2072,7 +2384,7 @@ def review_solver_options(
     if result.cost_usd > 0:
         print(f"[bold cyan]Cost:[/bold cyan] ${result.cost_usd:.4f} USD")
 
-    print(f"\n[dim]Next: times-doctor scan {rd}[/dim]")
+    print(f"\n[dim]Next: times-doctor scan {rd} --solver {detected_solver}[/dim]")
 
 
 @app.command()

@@ -201,7 +201,7 @@ class TestScanCommand:
                 )
 
         assert result.exit_code == 0
-        scan_dir = mock_run_dir / "times_doctor_out" / "scan_runs"
+        scan_dir = mock_run_dir / "_td_scan"
         assert scan_dir.exists()
 
 

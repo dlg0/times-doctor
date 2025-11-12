@@ -301,36 +301,67 @@ def build_review_prompt(qa_check: str, run_log: str, lst_content: str) -> str:
 
 
 def build_solver_options_review_prompt(
-    qa_check: str, run_log: str, lst_content: str, cplex_opt: str
+    qa_check: str, run_log: str, lst_content: str, opt_content: str, solver: str = "cplex"
 ) -> tuple[str, str]:
     """Build solver options review prompt for feasible-but-not-optimal solutions.
+
+    Args:
+        qa_check: QA check log content
+        run_log: Run log content
+        lst_content: LST file content
+        opt_content: Solver .opt file content
+        solver: Solver type ('cplex' or 'gurobi')
 
     Returns:
         Tuple of (instructions, input_data) for OpenAI Responses API
         - instructions: System-level guidance (template)
         - input_data: Diagnostic data to analyze
     """
-    template = load_prompt_template("solver_options_review")
+    # Try to load solver-specific template
+    template = load_prompt_template(f"solver_options_review_{solver}")
     if not template:
-        # Fallback inline version
+        # Fallback to generic template
+        template = load_prompt_template("solver_options_review")
+
+    if not template:
+        # Fallback inline version - customize by solver
         lines = []
-        lines.append(
-            "You are a CPLEX solver expert. A large TIMES LP returned FEASIBLE but NOT PROVEN OPTIMAL."
-        )
-        lines.append("Review the run files and cplex.opt configuration to suggest improvements.")
-        lines.append("Focus on tuning tolerances (epopt, eprhs, barepcomp) and other parameters.")
+        if solver == "gurobi":
+            lines.append(
+                "You are a GUROBI solver expert. A large TIMES LP returned FEASIBLE but NOT PROVEN OPTIMAL."
+            )
+            lines.append(
+                "Review the run files and gurobi.opt configuration to suggest improvements."
+            )
+            lines.append(
+                "Focus on tuning tolerances (FeasibilityTol, OptimalityTol, BarConvTol) and other parameters."
+            )
+            lines.append(
+                "Common GUROBI parameters: Method, Crossover, NumericFocus, ScaleFlag, BarHomogeneous."
+            )
+        else:  # cplex
+            lines.append(
+                "You are a CPLEX solver expert. A large TIMES LP returned FEASIBLE but NOT PROVEN OPTIMAL."
+            )
+            lines.append(
+                "Review the run files and cplex.opt configuration to suggest improvements."
+            )
+            lines.append(
+                "Focus on tuning tolerances (epopt, eprhs, barepcomp) and other parameters."
+            )
+
         lines.append("DO NOT suggest changing the solve algorithm (barrier without crossover).")
         lines.append("")
         lines.append("Provide:")
         lines.append("1. Why the solver stopped at feasible (not proven optimal)")
-        lines.append("2. Specific cplex.opt parameter changes to try")
+        lines.append(f"2. Specific {solver}.opt parameter changes to try")
         lines.append("3. Ranked action plan")
         template = "\n".join(lines)
 
     # Build input data sections
     sections = []
-    sections.append("=== CURRENT cplex.opt CONFIGURATION ===")
-    sections.append(cplex_opt if cplex_opt else "(file not found)")
+    sections.append(f"=== CURRENT {solver.upper()}.OPT CONFIGURATION ===")
+    sections.append(opt_content if opt_content else "(file not found)")
     sections.append("")
     sections.append("=== QA_CHECK.LOG (CONDENSED) ===")
     sections.append(qa_check if qa_check else "(file not found)")
