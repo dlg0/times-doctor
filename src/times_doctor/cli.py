@@ -176,6 +176,70 @@ def ensure_display_options(opt_path: Path) -> None:
         pass  # Silently fail if we can't update the file
 
 
+def ensure_threads_option(opt_path: Path, solver: str, threads: int) -> None:
+    """
+    Ensure solver .opt file sets Threads/threads to the requested value.
+
+    Updates all existing occurrences (case-insensitive) or appends if missing.
+    Preserves all other lines, comments, and formatting.
+
+    Args:
+        opt_path: Path to solver .opt file
+        solver: Solver type ('cplex' or 'gurobi')
+        threads: Number of threads to set
+    """
+    import re
+
+    try:
+        txt = opt_path.read_text(encoding="utf-8", errors="ignore")
+    except FileNotFoundError:
+        # If no file exists, create a minimal one
+        line = f"threads {threads}\n" if solver.lower() == "cplex" else f"Threads {threads}\n"
+        opt_path.write_text(line, encoding="utf-8")
+        return
+
+    target = "threads"  # Match case-insensitively
+    lines_out = []
+    updated_any = False
+
+    for orig in txt.splitlines():
+        s = orig.lstrip()
+        # Keep full-line comments and blank lines as-is
+        if not s or s[0] in ("*", "#", "$"):
+            lines_out.append(orig)
+            continue
+
+        # Split off inline comments for safe rewrite
+        # Gurobi uses '#', CPLEX often uses '$'; support both
+        idx_hash = orig.find("#")
+        idx_dlr = orig.find("$")
+        split_idxs = [i for i in (idx_hash, idx_dlr) if i != -1]
+        cpos = min(split_idxs) if split_idxs else -1
+        code = orig if cpos == -1 else orig[:cpos]
+        inline_comment = "" if cpos == -1 else orig[cpos:]
+
+        # Match name [=|space] value; preserve original name and separator
+        m = re.match(r"^(\s*)([A-Za-z][\w\-]*)(\s*(?:=|\s)\s*)(.*\S)?\s*$", code)
+        if m and m.group(2).lower() == target:
+            prefix, name, sep, _ = m.groups()
+            new_code = f"{prefix}{name}{sep}{threads}"
+            # Keep single space before inline comment if any existed
+            new_line = new_code + ("" if not inline_comment else (" " + inline_comment.lstrip()))
+            lines_out.append(new_line)
+            updated_any = True
+        else:
+            lines_out.append(orig)
+
+    if not updated_any:
+        # Ensure file ends with newline, then append threads line
+        if lines_out and lines_out[-1] != "":
+            lines_out.append("")
+        appended = f"threads {threads}" if solver.lower() == "cplex" else f"Threads {threads}"
+        lines_out.append(appended)
+
+    opt_path.write_text("\n".join(lines_out) + "\n", encoding="utf-8")
+
+
 def resolve_opt_file(run_dir: Path, solver: str, opt_file: str | None) -> Path | None:
     """
     Resolve .opt file from various sources.
@@ -1084,7 +1148,9 @@ def scan(
     gams_path: str | None = typer.Option(
         None, "--gams-path", help="Path to gams.exe (defaults to 'gams' in PATH)"
     ),
-    threads: int = typer.Option(7, help="Number of threads for solver to use"),
+    threads: int = typer.Option(
+        7, help="Number of threads for solver to use (overrides threads setting in .opt files)"
+    ),
     llm: str = typer.Option(
         "none", help="LLM provider for optional analysis: auto|openai|anthropic|amp|none"
     ),
@@ -1264,6 +1330,9 @@ def scan(
             # Copy the corresponding .opt file with correct solver name
             dst_opt = wdir / f"{slvr}.opt"
             shutil.copy2(opt_path, dst_opt)
+
+            # Override threads setting if specified
+            ensure_threads_option(dst_opt, slvr, threads)
 
             # Ensure bardisplay/simdisplay for CPLEX to enable progress tracking
             if slvr == "cplex":
