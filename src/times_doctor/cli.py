@@ -9,7 +9,7 @@ import stat
 import subprocess
 import threading
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -509,10 +509,12 @@ def run_gams_with_progress(
         terminate_process_tree(proc, grace_seconds=3)
         raise KeyboardInterrupt()
 
-    # Only register signal handler from main thread (worker threads can't do this on Windows)
+    # Only register signal handler from main thread when not orchestrated by scan (monitor=None)
+    # When scan orchestrates runs, it handles SIGINT at a higher level
     old_handler = None
     signal_handler_installed = False
-    if threading.current_thread() is threading.main_thread():
+    use_monitor = monitor is not None
+    if (not use_monitor) and threading.current_thread() is threading.main_thread():
         try:
             old_handler = signal.signal(signal.SIGINT, handle_interrupt)
             signal_handler_installed = True
@@ -678,7 +680,7 @@ def run_gams_with_progress(
                 if use_monitor and monitor:
                     monitor.update_display()
 
-                time.sleep(0.2)
+                time.sleep(0.1)
 
             # One final update after process ends (standalone mode only)
             if not use_monitor and lines:
@@ -1446,107 +1448,57 @@ def scan(
         f"[cyan]Running {len(profiles)} profiles in {mode_str} mode{worker_info}...[/cyan]"
     )
 
-    # Install SIGINT handler for interactive cancellation
-    prev_handler = signal.getsignal(signal.SIGINT)
-    menu_open = threading.Event()
-
-    def show_cancel_menu(signum, frame):
-        """Handle Ctrl+C to show cancellation menu."""
-        if menu_open.is_set():
-            # Double Ctrl+C: cancel all and abort
-            console.print("\n[bold red]Double Ctrl+C detected - cancelling all jobs...[/bold red]")
-            job_registry.cancel_all()
-            raise typer.Exit(130)
-
-        menu_open.set()
-        try:
-            with monitor.pause_display():
-                console.print("\n[bold yellow]═══ Cancel Menu ═══[/bold yellow]")
-                console.print("1) Cancel specific runs (enter names/numbers)")
-                console.print("2) Cancel all running jobs")
-                console.print("3) Abort scan (cancel all and exit)")
-                console.print("4) Resume (continue)")
-                console.print("\n[dim]Press Ctrl+C again to immediately cancel all and abort[/dim]")
-
-                choice = typer.prompt("Select option", default="4", show_default=False)
-
-                if choice == "1":
-                    # Show list of jobs
-                    running = job_registry.get_running_jobs()
-                    if not running:
-                        console.print("[yellow]No jobs currently running[/yellow]")
-                    else:
-                        console.print("\n[bold]Running jobs:[/bold]")
-                        for i, name in enumerate(running, 1):
-                            console.print(f"  {i}. {name}")
-                        selection = typer.prompt(
-                            "Enter job names or numbers (comma-separated)", default=""
-                        )
-                        if selection.strip():
-                            # Parse selection
-                            targets = []
-                            for item in selection.split(","):
-                                item = item.strip()
-                                if item.isdigit():
-                                    idx = int(item) - 1
-                                    if 0 <= idx < len(running):
-                                        targets.append(running[idx])
-                                else:
-                                    if item in running:
-                                        targets.append(item)
-                            # Cancel selected
-                            for name in targets:
-                                console.print(f"[yellow]Cancelling {name}...[/yellow]")
-                                job_registry.cancel(name)
-                                monitor.update_status(name, RunStatus.CANCELLED)
-
-                elif choice == "2":
-                    console.print("[yellow]Cancelling all running jobs...[/yellow]")
-                    job_registry.cancel_all()
-                    for name in profile_keys:
-                        if job_registry.get_cancel_event(name).is_set():
-                            monitor.update_status(name, RunStatus.CANCELLED)
-
-                elif choice == "3":
-                    console.print("[yellow]Aborting scan...[/yellow]")
-                    job_registry.cancel_all()
-                    for name in profile_keys:
-                        monitor.update_status(name, RunStatus.CANCELLED)
-                    raise typer.Exit(130)
-
-        finally:
-            menu_open.clear()
-
-    signal.signal(signal.SIGINT, show_cancel_menu)
-
     # Build profile keys for monitoring
     profile_keys = [f"{slvr}:{cfg_name}" for slvr, _, cfg_name in profiles]
 
     with MultiRunProgressMonitor(profile_keys, title="Scan Progress") as monitor:
+        from times_doctor.interactive_cancel import InteractiveCancelController
+
         results: dict[str, dict[str, str]] = {}  # Thread-safe dict to collect results
 
         # Register all jobs
         cancel_events = {p: job_registry.register(p) for p in profile_keys}
 
+        # Install interactive cancel controller
+        controller = InteractiveCancelController(job_registry, monitor, console).install()
+
         try:
-            if parallel:
-                # Parallel execution with ThreadPoolExecutor
-                with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="scan") as executor:
-                    future_map = {
-                        executor.submit(
-                            run_profile,
-                            profile_key,
-                            slvr,
-                            monitor,
-                            results,
-                            timeout_seconds,
-                            cancel_events[profile_key],
-                            job_registry,
-                        ): profile_key
-                        for slvr, _, cfg_name in profiles
-                        for profile_key in [f"{slvr}:{cfg_name}"]
-                    }
-                    for future in as_completed(future_map):
+            # Use ThreadPoolExecutor for both parallel and sequential (max_workers=1 for sequential)
+            actual_workers = workers if parallel else 1
+            with ThreadPoolExecutor(
+                max_workers=actual_workers, thread_name_prefix="scan"
+            ) as executor:
+                # Submit all jobs
+                future_map = {
+                    executor.submit(
+                        run_profile,
+                        profile_key,
+                        slvr,
+                        monitor,
+                        results,
+                        timeout_seconds,
+                        cancel_events[profile_key],
+                        job_registry,
+                    ): profile_key
+                    for slvr, _, cfg_name in profiles
+                    for profile_key in [f"{slvr}:{cfg_name}"]
+                }
+
+                pending = set(future_map.keys())
+
+                # Control loop with timeout-based polling
+                while pending:
+                    done, pending = wait(pending, timeout=0.2, return_when=FIRST_COMPLETED)
+
+                    # Update display
+                    monitor.update_display()
+
+                    # Check if user pressed Ctrl-C and show menu if needed
+                    if controller.should_open_menu():
+                        controller.show_menu()
+
+                    # Process completed futures
+                    for future in done:
                         profile_name = future_map[future]
                         try:
                             future.result()
@@ -1555,40 +1507,10 @@ def scan(
                             pass
                         except Exception as e:
                             console.print(f"[red]Worker failed for {profile_name}: {e}[/red]")
-            else:
-                # Sequential execution
-                for slvr, _opt_path, cfg_name in profiles:
-                    profile_key = f"{slvr}:{cfg_name}"
-                    # Check if cancelled before starting
-                    if cancel_events[profile_key].is_set():
-                        monitor.update_status(profile_key, RunStatus.CANCELLED)
-                        results[profile_key] = {
-                            "profile": cfg_name,
-                            "solver": slvr.upper(),
-                            "model_status": "CANCELLED",
-                            "solver_status": "CANCELLED",
-                            "lp_status": "",
-                            "objective": "",
-                            "runtime": "",
-                            "runtime_seconds": "",
-                            "matrix_min": "",
-                            "matrix_max": "",
-                            "dir": str(run_dirs[profile_key][1]),
-                            "lst": "",
-                        }
-                        continue
-                    run_profile(
-                        profile_key,
-                        slvr,
-                        monitor,
-                        results,
-                        timeout_seconds,
-                        cancel_events[profile_key],
-                        job_registry,
-                    )
+
         finally:
             # Restore signal handler
-            signal.signal(signal.SIGINT, prev_handler)
+            controller.uninstall()
 
         # Convert results dict to rows list (preserve profile order)
         rows = [results[p] for p in profile_keys if p in results]
