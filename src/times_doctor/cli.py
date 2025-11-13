@@ -1982,6 +1982,295 @@ def review(
 
 
 @app.command()
+def review_qa_check(
+    run_dir: str,
+    llm: str = typer.Option("auto", help="LLM provider: auto|openai|anthropic|amp|none"),
+    model: str = typer.Option("", help="Specific model to use (will prompt if not specified)"),
+    dry_run: bool = typer.Option(
+        False, "--dry-run", help="Show cost estimate without making API calls"
+    ),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation prompts"),
+    no_cache: bool = typer.Option(False, "--no-cache", help="Bypass LLM response cache"),
+) -> None:
+    """
+    Get actionable fix recommendations for QA_CHECK.LOG issues using Oracle.
+
+    Specialized command focused SOLELY on providing concrete remediation steps
+    for each issue identified in QA_CHECK.LOG. Uses oracle (reasoning LLM) to
+    analyze all files but returns only actionable "where to look" and "how to fix"
+    instructions.
+
+    Unlike 'review' which provides general diagnostics, this command:
+    - Parses QA_CHECK.LOG into structured issues
+    - Provides specific file/table locations for each issue
+    - Gives step-by-step fix instructions with examples
+    - Includes validation steps to confirm fixes
+
+    \b
+    Example:
+      times-doctor review-qa-check data/065Nov25-annualupto2045/parscen
+      times-doctor review-qa-check data/... --dry-run  # Cost estimate first
+
+    \b
+    Output:
+      <run_dir>/times_doctor_out/qa_check_fixes.md  ← Fix instructions!
+      <run_dir>/_llm_calls/                          ← API call logs
+    """
+    import json
+
+    from .core import qa_check_parser
+    from .core.prompts import build_review_qa_fixes_prompt
+
+    rd = Path(run_dir).resolve()
+
+    # Check for multiple run directories (same as review command)
+    run_dirs = find_run_directories(rd)
+    if len(run_dirs) > 1:
+        print(f"\n[bold]Found {len(run_dirs)} run directories:[/bold]")
+        for i, (_path, label, _mtime) in enumerate(run_dirs, 1):
+            print(f"  {i}. {label}")
+
+        choice = typer.prompt(f"\nSelect run to review (1-{len(run_dirs)})", type=int, default=1)
+        if 1 <= choice <= len(run_dirs):
+            rd = run_dirs[choice - 1][0]
+            print(f"[green]Selected: {rd}[/green]")
+        else:
+            print(f"[yellow]Invalid choice, using: {run_dirs[0][0]}[/yellow]")
+            rd = run_dirs[0][0]
+
+    api_keys = llm_mod.check_api_keys()
+    has_any_key = any(api_keys.values())
+
+    if llm.lower() != "none" and not has_any_key:
+        print(
+            "[yellow]No API keys found. Please configure one of the following in a .env file:[/yellow]"
+        )
+        print("  OPENAI_API_KEY=sk-...")
+        print("  ANTHROPIC_API_KEY=sk-ant-...")
+        print("  AMP_API_KEY=... (or ensure 'amp' CLI is available)")
+        print("")
+        print("[dim]Create a .env file in the current directory with one of these keys.[/dim]")
+        raise typer.Exit(1)
+
+    # Find files
+    qa_check_path = rd / "QA_CHECK.LOG"
+    if not qa_check_path.exists():
+        print(f"[red]No QA_CHECK.LOG found in {rd}[/red]")
+        raise typer.Exit(1)
+
+    run_log_path = None
+    for f in rd.glob("*_run_log.txt"):
+        run_log_path = f
+        break
+    run_log = read_text(run_log_path) if run_log_path else ""
+
+    lst = latest_lst(rd)
+    lst_text = read_text(lst) if lst else ""
+
+    print("[yellow]Found files:[/yellow]")
+    print("  ✓ QA_CHECK.LOG")
+    if run_log and run_log_path:
+        print(f"  ✓ {run_log_path.name}")
+    if lst_text and lst:
+        print(f"  ✓ {lst.name}")
+
+    llm_log_dir = rd / "_llm_calls"
+
+    # Determine fast model for condensing
+    fast_model = (
+        "gpt-5-nano"
+        if api_keys["openai"]
+        else ("claude-3-5-haiku-20241022" if api_keys["anthropic"] else "unknown")
+    )
+
+    # DRY RUN: Show cost estimate
+    if dry_run:
+        print("\n[bold yellow]DRY RUN - Cost Estimation[/bold yellow]")
+        qa_text = read_text(qa_check_path)
+
+        # Estimate condensing costs (run_log and lst only)
+        print(f"\n[cyan]Step 1: Condensing run_log and lst with fast model ({fast_model})[/cyan]")
+        condense_input_tokens = estimate_tokens(run_log + lst_text)
+        condense_output_tokens = int(condense_input_tokens * 0.3)
+        _, _, condense_cost = estimate_cost(
+            run_log + lst_text, " " * (condense_output_tokens * 4), fast_model
+        )
+        print(f"  Input tokens: ~{condense_input_tokens:,}")
+        print(f"  Output tokens: ~{condense_output_tokens:,} (estimated)")
+        print(f"  Cost: ${condense_cost:.4f}")
+
+        # Estimate oracle cost
+        reasoning_model = (
+            "gpt-5 (medium effort)"
+            if api_keys["openai"]
+            else ("claude-3-5-sonnet-20241022" if api_keys["anthropic"] else "unknown")
+        )
+        reasoning_model_name = "gpt-5" if api_keys["openai"] else "claude-3-5-sonnet-20241022"
+
+        print(f"\n[cyan]Step 2: Oracle analysis with reasoning model ({reasoning_model})[/cyan]")
+        # Include QA_CHECK size (rule-based condensed) + condensed excerpts
+        oracle_input_tokens = estimate_tokens(qa_text) // 3 + condense_output_tokens
+        oracle_output_tokens = 3000  # More detailed fix recommendations
+        _, _, oracle_cost = estimate_cost(
+            " " * (oracle_input_tokens * 4),
+            " " * (oracle_output_tokens * 4),
+            reasoning_model_name,
+        )
+        print(f"  Input tokens: ~{oracle_input_tokens:,}")
+        print(f"  Output tokens: ~{oracle_output_tokens:,} (estimated)")
+        print(f"  Cost: ${oracle_cost:.4f}")
+
+        total_cost = condense_cost + oracle_cost
+        print(f"\n[bold green]Estimated total cost: ${total_cost:.4f} USD[/bold green]")
+        print("[dim]Note: Actual costs may vary based on content complexity[/dim]")
+        print("\n[yellow]To proceed with actual analysis, run without --dry-run flag[/yellow]")
+        return
+
+    # Step 1: Condense run_log and lst (same as review command)
+    print(f"\n[bold yellow]Condensing files with fast LLM ({fast_model})...[/bold yellow]")
+    print(f"[dim](LLM calls logged to {llm_log_dir})[/dim]")
+
+    condensed_run_log = ""
+    condensed_lst = ""
+
+    try:
+        if run_log and run_log_path:
+            print(f"[dim]  Extracting from {run_log_path.name}...[/dim]")
+
+            def runlog_progress(current: int, total: int, message: str) -> None:
+                print(f"[dim]    {message}[/dim]")
+
+            sections = llm_mod.extract_condensed_sections(
+                run_log, "run_log", log_dir=llm_log_dir, progress_callback=runlog_progress
+            )
+
+            if "filtered_content" in sections and sections["filtered_content"]:
+                condensed_run_log = (
+                    f"# Run Log - Filtered\n\n```\n{sections['filtered_content']}\n```\n"
+                )
+            else:
+                condensed_run_log = llm_mod.create_condensed_markdown(
+                    run_log.split("\n"), sections["sections"], "run_log"
+                )
+
+        if lst_text and lst:
+            print(f"[dim]  Extracting from {lst.name}...[/dim]")
+
+            def lst_progress(current: int, total: int, message: str) -> None:
+                print(f"[dim]    {message}[/dim]")
+
+            sections = llm_mod.extract_condensed_sections(
+                lst_text, "lst", log_dir=llm_log_dir, progress_callback=lst_progress
+            )
+            condensed_lst = llm_mod.create_condensed_markdown(
+                lst_text.split("\n"), sections["sections"], "lst"
+            )
+    except Exception as e:
+        print(f"[red]Error during extraction: {e}[/red]")
+        print(f"[yellow]Check {llm_log_dir} for detailed logs[/yellow]")
+        raise typer.Exit(1)
+
+    # Step 2: Parse QA_CHECK.LOG into structured issues (rule-based)
+    print("[dim]  Parsing QA_CHECK.LOG into structured issues...[/dim]")
+
+    summary_rows, msg_counts, all_keys = qa_check_parser.condense_log_to_rows(
+        qa_check_path, index_allow=["R", "P", "V", "T", "CG", "COM"], min_severity="WARNING"
+    )
+
+    rolled = qa_check_parser.rollup_summary_rows(summary_rows, None, sample_limit=3)
+    qa_rollup_text = qa_check_parser.format_condensed_output(summary_rows, msg_counts, all_keys)
+
+    # Build structured JSON for oracle
+    qa_struct = {
+        "source": str(qa_check_path),
+        "severity_order": qa_check_parser.SEVERITY_ORDER,
+        "issues": [
+            {
+                "severity": r["severity"],
+                "message": r["message"],
+                "occurrences": int(r["occurrences"]),
+                "aggregates": r.get("aggregates", ""),
+                "samples": r.get("samples", ""),
+            }
+            for r in rolled
+        ],
+        "message_counts": [
+            {"severity": m["severity"], "message": m["message"], "count": int(m["events"])}
+            for m in msg_counts
+        ],
+    }
+    qa_json = json.dumps(qa_struct, ensure_ascii=False, indent=2)
+
+    # Step 3: Build oracle prompt
+    prompt = build_review_qa_fixes_prompt(
+        qa_struct_json=qa_json,
+        qa_rollup_text=qa_rollup_text,
+        run_log_excerpts=condensed_run_log,
+        lst_excerpts=condensed_lst,
+    )
+
+    # Determine reasoning model
+    reasoning_model = (
+        "gpt-5 (medium effort)"
+        if api_keys["openai"]
+        else ("claude-3-5-sonnet-20241022" if api_keys["anthropic"] else "unknown")
+    )
+
+    print(
+        f"\n[bold cyan]Sending to Oracle ({reasoning_model}) for fix recommendations:[/bold cyan]"
+    )
+    print("  • QA_CHECK.LOG (structured, rule-based)")
+    if condensed_run_log:
+        print("  • Run log (condensed)")
+    if condensed_lst:
+        print("  • LST file (condensed)")
+
+    print("\n[bold green]Consulting Oracle...[/bold green]\n")
+
+    # Create streaming callback
+    def stream_output(chunk: str) -> None:
+        print(chunk, end="", flush=True)
+
+    # Step 4: Call oracle
+    result = llm_mod.review_qa_check_fixes(
+        prompt,
+        provider=llm,
+        model=model,
+        stream_callback=stream_output,
+        log_dir=llm_log_dir,
+        use_cache=not no_cache,
+    )
+
+    if not result.used:
+        print("[red]Failed to get LLM response. Check API keys and connectivity.[/red]")
+        raise typer.Exit(1)
+
+    # If streaming wasn't used, print the result
+    if not result.text or "\n" not in result.text:
+        print(result.text)
+
+    print("\n")  # New line after output
+
+    print(f"\n[bold cyan]LLM Provider:[/bold cyan] {result.provider}")
+    if result.model:
+        print(f"[bold cyan]Model:[/bold cyan] {result.model}")
+    if result.input_tokens > 0:
+        print(
+            f"[bold cyan]Tokens:[/bold cyan] {result.input_tokens:,} in + {result.output_tokens:,} out = {result.input_tokens + result.output_tokens:,} total"
+        )
+    if result.cost_usd > 0:
+        print(f"[bold cyan]Cost:[/bold cyan] ${result.cost_usd:.4f} USD")
+
+    # Save output
+    out = ensure_out(rd)
+    fixes_path = out / "qa_check_fixes.md"
+    fixes_path.write_text(result.text, encoding="utf-8")
+
+    print(f"\n[green]✓ Saved actionable fix instructions to {fixes_path}[/green]")
+    print("[dim]Review the file for concrete remediation steps for each QA issue[/dim]")
+
+
+@app.command()
 def review_solver_options(
     run_dir: str,
     solver: str = typer.Option("auto", "--solver", help="Solver type: auto|cplex|gurobi"),

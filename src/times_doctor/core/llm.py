@@ -2125,3 +2125,68 @@ def review_solver_options(
         return done("openai", text, meta, structured=result)
     else:
         return done("openai", result, meta)
+
+
+def review_qa_check_fixes(
+    prompt: str,
+    provider: str = "auto",
+    model: str = "",
+    stream_callback: Callable[[str], None] | None = None,
+    log_dir: Path | None = None,
+    use_cache: bool = True,
+) -> LLMResult:
+    """Review QA_CHECK.LOG and provide actionable fix recommendations using oracle.
+
+    Args:
+        prompt: Complete prompt with QA issues, run_log, and lst excerpts
+        provider: LLM provider (only 'openai' or 'auto' supported for reasoning)
+        model: Specific model override (default: gpt-5 with medium reasoning)
+        stream_callback: Optional callback for streaming output
+        log_dir: Directory for LLM call logs
+        use_cache: Whether to use LLM response cache
+
+    Returns:
+        LLMResult with fix recommendations text and metadata
+    """
+
+    def done(name: str, text: str, meta: dict[str, Any] | None = None) -> LLMResult:
+        # Log the call
+        log_meta: dict[str, Any] = meta if meta else {"provider": name}
+        log_llm_call("review_qa_check_fixes", prompt, text, log_meta, log_dir)
+
+        if meta:
+            return LLMResult(
+                text=text,
+                provider=name,
+                used=bool(text),
+                model=meta.get("model", ""),
+                input_tokens=meta.get("input_tokens", 0),
+                output_tokens=meta.get("output_tokens", 0),
+                cost_usd=meta.get("cost_usd", 0.0),
+            )
+        return LLMResult(text=text, provider=name, used=bool(text))
+
+    # Only OpenAI supported for reasoning
+    prov = (provider or "auto").lower()
+
+    if prov not in ("auto", "openai"):
+        raise ValueError(
+            "review-qa-check only supports OpenAI provider with reasoning. "
+            "Please set OPENAI_API_KEY and use --llm openai or auto (default)"
+        )
+
+    # Use GPT-5 with medium reasoning effort for QA fix recommendations
+    result, meta = _call_openai_responses_api(
+        prompt,
+        model=model or "gpt-5",
+        reasoning_effort="medium",
+        stream_callback=stream_callback,
+        log_dir=log_dir,
+        use_cache=use_cache,
+        instructions="You are the Oracle, a TIMES/Veda QA expert. Return only actionable remediation steps per QA issue with file references and fix instructions.",
+    )
+
+    if not result:
+        return done("none", "")
+
+    return done("openai", result, meta)

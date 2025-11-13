@@ -38,5 +38,13 @@
         "sha256": "077e00ef8f4441900ec44c69a04f3085d1c705901d331b5a17ba10f31fce7f32"
       }
     }
+  },
+  "review_qa_fixes": {
+    "current": "v1",
+    "versions": {
+      "v1": {
+        "sha256": "be39fe6181fc240407f5390f82479094a826f1c61c87a90a074eea66ba333601"
+      }
+    }
   }
 }

@@ -375,3 +375,61 @@ def build_solver_options_review_prompt(
     input_data = "\n".join(sections)
 
     return template, input_data
+
+
+def build_review_qa_fixes_prompt(
+    qa_struct_json: str, qa_rollup_text: str, run_log_excerpts: str, lst_excerpts: str
+) -> str:
+    """Build prompt for QA_CHECK focused fix recommendations.
+
+    Args:
+        qa_struct_json: Structured JSON of QA issues grouped by message/severity
+        qa_rollup_text: Human-readable rollup text from qa_check_parser
+        run_log_excerpts: Condensed run log excerpts with line numbers
+        lst_excerpts: Condensed LST file excerpts with line numbers
+
+    Returns:
+        Complete prompt for oracle to provide actionable fix instructions
+    """
+    template = load_prompt_template(
+        "review_qa_fixes",
+        required_placeholders={
+            "qa_issues_json",
+            "qa_rollup_text",
+            "run_log_excerpts",
+            "lst_excerpts",
+        },
+    )
+
+    if not template:
+        # Fallback inline version
+        template = """You are the Oracle, a TIMES/Veda QA expert specializing in diagnosing and fixing model issues.
+
+Your task: Return ONLY actionable remediation instructions for each issue identified in QA_CHECK.LOG. Be concrete, reference specific data locations, and include fix steps.
+
+# Input Data
+
+## QA_CHECK Issues (Structured JSON)
+{qa_issues_json}
+
+## QA_CHECK Rollup (Human-Readable)
+{qa_rollup_text}
+
+## Run Log (Condensed Excerpts)
+{run_log_excerpts}
+
+## LST File (Condensed Excerpts)
+{lst_excerpts}
+
+# Output Format
+
+Structure your response as a markdown document with sections for each issue, ordered by severity.
+For each issue provide: where to look (files/tables), how to fix (step-by-step), and how to validate.
+End with an overall priority checklist."""
+
+    return template.format(
+        qa_issues_json=qa_struct_json,
+        qa_rollup_text=qa_rollup_text,
+        run_log_excerpts=run_log_excerpts,
+        lst_excerpts=lst_excerpts,
+    )
