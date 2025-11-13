@@ -189,14 +189,57 @@ def ensure_threads_option(opt_path: Path, solver: str, threads: int) -> None:
         threads: Number of threads to set
     """
     import re
+    import time
 
+    def try_write_opt_file(path: Path, content: str) -> bool:
+        """Try to write to opt file, return True if successful."""
+        try:
+            path.write_text(content, encoding="utf-8")
+            return True
+        except (PermissionError, OSError):
+            return False
+
+    # Read file content
     try:
         txt = opt_path.read_text(encoding="utf-8", errors="ignore")
     except FileNotFoundError:
         # If no file exists, create a minimal one
         line = f"threads {threads}\n" if solver.lower() == "cplex" else f"Threads {threads}\n"
-        opt_path.write_text(line, encoding="utf-8")
+        if not try_write_opt_file(opt_path, line):
+            console.print(
+                f"[yellow]Warning: Cannot write to {opt_path.name} (file may be open in another program)[/yellow]"
+            )
+            if typer.confirm("Close the file and press Enter to retry", default=True):
+                for _attempt in range(3):
+                    time.sleep(0.5)
+                    if try_write_opt_file(opt_path, line):
+                        console.print(f"[green]✓ Successfully updated {opt_path.name}[/green]")
+                        return
+                console.print(
+                    f"[red]Error: Still cannot write to {opt_path.name}. Please close it and restart the scan.[/red]"
+                )
+                raise typer.Exit(1)
         return
+    except (PermissionError, OSError):
+        console.print(
+            f"[yellow]Warning: Cannot read {opt_path.name} (file may be open in another program)[/yellow]"
+        )
+        if typer.confirm("Close the file and press Enter to retry", default=True):
+            for attempt in range(3):
+                time.sleep(0.5)
+                try:
+                    txt = opt_path.read_text(encoding="utf-8", errors="ignore")
+                    break
+                except (PermissionError, OSError):
+                    if attempt == 2:
+                        console.print(
+                            f"[red]Error: Still cannot read {opt_path.name}. Please close it and restart the scan.[/red]"
+                        )
+                        raise typer.Exit(1)
+            else:
+                raise typer.Exit(1)
+        else:
+            raise typer.Exit(1)
 
     target = "threads"  # Match case-insensitively
     lines_out = []
@@ -237,7 +280,24 @@ def ensure_threads_option(opt_path: Path, solver: str, threads: int) -> None:
         appended = f"threads {threads}" if solver.lower() == "cplex" else f"Threads {threads}"
         lines_out.append(appended)
 
-    opt_path.write_text("\n".join(lines_out) + "\n", encoding="utf-8")
+    # Try to write the updated content
+    new_content = "\n".join(lines_out) + "\n"
+    if not try_write_opt_file(opt_path, new_content):
+        console.print(
+            f"[yellow]Warning: Cannot write to {opt_path.name} (file may be open in another program)[/yellow]"
+        )
+        if typer.confirm("Close the file and press Enter to retry", default=True):
+            for _attempt in range(3):
+                time.sleep(0.5)
+                if try_write_opt_file(opt_path, new_content):
+                    console.print(f"[green]✓ Successfully updated {opt_path.name}[/green]")
+                    return
+            console.print(
+                f"[red]Error: Still cannot write to {opt_path.name}. Please close it and restart the scan.[/red]"
+            )
+            raise typer.Exit(1)
+        else:
+            raise typer.Exit(1)
 
 
 def resolve_opt_file(run_dir: Path, solver: str, opt_file: str | None) -> Path | None:
