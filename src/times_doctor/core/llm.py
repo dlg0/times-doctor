@@ -1986,6 +1986,7 @@ def review_files(
     lst_content: str,
     provider: str = "auto",
     model: str = "",
+    reasoning_effort: str = "high",
     stream_callback: Callable[[str], None] | None = None,
     log_dir: Path | None = None,
     use_cache: bool = True,
@@ -2016,12 +2017,12 @@ def review_files(
         return done("none", "")
 
     if prov in ("auto", "openai"):
-        # Use GPT-5 with high reasoning effort for review via Responses API
+        # Use GPT-5 with configurable reasoning effort for review via Responses API
         # Responses API supports streaming with the stream parameter
         t, meta = _call_openai_responses_api(
             prompt,
-            model="gpt-5",
-            reasoning_effort="high",
+            model=model or "gpt-5",
+            reasoning_effort=reasoning_effort,
             stream_callback=stream_callback,
             log_dir=log_dir,
             use_cache=use_cache,
@@ -2063,6 +2064,7 @@ def review_solver_options(
     solver: str = "cplex",
     provider: str = "auto",
     model: str = "",
+    reasoning_effort: str = "high",
     stream_callback: Callable[[str], None] | None = None,
     log_dir: Path | None = None,
     use_cache: bool = True,
@@ -2103,11 +2105,11 @@ def review_solver_options(
             "Please set OPENAI_API_KEY and use --llm openai or auto (default)"
         )
 
-    # Use GPT-5 with high reasoning effort for solver option review with structured output
+    # Use GPT-5 with configurable reasoning effort for solver option review with structured output
     result, meta = _call_openai_responses_api(
         input_data,
-        model="gpt-5",
-        reasoning_effort="high",
+        model=model or "gpt-5",
+        reasoning_effort=reasoning_effort,
         stream_callback=stream_callback,
         log_dir=log_dir,
         use_cache=use_cache,
@@ -2131,6 +2133,7 @@ def review_qa_check_fixes(
     prompt: str,
     provider: str = "auto",
     model: str = "",
+    reasoning_effort: str = "medium",
     stream_callback: Callable[[str], None] | None = None,
     log_dir: Path | None = None,
     use_cache: bool = True,
@@ -2140,7 +2143,8 @@ def review_qa_check_fixes(
     Args:
         prompt: Complete prompt with QA issues, run_log, and lst excerpts
         provider: LLM provider (only 'openai' or 'auto' supported for reasoning)
-        model: Specific model override (default: gpt-5 with medium reasoning)
+        model: Specific model override (default: gpt-5)
+        reasoning_effort: Reasoning effort level (minimal|low|medium|high, default: medium)
         stream_callback: Optional callback for streaming output
         log_dir: Directory for LLM call logs
         use_cache: Whether to use LLM response cache
@@ -2175,11 +2179,11 @@ def review_qa_check_fixes(
             "Please set OPENAI_API_KEY and use --llm openai or auto (default)"
         )
 
-    # Use GPT-5 with medium reasoning effort for QA fix recommendations
+    # Use GPT-5 with configurable reasoning effort for QA fix recommendations
     result, meta = _call_openai_responses_api(
         prompt,
         model=model or "gpt-5",
-        reasoning_effort="medium",
+        reasoning_effort=reasoning_effort,
         stream_callback=stream_callback,
         log_dir=log_dir,
         use_cache=use_cache,

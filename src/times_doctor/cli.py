@@ -1712,6 +1712,11 @@ def review(
     run_dir: str,
     llm: str = typer.Option("auto", help="LLM provider: auto|openai|anthropic|amp|none"),
     model: str = typer.Option("", help="Specific model to use (will prompt if not specified)"),
+    reasoning_level: str = typer.Option(
+        "high",
+        "--reasoning-level",
+        help="Reasoning effort: minimal|low|medium|high (default: high)",
+    ),
     dry_run: bool = typer.Option(
         False, "--dry-run", help="Show cost estimate without making API calls"
     ),
@@ -1881,7 +1886,7 @@ def review(
 
         return
 
-    print(f"\n[bold yellow]Condensing files with fast LLM ({fast_model})...[/bold yellow]")
+    print("\n[bold yellow]Condensing files...[/bold yellow]")
     print(f"[dim](LLM calls logged to {llm_log_dir})[/dim]")
 
     condensed_qa_check = ""
@@ -1904,7 +1909,7 @@ def review(
             print(f"[green]  ✓ Saved {condensed_qa_check_path}[/green]")
 
         if run_log and run_log_path:
-            print(f"[dim]  Extracting from {run_log_path.name}...[/dim]")
+            print(f"[dim]  Condensing {run_log_path.name}...[/dim]")
 
             def runlog_progress(current: int, total: int, message: str) -> None:
                 if current == 0:
@@ -1931,7 +1936,7 @@ def review(
             print(f"[green]  ✓ Saved {condensed_run_log_path}[/green]")
 
         if lst_text and lst:
-            print(f"[dim]  Extracting from {lst.name}...[/dim]")
+            print(f"[dim]  Condensing {lst.name}...[/dim]")
 
             def lst_progress(current: int, total: int, message: str) -> None:
                 if current == 0:
@@ -1980,6 +1985,7 @@ def review(
         condensed_lst,
         provider=llm,
         model=model,
+        reasoning_effort=reasoning_level,
         stream_callback=stream_output,
         log_dir=llm_log_dir,
         use_cache=not no_cache,
@@ -2017,6 +2023,11 @@ def review_qa_check(
     run_dir: str,
     llm: str = typer.Option("auto", help="LLM provider: auto|openai|anthropic|amp|none"),
     model: str = typer.Option("", help="Specific model to use (will prompt if not specified)"),
+    reasoning_level: str = typer.Option(
+        "medium",
+        "--reasoning-level",
+        help="Reasoning effort: minimal|low|medium|high (default: medium)",
+    ),
     dry_run: bool = typer.Option(
         False, "--dry-run", help="Show cost estimate without making API calls"
     ),
@@ -2158,7 +2169,7 @@ def review_qa_check(
         return
 
     # Step 1: Condense run_log and lst (same as review command)
-    print(f"\n[bold yellow]Condensing files with fast LLM ({fast_model})...[/bold yellow]")
+    print("\n[bold yellow]Condensing files...[/bold yellow]")
     print(f"[dim](LLM calls logged to {llm_log_dir})[/dim]")
 
     condensed_run_log = ""
@@ -2166,7 +2177,7 @@ def review_qa_check(
 
     try:
         if run_log and run_log_path:
-            print(f"[dim]  Extracting from {run_log_path.name}...[/dim]")
+            print(f"[dim]  Condensing {run_log_path.name}...[/dim]")
 
             def runlog_progress(current: int, total: int, message: str) -> None:
                 print(f"[dim]    {message}[/dim]")
@@ -2185,7 +2196,7 @@ def review_qa_check(
                 )
 
         if lst_text and lst:
-            print(f"[dim]  Extracting from {lst.name}...[/dim]")
+            print(f"[dim]  Condensing {lst.name}...[/dim]")
 
             def lst_progress(current: int, total: int, message: str) -> None:
                 print(f"[dim]    {message}[/dim]")
@@ -2267,6 +2278,7 @@ def review_qa_check(
         prompt,
         provider=llm,
         model=model,
+        reasoning_effort=reasoning_level,
         stream_callback=stream_output,
         log_dir=llm_log_dir,
         use_cache=not no_cache,
@@ -2307,6 +2319,11 @@ def review_solver_options(
     solver: str = typer.Option("auto", "--solver", help="Solver type: auto|cplex|gurobi"),
     llm: str = typer.Option("auto", help="LLM provider: auto|openai|anthropic|amp|none"),
     model: str = typer.Option("", help="Specific model to use (will prompt if not specified)"),
+    reasoning_level: str = typer.Option(
+        "high",
+        "--reasoning-level",
+        help="Reasoning effort: minimal|low|medium|high (default: high)",
+    ),
     dry_run: bool = typer.Option(
         False, "--dry-run", help="Show cost estimate without making API calls"
     ),
@@ -2519,7 +2536,7 @@ def review_solver_options(
 
         return
 
-    print(f"\n[bold yellow]Condensing files with fast LLM ({fast_model})...[/bold yellow]")
+    print("\n[bold yellow]Condensing files...[/bold yellow]")
     print(f"[dim](LLM calls logged to {llm_log_dir})[/dim]")
 
     condensed_qa_check = ""
@@ -2542,7 +2559,7 @@ def review_solver_options(
             print(f"[green]  ✓ Saved {condensed_qa_check_path}[/green]")
 
         if run_log and run_log_path:
-            print(f"[dim]  Extracting from {run_log_path.name}...[/dim]")
+            print(f"[dim]  Condensing {run_log_path.name}...[/dim]")
 
             def runlog_progress(current: int, total: int, message: str) -> None:
                 if current == 0:
@@ -2569,7 +2586,7 @@ def review_solver_options(
             print(f"[green]  ✓ Saved {condensed_run_log_path}[/green]")
 
         if lst_text and lst:
-            print(f"[dim]  Extracting from {lst.name}...[/dim]")
+            print(f"[dim]  Condensing {lst.name}...[/dim]")
 
             def lst_progress(current: int, total: int, message: str) -> None:
                 if current == 0:
@@ -2624,6 +2641,7 @@ def review_solver_options(
             solver=detected_solver,
             provider=llm,
             model=model,
+            reasoning_effort=reasoning_level,
             stream_callback=None,  # No streaming for structured output
             log_dir=llm_log_dir,
             use_cache=not no_cache,
@@ -2638,6 +2656,7 @@ def review_solver_options(
 
     # Parse structured output (result.text is the Pydantic model instance)
     from times_doctor.core.solver_models import SolverDiagnosis
+    from times_doctor.core.solver_validation import normalize_opt_config, validate_solver_diagnosis
 
     # Result.text is the Pydantic model instance when using structured output
     if isinstance(result.text, SolverDiagnosis):
@@ -2648,6 +2667,24 @@ def review_solver_options(
 
         data = json.loads(result.text)
         diagnosis = SolverDiagnosis(**data)
+
+    # Validate and normalize CPLEX options
+    if detected_solver == "cplex":
+        print("\n[dim]Validating CPLEX options...[/dim]")
+        is_valid, error_messages = validate_solver_diagnosis(diagnosis, solver=detected_solver)
+
+        if not is_valid:
+            print("[yellow]Warning: Some CPLEX options are invalid:[/yellow]")
+            for msg in error_messages:
+                print(f"[yellow]{msg}[/yellow]")
+            print("\n[cyan]Normalizing options (removing invalid ones)...[/cyan]")
+
+        # Normalize all configurations
+        diagnosis.opt_configurations = [
+            normalize_opt_config(config, solver=detected_solver)
+            for config in diagnosis.opt_configurations
+        ]
+        print("[green]✓ Options validated and normalized[/green]")
 
     # Create markdown from structured output
     md_lines = []
