@@ -51,7 +51,8 @@ RE_ITER = re.compile(r"\b(?:barrier|iter(?:ation)?)\b.*?(\d+)", re.I)
 RE_PRIMAL_INFEAS = re.compile(r"primal\s+infeas(?:ibility)?\s*=?\s*([0-9.eE+\-]+)", re.I)
 RE_DUAL_INFEAS = re.compile(r"dual\s+infeas(?:ibility)?\s*=?\s*([0-9.eE+\-]+)", re.I)
 RE_CROSSOVER = re.compile(r"crossover", re.I)
-RE_SIMPLEX = re.compile(r"\b(?:simplex|primal|dual)\b", re.I)
+RE_BARRIER = re.compile(r"\bbarrier\b", re.I)
+RE_SIMPLEX = re.compile(r"\b(?:primal\s+simplex|dual\s+simplex|simplex)\b", re.I)
 
 
 def parse_cplex_line(line: str) -> dict[str, Any] | None:
@@ -69,6 +70,10 @@ def parse_cplex_line(line: str) -> dict[str, Any] | None:
     # Check for crossover
     if RE_CROSSOVER.search(line):
         result["phase"] = "crossover"
+
+    # Check for explicit barrier mention
+    if RE_BARRIER.search(line):
+        result["phase"] = "barrier"
 
     # Extract mu (complementarity)
     mu_match = RE_MU.search(line)
@@ -92,7 +97,7 @@ def parse_cplex_line(line: str) -> dict[str, Any] | None:
     if dinf_match:
         result["dual_infeas"] = float(dinf_match.group(1))
 
-    # Check for simplex (only if no mu found - mu is barrier-specific)
+    # Check for simplex (only if no mu found and phase not already set)
     if not result.get("phase") and not mu_match and RE_SIMPLEX.search(line):
         result["phase"] = "simplex"
 

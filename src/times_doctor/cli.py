@@ -154,6 +154,28 @@ def write_default_opt(solver: str, path: Path, threads: int = 7) -> None:
     path.write_text("\n".join(lines) + "\n")
 
 
+def ensure_display_options(opt_path: Path) -> None:
+    """
+    Ensure CPLEX .opt file has simdisplay and bardisplay for progress tracking.
+
+    Args:
+        opt_path: Path to CPLEX .opt file
+    """
+    try:
+        txt = opt_path.read_text(encoding="utf-8", errors="ignore")
+        lower = txt.lower()
+        lines = []
+        if "simdisplay" not in lower:
+            lines.append("simdisplay 2")
+        if "bardisplay" not in lower:
+            lines.append("bardisplay 2")
+        if lines:
+            suffix = "\n" if not txt.endswith("\n") else ""
+            opt_path.write_text(txt + suffix + "\n".join(lines) + "\n", encoding="utf-8")
+    except Exception:
+        pass  # Silently fail if we can't update the file
+
+
 def resolve_opt_file(run_dir: Path, solver: str, opt_file: str | None) -> Path | None:
     """
     Resolve .opt file from various sources.
@@ -1241,6 +1263,10 @@ def scan(
             dst_opt = wdir / f"{slvr}.opt"
             shutil.copy2(opt_path, dst_opt)
 
+            # Ensure bardisplay/simdisplay for CPLEX to enable progress tracking
+            if slvr == "cplex":
+                ensure_display_options(dst_opt)
+
             run_dirs[profile_key] = (slvr, wdir)
 
     setup_elapsed = time.monotonic() - setup_start
@@ -1325,6 +1351,11 @@ def scan(
             text = read_text(lst) if lst else ""
             st = parse_statuses(text)
             rng = parse_range_stats(text)
+
+            # Update termination result in monitor
+            monitor.update_result(
+                profile_name, st.get("lp_status_text") or st.get("solver_status") or "–"
+            )
 
             # Get elapsed time from monitor
             elapsed_time = monitor.runs[profile_name].get_elapsed_time()

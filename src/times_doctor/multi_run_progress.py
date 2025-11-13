@@ -31,6 +31,7 @@ class RunProgress:
 
     name: str
     status: RunStatus = RunStatus.WAITING
+    termination: str = "–"
     phase: str = "–"
     progress_pct: float | None = None
     iteration: str = "–"
@@ -168,12 +169,19 @@ class MultiRunProgressMonitor:
             if "dual_infeas" in parsed:
                 run.dual_infeas = parsed["dual_infeas"]
 
+    def update_result(self, run_name: str, termination: str) -> None:
+        """Update the solver termination result for a run."""
+        with self.lock:
+            if run_name in self.runs:
+                self.runs[run_name].termination = termination or "–"
+
     def get_table(self) -> Table:
         """Generate Rich table for display."""
         table = Table(title=self.title, show_header=True, header_style="bold cyan")
 
         table.add_column("Run", style="cyan", no_wrap=True)
         table.add_column("Status", style="yellow")
+        table.add_column("Result", style="white")
         table.add_column("Phase", style="magenta")
         table.add_column("Progress", justify="right", style="green")
         table.add_column("Iteration", justify="right")
@@ -200,6 +208,7 @@ class MultiRunProgressMonitor:
                 table.add_row(
                     run_name,
                     status_text,
+                    run.termination,
                     run.phase,
                     run.format_progress(),
                     run.format_iteration(),

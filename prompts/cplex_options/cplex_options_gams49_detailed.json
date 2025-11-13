@@ -1,0 +1,3550 @@
+{
+  "advind": {
+    "type": "integer",
+    "summary": "advanced basis use",
+    "default": "determined by GAMS Bratio",
+    "values": [
+      {
+        "value": "0",
+        "meaning": "Do not use advanced basis"
+      },
+      {
+        "value": "1",
+        "meaning": "Use advanced basis if available"
+      },
+      {
+        "value": "2",
+        "meaning": "Crash an advanced basis if available (use basis with presolve)"
+      }
+    ],
+    "description": "Use an Advanced Basis. GAMS/Cplex will automatically use an advanced basis from a previous solve statement. The GAMS BRatio option can be used to specify when not to use an advanced basis. The Cplex option AdvInd can be used to ignore a basis passed on by GAMS (it overrides BRatio)."
+  },
+  "aggcutlim": {
+    "type": "integer",
+    "summary": "aggregation limit for cut generation",
+    "default": "3",
+    "description": "Limits the number of constraints that can be aggregated for generating flow cover and mixed integer rounding cuts. For most purposes, the default will be satisfactory."
+  },
+  "aggfill": {
+    "type": "integer",
+    "summary": "aggregator fill parameter",
+    "default": "10",
+    "description": "Aggregator fill limit. If the net result of a single substitution is more non-zeros than the setting of the AggFill parameter, the substitution will not be made."
+  },
+  "aggind": {
+    "type": "integer",
+    "summary": "aggregator on/off",
+    "default": "-1",
+    "values": [
+      {
+        "value": "-1",
+        "meaning": "Once for LP, unlimited for MIP"
+      },
+      {
+        "value": "0",
+        "meaning": "Do not use"
+      },
+      {
+        "value": ">0",
+        "meaning": "Aggregator will be applied the specified number of times"
+      }
+    ],
+    "description": "This option, when set to a nonzero value, will cause the Cplex aggregator to use substitution where possible to reduce the number of rows and columns in the problem. If set to a positive value, the aggregator will be applied the specified number of times, or until no more reductions are possible. At the default value of -1, the aggregator is applied once for linear programs and an unlimited number of times for mixed integer problems."
+  },
+  "auxrootthreads": {
+    "type": "integer",
+    "summary": "number of threads for auxiliary tasks at the root node",
+    "default": "0",
+    "values": [
+      {
+        "value": "-1",
+        "meaning": "Off: do not use additional threads for auxiliary tasks"
+      },
+      {
+        "value": "0",
+        "meaning": "Automatic: let CPLEX choose the number of threads to use"
+      },
+      {
+        "value": "N>n>0",
+        "meaning": "Use n threads for auxiliary root tasks"
+      }
+    ],
+    "description": "Partitions the number of threads for CPLEX to use for auxiliary tasks while it solves the root node of a problem. On a system that offers N processors or N global threads, if you set this parameter to n, where N>n>0 then CPLEX uses at most n threads for auxiliary tasks and at most N-n threads to solve the root node. See also the parameter Threads. You cannot set n, the value of this parameter, to a value greater than or equal to N, the number of processors or global threads offered on your system. In other words, when you set this parameter to a value other than its default, that value must be strictly less than the number of processors or global threads on your system. Independent of the auxiliary root threads parameter, CPLEX will never use more threads than those defined by the global default thread count parameter. CPLEX also makes sure that there is at least one thread available for the main root tasks. For example, if you set the global threads parameter to 3 and the auxiliary root threads parameter to 4, CPLEX still uses only two threads for auxiliary root tasks in order to keep one thread available for the main root tasks. At its default value, 0 (zero), CPLEX automatically chooses the number of threads to use for the primary root tasks and for auxiliary tasks. The number of threads that CPLEX uses to solve the root node depends on several factors: 1) the number of processors available on your system; 2) the number of threads available to your application on your system (for example, as a result of limited resources or competition with other applications); 3) the value of the global default thread count parameter Threads."
+  },
+  "baralg": {
+    "type": "integer",
+    "summary": "algorithm selection",
+    "default": "0",
+    "values": [
+      {
+        "value": "0",
+        "meaning": "Same as 1 for LPs and MIP subproblems, 3 otherwise"
+      },
+      {
+        "value": "1",
+        "meaning": "Infeasibility-estimate start"
+      },
+      {
+        "value": "2",
+        "meaning": "Infeasibility-constant start"
+      },
+      {
+        "value": "3",
+        "meaning": "standard barrier algorithm"
+      }
+    ],
+    "description": "Selects which barrier algorithm to use. The default setting of 0 uses the infeasibility-estimate start algorithm for LPs and MIP subproblems and the standard barrier algorithm, option 3, for other cases. The standard barrier algorithm is almost always fastest. The alternative algorithms, options 1 and 2, may eliminate numerical difficulties related to infeasibility, but will generally be slower."
+  },
+  "barcolnz": {
+    "type": "integer",
+    "summary": "dense column handling",
+    "default": "0",
+    "description": "Determines whether or not columns are considered dense for special barrier algorithm handling. At the default setting of 0, this parameter is determined dynamically. Values above 0 specify the number of entries in columns to be considered as dense."
+  },
+  "barcrossalg": {
+    "type": "integer",
+    "summary": "barrier crossover method",
+    "default": "0",
+    "values": [
+      {
+        "value": "0",
+        "meaning": "Automatic"
+      },
+      {
+        "value": "1",
+        "meaning": "Primal crossover"
+      },
+      {
+        "value": "2",
+        "meaning": "Dual crossover"
+      }
+    ],
+    "description": "Selects which crossover method is used at the end of a barrier optimization. To turn off crossover set SolutionType to 2."
+  },
+  "bardisplay": {
+    "type": "integer",
+    "summary": "progress display level",
+    "default": "1",
+    "values": [
+      {
+        "value": "0",
+        "meaning": "No progress information"
+      },
+      {
+        "value": "1",
+        "meaning": "Display normal information"
+      },
+      {
+        "value": "2",
+        "meaning": "Display diagnostic information"
+      }
+    ],
+    "description": "Determines the level of progress information to be displayed while the barrier method is running."
+  },
+  "barepcomp": {
+    "type": "real",
+    "summary": "convergence tolerance",
+    "default": "1.0e-08",
+    "description": "Determines the tolerance on complementarity for convergence of the barrier algorithm. The algorithm will terminate with an optimal solution if the relative complementarity is smaller than this value."
+  },
+  "bargrowth": {
+    "type": "real",
+    "summary": "unbounded face detection",
+    "default": "1.0e+12",
+    "description": "Used by the barrier algorithm to detect unbounded optimal faces. At higher values, the barrier algorithm will be less likely to conclude that the problem has an unbounded optimal face, but more likely to have numerical difficulties if the problem does have an unbounded face."
+  },
+  "baritlim": {
+    "type": "integer",
+    "summary": "iteration limit",
+    "default": "large",
+    "description": "Determines the maximum number of iterations for the barrier algorithm. When set to 0, no Barrier iterations occur, but problem setup occurs and information about the setup is displayed (such as Cholesky factorization information). When left at the default value, there is no explicit limit on the number of iterations."
+  },
+  "barmaxcor": {
+    "type": "integer",
+    "summary": "maximum correction limit",
+    "default": "-1",
+    "description": "Specifies the maximum number of centering corrections that should be done on each iteration. Larger values may improve the numerical performance of the barrier algorithm at the expense of computation time. The default of -1 means the number is automatically determined."
+  },
+  "barobjrng": {
+    "type": "real",
+    "summary": "maximum objective function",
+    "default": "1.0e+20",
+    "description": "Determines the maximum absolute value of the objective function. The barrier algorithm looks at this limit to detect unbounded problems."
+  },
+  "barorder": {
+    "type": "integer",
+    "summary": "row ordering algorithm selection",
+    "default": "0",
+    "values": [
+      {
+        "value": "0",
+        "meaning": "Automatic"
+      },
+      {
+        "value": "1",
+        "meaning": "Approximate Minimum Degree (AMD)"
+      },
+      {
+        "value": "2",
+        "meaning": "Approximate Minimum Fill (AMF)"
+      },
+      {
+        "value": "3",
+        "meaning": "Nested Dissection (ND)"
+      }
+    ],
+    "description": "Determines the ordering algorithm to be used by the barrier method. By default, Cplex attempts to choose the most effective of the available alternatives. Higher numbers tend to favor better orderings at the expense of longer ordering run times. The automatic option includes additional processing and may yield results that differ from the explicit choice."
+  },
+  "barqcpepcomp": {
+    "type": "real",
+    "summary": "convergence tolerance for the barrier optimizer for QCPs",
+    "range": "[1.0e-12, 1.0e+75]",
+    "default": "1.0e-07"
+  },
+  "barstartalg": {
+    "type": "integer",
+    "summary": "barrier starting point algorithm",
+    "default": "1",
+    "values": [
+      {
+        "value": "1",
+        "meaning": "default primal, dual is 0"
+      },
+      {
+        "value": "2",
+        "meaning": "default primal, estimate dual"
+      },
+      {
+        "value": "3",
+        "meaning": "primal average, dual is 0"
+      },
+      {
+        "value": "4",
+        "meaning": "primal average, estimate dual"
+      }
+    ],
+    "description": "This option sets the algorithm to be used to compute the initial starting point for the barrier solver. The default starting point is satisfactory for most problems. Since the default starting point is tuned for primal problems, using the other starting points may be worthwhile in conjunction with the PreDual parameter."
+  },
+  "bbinterval": {
+    "type": "integer",
+    "summary": "best bound interval",
+    "default": "7",
+    "description": "Set interval for selecting a best bound node when doing a best estimate search. Active only when NodeSel is 2 (best estimate). Decreasing this interval may be useful when best estimate is finding good solutions but making little progress in moving the bound. Increasing this interval may help when the best estimate node selection is not finding any good integer solutions. Setting the interval to 1 is equivalent to setting NodeSel to 1."
+  },
+  "bendersfeascuttol": {
+    "type": "real",
+    "summary": "Tolerance for whether a feasibility cut has been violated in Benders decomposition",
+    "default": "1.0e-06"
+  },
+  "bendersoptcuttol": {
+    "type": "real",
+    "summary": "Tolerance for optimality cuts in Benders decomposition",
+    "default": "1.0e-06"
+  },
+  ".benderspartition": {
+    "type": "integer",
+    "summary": "Benders partition",
+    "default": "0"
+  },
+  "benderspartitioninstage": {
+    "type": "boolean",
+    "summary": "Benders partition through stage variable suffix",
+    "default": "0"
+  },
+  "bendersstrategy": {
+    "type": "integer",
+    "summary": "Benders decomposition algorithm as a strategy",
+    "default": "0",
+    "values": [
+      {
+        "value": "-1",
+        "meaning": "Off"
+      },
+      {
+        "value": "Execute",
+        "meaning": "conventional branch and bound; ignore any Benders annotations. That is, do not use Benders algorithm even if a Benders partition of the current model is present"
+      },
+      {
+        "value": "0",
+        "meaning": "Automatic"
+      },
+      {
+        "value": "If",
+        "meaning": "annotations specifying a Benders partition of the current model are available, CPLEX attempts to decompose the model. CPLEX uses the master as given by the annotations, and attempts to partition the subproblems further, if possible, before applying Benders algorithm to solve the model. If the user supplied annotations, but the annotations supplied do not lead to a complete decomposition into master and disjoint subproblems (that is, if the annotations are wrong in that sense), CPLEX produces an error."
+      },
+      {
+        "value": "1",
+        "meaning": "Apply user annotations"
+      },
+      {
+        "value": "CPLEX",
+        "meaning": "applies Benders algorithm to a decomposition based on annotations supplied by the user. If no annotations to decompose the model are available, this setting produces an error. If the user supplies annotations, but the supplied annotations do not lead to a complete partition of the original model into disjoint master and subproblems, then this setting produces an error."
+      },
+      {
+        "value": "2",
+        "meaning": "Apply user annotations with automatic support for subproblems"
+      },
+      {
+        "value": "CPLEX",
+        "meaning": "accepts the master as given and attempts to decompose the remaining elements into disjoint subproblems to assign to workers. It then solves the Benders decomposition of the model. If no annotations to decompose the model are available, this setting produces an error. If the user supplies annotations, but the supplied annotations do not lead to a complete partition of the original model into disjoint master and subproblems, then this setting produces an error."
+      },
+      {
+        "value": "3",
+        "meaning": "Apply automatic decomposition"
+      },
+      {
+        "value": "CPLEX",
+        "meaning": "ignores any annotation supplied with the model; CPLEX applies presolve; CPLEX then automatically generates a Benders partition, putting integer variables in master and continuous linear variables into disjoint subproblems. CPLEX then solves the Benders decomposition of the model. If the problem is a strictly linear program (LP), that is, there are no integer-constrained variables to put into master, then CPLEX reports an error. If the problem is a mixed integer linear program (MILP) where all variables are integer-constrained, (that is, there are no continuous linear variables to decompose into disjoint subproblems) then CPLEX reports an error."
+      }
+    ],
+    "description": "Given a formulation of a problem, CPLEX can decompose the model into a single master and (possibly multiple) subproblems. To do so, CPLEX can make use of annotations that you supply for your model. The strategy can be applied to mixed-integer linear programs (MILP). For certain types of problems, this approach offers significant performance improvements as subproblems can be solved in parallel. For mixed integer programs (MIP), under certain conditions, CPLEX can apply Benders algorithm to improve the search to find more feasible solutions more quickly."
+  },
+  "bndrng": {
+    "type": "string",
+    "summary": "do lower / upper bound ranging",
+    "description": "Calculate sensitivity ranges for the specified GAMS lower and upper bounds. Unlike most options, BNDRng can be repeated multiple times in the options file. Sensitivity range information will be produced for each GAMS lower and upper bound named. Specifying all will cause range information to be produced for all lower and upper bounds. Range information will be printed to the beginning of the solution listing in the GAMS listing file unless option RngRestart is specified."
+  },
+  "bndstrenind": {
+    "type": "integer",
+    "summary": "bound strengthening",
+    "default": "-1",
+    "values": [
+      {
+        "value": "-1",
+        "meaning": "Determine automatically"
+      },
+      {
+        "value": "0",
+        "meaning": "Don't use bound strengthening"
+      },
+      {
+        "value": "1",
+        "meaning": "Use bound strengthening"
+      }
+    ],
+    "description": "Use bound strengthening when solving mixed integer problems. Bound strengthening tightens the bounds on variables, perhaps to the point where the variable can be fixed and thus removed from consideration during the branch and bound algorithm. This reduction is usually beneficial, but occasionally, due to its iterative nature, takes a long time."
+  },
+  "bqpcuts": {
+    "type": "integer",
+    "summary": "boolean quadric polytope cuts for nonconvex QP or MIQP solved to global optimality",
+    "default": "0",
+    "values": [
+      {
+        "value": "-1",
+        "meaning": "Do not generate BQP cuts"
+      },
+      {
+        "value": "0",
+        "meaning": "Determined automatically"
+      },
+      {
+        "value": "1",
+        "meaning": "Generate BQP cuts moderately"
+      },
+      {
+        "value": "2",
+        "meaning": "Generate BQP cuts aggressively"
+      },
+      {
+        "value": "3",
+        "meaning": "Generate BQP cuts very aggressively"
+      }
+    ]
+  },
+  "brdir": {
+    "type": "integer",
+    "summary": "set branching direction",
+    "default": "0",
+    "values": [
+      {
+        "value": "-1",
+        "meaning": "Down branch selected first"
+      },
+      {
+        "value": "0",
+        "meaning": "Algorithm decides"
+      },
+      {
+        "value": "1",
+        "meaning": "Up branch selected first"
+      }
+    ],
+    "description": "Used to decide which branch (up or down) should be taken first at each node."
+  },
+  "bttol": {
+    "type": "real",
+    "summary": "backtracking limit",
+    "range": "[0.0, 1.0]",
+    "default": "1.0",
+    "description": "This option controls how often backtracking is done during the branching process. At each node, Cplex compares the objective function value or estimated integer objective value to these values at parent nodes; the value of the bttol parameter dictates how much relative degradation is tolerated before backtracking. Lower values tend to increase the amount of backtracking, making the search more of a pure best-bound search. Higher values tend to decrease the amount of backtracking, making the search more of a depth-first search. This parameter is used only once a first integer solution is found or when a cutoff has been specified."
+  },
+  "calcqcpduals": {
+    "type": "integer",
+    "summary": "calculate the dual values of a quadratically constrained problem",
+    "default": "1",
+    "values": [
+      {
+        "value": "0",
+        "meaning": "Do not calculate dual values"
+      },
+      {
+        "value": "1",
+        "meaning": "Calculate dual values as long as it does not interfere with presolve reductions"
+      },
+      {
+        "value": "2",
+        "meaning": "Calculate dual values and disable any presolve reductions that would interfere"
+      }
+    ]
+  },
+  "cardls": {
+    "type": "integer",
+    "summary": "decides how often to apply the cardinality local search heuristic (CLSH)",
+    "default": "-1",
+    "values": [
+      {
+        "value": "-1",
+        "meaning": "Do not apply CLSH"
+      },
+      {
+        "value": "0",
+        "meaning": "Automatic"
+      },
+      {
+        "value": "1",
+        "meaning": "Apply the CLSH only at the root node"
+      },
+      {
+        "value": "2",
+        "meaning": "Apply the CLSH at the nodes of the branch and bound tree"
+      }
+    ]
+  },
+  "cliques": {
+    "type": "integer",
+    "summary": "clique cut generation",
+    "default": "0",
+    "values": [
+      {
+        "value": "-1",
+        "meaning": "Do not generate clique cuts"
+      },
+      {
+        "value": "0",
+        "meaning": "Determined automatically"
+      },
+      {
+        "value": "1",
+        "meaning": "Generate clique cuts moderately"
+      },
+      {
+        "value": "2",
+        "meaning": "Generate clique cuts aggressively"
+      },
+      {
+        "value": "3",
+        "meaning": "Generate clique cuts very aggressively"
+      }
+    ],
+    "description": "Determines whether or not clique cuts should be generated during optimization."
+  },
+  "clocktype": {
+    "type": "integer",
+    "summary": "clock type for computation time",
+    "default": "2",
+    "values": [
+      {
+        "value": "0",
+        "meaning": "Automatic"
+      },
+      {
+        "value": "1",
+        "meaning": "CPU time"
+      },
+      {
+        "value": "2",
+        "meaning": "Wall clock time"
+      }
+    ],
+    "description": "Decides how computation times are measured for both reporting performance and terminating optimization when a time limit has been set. Small variations in measured time on identical runs may be expected on any computer system with any setting of this parameter."
+  },
+  "clonelog": {
+    "type": "integer",
+    "summary": "enable clone logs",
+    "default": "0",
+    "values": [
+      {
+        "value": "-1",
+        "meaning": "Clone log files off"
+      },
+      {
+        "value": "0",
+        "meaning": "Automatic"
+      },
+      {
+        "value": "1",
+        "meaning": "Clone log files on"
+      }
+    ],
+    "description": "The clone logs contain information normally recorded in the ordinary log file but inconvenient to send through the normal log channel in case of parallel execution. The information likely to be of most interest to you are special messages, such as error messages, that result from calls to the LP optimizers called for the subproblems. The clone log files are named cloneK.log, where K is the index of the clone, ranging from 0 (zero) to the number of threads minus one. Since the clones are created at each call to a parallel optimizer and discarded when it exits, the clone logs are opened at each call and closed at each exit. The clone log files are not removed when the clones themselves are discarded."
+  },
+  "coeredind": {
+    "type": "integer",
+    "summary": "coefficient reduction on/off",
+    "default": "-1",
+    "values": [
+      {
+        "value": "-1",
+        "meaning": "Automatic"
+      },
+      {
+        "value": "0",
+        "meaning": "Do not use coefficient reduction"
+      },
+      {
+        "value": "1",
+        "meaning": "Reduce only to integral coefficients"
+      },
+      {
+        "value": "2",
+        "meaning": "Reduce all potential coefficients"
+      },
+      {
+        "value": "3",
+        "meaning": "Reduce aggressively with tilting"
+      }
+    ],
+    "description": "Coefficient reduction is a technique used when presolving mixed integer programs. The benefit is to improve the objective value of the initial (and subsequent) linear programming relaxations by reducing the number of non-integral vertexes. However, the linear programs generated at each node may become more difficult to solve."
+  },
+  "conflictalg": {
+    "type": "integer",
+    "summary": "algorithm CPLEX uses in the conflict refiner to discover a minimal set of conflicting constraints in an infeasible model",
+    "default": "0"
+  },
+  "conflictdisplay": {
+    "type": "integer",
+    "summary": "decides how much information CPLEX reports when the conflict refiner is working",
+    "default": "1",
+    "values": [
+      {
+        "value": "0",
+        "meaning": "No output"
+      },
+      {
+        "value": "1",
+        "meaning": "Summary display"
+      },
+      {
+        "value": "2",
+        "meaning": "Detailed display"
+      }
+    ]
+  },
+  "covers": {
+    "type": "integer",
+    "summary": "cover cut generation",
+    "default": "0",
+    "values": [
+      {
+        "value": "-1",
+        "meaning": "Do not generate cover cuts"
+      },
+      {
+        "value": "0",
+        "meaning": "Determined automatically"
+      },
+      {
+        "value": "1",
+        "meaning": "Generate cover cuts moderately"
+      },
+      {
+        "value": "2",
+        "meaning": "Generate cover cuts aggressively"
+      },
+      {
+        "value": "3",
+        "meaning": "Generate cover cuts very aggressively"
+      }
+    ],
+    "description": "Determines whether or not cover cuts should be generated during optimization."
+  },
+  "cpumask": {
+    "type": "string",
+    "summary": "switch and mask to bind threads to processors (Linux only)",
+    "default": "auto",
+    "values": [
+      {
+        "value": "auto",
+        "meaning": "CPLEX decides whether to bind threads to cores (or processors)"
+      },
+      {
+        "value": "off",
+        "meaning": "CPLEX performs no binding"
+      },
+      {
+        "value": "hex",
+        "meaning": "CPLEX binds the threads in round-robin fashion to the cores specified by the mask"
+      }
+    ],
+    "description": "The value of this parameter serves as a switch to turn on (or to turn off) CPLEX binding of multiple threads to multiple processors on platforms where this feature is available. Hexadecimal values of this parameter serve as a mask to specify to CPLEX which processors (or cores) to use in binding multiple threads to multiple processors. CPU binding is also sometimes known as processor affinity. CPU binding reduces the variability of CPLEX runs. On some occasions, running the same CPLEX on the same (non trivial) models would produce a big variation in runtime, e.g. 1000 seconds versus 900 seconds on a 12 core machine. These differences happen while CPLEX still gets exactly the same results and executes the exact same path, thanks to its completely deterministic algorithms. Running the same tests with CPU binding enabled reduced this variability in running time significantly. If not set to off or auto CPLEX treats the value of this parameter as a string that resembles a hexadecimal number without the usual 0x prefix. A valid string consists of these elements: a) any digit from 0 (zero) through 9 (inclusive), b) any lower case character in the range a through f (inclusive), and c) any upper case character in the range A through F (inclusive). CPLEX rejects a string containing any other digits or characters than those. When the value of this parameter is a valid string, each bit of this string corresponds to a central processing unit (CPU), that is, to a processor or core. The lowest order bit of the string corresponds to the first logical CPU, and the highest order corresponds to the last logical CPU. For example, 00000001 designates processor #0, 00000003 designates processors #0 and #1, FFFFFFFF designates all processors #0 through #31. CPLEX uses the ith CPU if and only if the ith bit of this string is set to 1 (one). Tip: For GNU/Linux users, this parameter behaves like the taskset command (except that this parameter lacks the prefix 0x). If this CPU mask parameter is set to a valid string that designates a hexadecimal number, but global Threads count is set to 0 (zero), then CPLEX still starts as many threads as the number of cores on the machine, but only the cores enabled in the mask will be used. For example, if a user sets this CPU mask parameter to the hexadecimal value \"f\" on a 16-core machine, and the user sets the global Threads count to 0 (zero), the result is 16 threads. These 16 threads will be bound to the first four cores in a round-robin way: treads 1,5,9,13 to core 1, threads 2,6,10,14 to core 2 and so on. This situation is probably not what the user intended. Therefore, if you set this CPU mask parameter, then you should also set global threads count; indeed, you should set the threads parameter to the number of active cores designated by the mask. For example, on a 16 core machine, consider the difference between the value \"off\" and the value ffff. If the value of this parameter is \"off\" CPLEX does no binding. If the value of this parameter is ffff, CPLEX binds threads to cores."
+  },
+  "craind": {
+    "type": "integer",
+    "summary": "crash strategy (used to obtain starting basis)",
+    "default": "1",
+    "values": [
+      {
+        "value": "-1",
+        "meaning": "Primal: alternate ways of using objective coefficients. Dual: aggressive starting basis"
+      },
+      {
+        "value": "0",
+        "meaning": "Primal: ignore objective coefficients during crash. Dual: aggressive starting basis"
+      },
+      {
+        "value": "1",
+        "meaning": "Primal: alternate ways of using objective coefficients. Dual: default starting basis"
+      }
+    ],
+    "description": "The crash option biases the way Cplex orders variables relative to the objective function when selecting an initial basis."
+  },
+  "cutlo": {
+    "type": "real",
+    "summary": "lower cutoff for tree search",
+    "default": "-1.0e+75",
+    "description": "Sets the lower cutoff tolerance. When the problem is a maximization problem, CPLEX cuts off or discards solutions that are less than the specified cutoff value. If the model has no solution with an objective value greater than or equal to the cutoff value, then CPLEX declares the model infeasible. In other words, setting the lower cutoff value c for a maximization problem is similar to adding this constraint to the objective function of the model: obj>=c. This option overrides the GAMS Cutoff setting. This parameter is not effective with FeasOpt. FeasOpt cannot analyze an infeasibility introduced by this parameter. If you want to analyze such a condition, add an explicit objective constraint to your model instead."
+  },
+  "cutpass": {
+    "type": "integer",
+    "summary": "maximum number of cutting plane passes",
+    "default": "0",
+    "values": [
+      {
+        "value": "-1",
+        "meaning": "None"
+      },
+      {
+        "value": "0",
+        "meaning": "Automatically determined"
+      },
+      {
+        "value": ">0",
+        "meaning": "Maximum passes to perform"
+      }
+    ],
+    "description": "Sets the upper limit on the number of passes that will be performed when generating cutting planes on a mixed integer model."
+  },
+  "cuts": {
+    "type": "string",
+    "summary": "default cut generation",
+    "default": "0",
+    "values": [
+      {
+        "value": "-1",
+        "meaning": "Do not generate cuts"
+      },
+      {
+        "value": "0",
+        "meaning": "Determined automatically"
+      },
+      {
+        "value": "1",
+        "meaning": "Generate cuts moderately"
+      },
+      {
+        "value": "2",
+        "meaning": "Generate cuts aggressively"
+      },
+      {
+        "value": "3",
+        "meaning": "Generate cuts very aggressively"
+      },
+      {
+        "value": "4",
+        "meaning": "Generate cuts highly aggressively"
+      },
+      {
+        "value": "5",
+        "meaning": "Generate cuts extremely aggressively"
+      }
+    ],
+    "description": "Allows generation setting of all optional cuts at once. This is done by changing the meaning of the default value (0: automatic) for the various Cplex cut generation options. The options affected are Cliques, Covers, DisjCuts, FlowCovers, FlowPaths, FracCuts, GUBCovers, ImplBd, LiftProjCuts, MCFCuts, MIRCuts, and Symmetry."
+  },
+  "cutsfactor": {
+    "type": "real",
+    "summary": "cut limit",
+    "default": "-1.0",
+    "description": "This option limits the number of cuts that can be added. For values between zero and one inclusive (that is, in the range [0.0, 1.0], CPLEX generates no cuts. For values strictly greater than 1.0 (one), CPLEX limits the number of rows in the model with cuts added. The limit on this total is the product of CutsFactor times the original number of rows. If CPLEX has presolved the model, the original number of rows is the number of rows in the presolved model. (This behavior with respect to a presolved model is unchanged.) CPLEX regards negative values of this parameter as equivalent to the default value -1.0. That is, a negative value specifies no particular limit on the number of cuts. CPLEX computes and dynamically adjusts such a limit automatically"
+  },
+  "cutup": {
+    "type": "real",
+    "summary": "upper cutoff for tree search",
+    "default": "1.0e+75",
+    "description": "Sets the upper cutoff tolerance. When the problem is a minimization problem, CPLEX cuts off or discards any solutions that are greater than the specified upper cutoff value. If the model has no solution with an objective value less than or equal to the cutoff value, CPLEX declares the model infeasible. In other words, setting an upper cutoff value c for a minimization problem is similar to adding this constraint to the objective function of the model: obj<=c. This option overrides the GAMS Cutoff setting. This parameter is not effective with FeasOpt. FeasOpt cannot analyze an infeasibility introduced by this parameter. If you want to analyze such a condition, add an explicit objective constraint to your model instead."
+  },
+  "datacheck": {
+    "type": "integer",
+    "summary": "controls data consistency checking and modeling assistance",
+    "default": "0",
+    "values": [
+      {
+        "value": "0",
+        "meaning": "Data checking off"
+      },
+      {
+        "value": "1",
+        "meaning": "Data checking on"
+      },
+      {
+        "value": "2",
+        "meaning": "Data checking and model assistance on"
+      }
+    ],
+    "description": "When the value of this parameter is set to level 2, CPLEX turns on both data consistency checking and modeling assistance. At this level, CPLEX issues warnings at the start of the optimization about disproportionate values (too large, too small) in coefficients, bounds, and righthand sides (RHS)."
+  },
+  "depind": {
+    "type": "integer",
+    "summary": "dependency checker on/off",
+    "default": "-1",
+    "values": [
+      {
+        "value": "-1",
+        "meaning": "Automatic"
+      },
+      {
+        "value": "0",
+        "meaning": "Turn off dependency checking"
+      },
+      {
+        "value": "1",
+        "meaning": "Turn on only at the beginning of preprocessing"
+      },
+      {
+        "value": "2",
+        "meaning": "Turn on only at the end of preprocessing"
+      },
+      {
+        "value": "3",
+        "meaning": "Turn on at the beginning and at the end of preprocessing"
+      }
+    ],
+    "description": "This option determines if and when the dependency checker will be used."
+  },
+  "dettilim": {
+    "type": "real",
+    "summary": "deterministic time limit",
+    "default": "1.0e+75",
+    "description": "Sets a time limit expressed in ticks, a unit to measure work done deterministically. The length of a deterministic tick may vary by platform. Nevertheless, ticks are normally consistent measures for a given platform (combination of hardware and software) carrying the same load. In other words, the correspondence of ticks to clock time depends on the hardware, software, and the current load of the machine. For the same platform and same load, the ratio of ticks per second stays roughly constant, independent of the model solved. However, for very short optimization runs, the variation of this ratio is typically high."
+  },
+  "disjcuts": {
+    "type": "integer",
+    "summary": "disjunctive cuts generation",
+    "default": "0",
+    "values": [
+      {
+        "value": "-1",
+        "meaning": "Do not generate disjunctive cuts"
+      },
+      {
+        "value": "0",
+        "meaning": "Determined automatically"
+      },
+      {
+        "value": "1",
+        "meaning": "Generate disjunctive cuts moderately"
+      },
+      {
+        "value": "2",
+        "meaning": "Generate disjunctive cuts aggressively"
+      },
+      {
+        "value": "3",
+        "meaning": "Generate disjunctive cuts very aggressively"
+      }
+    ],
+    "description": "Determines whether or not to generate disjunctive cuts during optimization. At the default of 0, generation is continued only if it seems to be helping."
+  },
+  "divetype": {
+    "type": "integer",
+    "summary": "MIP dive strategy",
+    "default": "0",
+    "values": [
+      {
+        "value": "0",
+        "meaning": "Automatic"
+      },
+      {
+        "value": "1",
+        "meaning": "Traditional dive"
+      },
+      {
+        "value": "2",
+        "meaning": "Probing dive"
+      },
+      {
+        "value": "3",
+        "meaning": "Guided dive"
+      }
+    ],
+    "description": "The MIP traversal strategy occasionally performs probing dives, where it looks ahead at both children nodes before deciding which node to choose. The default (automatic) setting chooses when to perform a probing dive, and the other two settings direct Cplex when to perform probing dives: never or always."
+  },
+  ".divflt": {
+    "type": "real",
+    "summary": "solution pool range filter coefficients",
+    "default": "0",
+    "description": "A diversity filter for a solution pool (see option SolnPool) allows you generate solutions that are similar to (or different from) a set of reference values that you specify for a set of binary variables. In particular, you can use a diversity filter to generate more solutions that are similar to an existing solution or to an existing partial solution. A diversity filter drives the search for multiple solutions toward new solutions that satisfy a measure of diversity specified in the filter. This diversity measure applies only to binary variables. Potential new solutions are compared to a reference set. This reference set is specified with this dot option. If no reference set is specified, the difference measure will be computed relative to the other solutions in the pool. The diversity measure is computed by summing the pair-wise absolute differences from solution and the reference values."
+  },
+  "divfltlo": {
+    "type": "real",
+    "summary": "lower bound on diversity",
+    "default": "mindouble",
+    "description": "Please check option DivFlt for general information on a diversity filter. If you specify a lower bound on the diversity using DivFltLo, Cplex will look for solutions that are different from the reference values. In other words, you can say, Give me solutions that differ by at least this amount in this set of variables."
+  },
+  "divfltup": {
+    "type": "real",
+    "summary": "upper bound on diversity",
+    "default": "maxdouble",
+    "description": "Please check option DivFlt for general information on a diversity filter. If you specify an upper bound on diversity DivFltUp, Cplex will look for solutions similar to the reference values. In other words, you can say, Give me solutions that are close to this one, within this set of variables."
+  },
+  "dpriind": {
+    "type": "integer",
+    "summary": "dual simplex pricing",
+    "default": "0",
+    "values": [
+      {
+        "value": "0",
+        "meaning": "Determined automatically"
+      },
+      {
+        "value": "1",
+        "meaning": "Standard dual pricing"
+      },
+      {
+        "value": "2",
+        "meaning": "Steepest-edge pricing"
+      },
+      {
+        "value": "3",
+        "meaning": "Steepest-edge pricing in slack space"
+      },
+      {
+        "value": "4",
+        "meaning": "Steepest-edge pricing, unit initial norms"
+      },
+      {
+        "value": "5",
+        "meaning": "Devex pricing"
+      }
+    ],
+    "description": "Pricing strategy for dual simplex method. Consider using dual steepest-edge pricing. Dual steepest-edge is particularly efficient and does not carry as much computational burden as the primal steepest-edge pricing."
+  },
+  "dynamicrows": {
+    "type": "integer",
+    "summary": "switch for dynamic management of rows",
+    "default": "-1",
+    "values": [
+      {
+        "value": "-1",
+        "meaning": "Automatic"
+      },
+      {
+        "value": "0",
+        "meaning": "Keep all rows"
+      },
+      {
+        "value": "1",
+        "meaning": "Manage rows"
+      }
+    ],
+    "description": "This parameter specifies how CPLEX should manage rows in the current model during dual simplex optimization. More specifically, this parameter controls the use of the kernel simplex method (KSM) for the dual simplex algorithm. That is, CPLEX dynamically adjusts the dimensions of the basis matrix during execution of the dual simplex algorithm, according to the settings of this parameter. When the value of this parameter is -1, its default value, this parameter specifies that the user wants CPLEX to manage rows dynamically, adjusting the dimensions of the basis matrix during dual simplex optimization. When it is set to 0, this parameter specifies that CPLEX must keep all rows. When it is set to 1, this parameter specifies that CPLEX can keep or discard rows according to its internal calculations."
+  },
+  "eachcutlim": {
+    "type": "integer",
+    "summary": "sets a limit for each type of cut",
+    "default": "2100000000",
+    "description": "This parameter allows you to set a uniform limit on the number of cuts of each type that Cplex generates. By default, the limit is a large integer; that is, there is no effective limit by default. Tighter limits on the number of cuts of each type may benefit certain models. For example, a limit on each type of cut will prevent any one type of cut from being created in such large number that the limit on the total number of all types of cuts is reached before other types of cuts have an opportunity to be created. A setting of 0 means no cuts. This parameter does not influence the number of Gomory cuts. For means to control the number of Gomory cuts, see also the fractional cut parameters: FracCand, FracCuts, and FracPass."
+  },
+  "epagap": {
+    "type": "real",
+    "summary": "absolute stopping tolerance",
+    "synonyms": [
+      "optca"
+    ],
+    "default": "GAMS OptCA",
+    "description": "Absolute tolerance on the gap between the best integer objective and the objective of the best node remaining. When the value falls below the value of the epagap setting, the optimization is stopped. This option overrides GAMS OptCA which provides its initial value. Note: This option also influences the SubMIPs (e.g., used for the RINS heuristic) and can thus influence the solution path."
+  },
+  "epgap": {
+    "type": "real",
+    "summary": "relative stopping tolerance",
+    "synonyms": [
+      "optcr"
+    ],
+    "range": "[0.0, 1.0]",
+    "default": "GAMS OptCR",
+    "description": "Relative tolerance on the gap between the best integer objective and the objective of the best node remaining. When the value falls below the value of the epgap setting, the mixed integer optimization is stopped. Note the difference in the Cplex definition of the relative tolerance with the GAMS definition. This option overrides GAMS OptCR which provides its initial value. Note: This option also influences the SubMIPs (e.g., used for the RINS heuristic) and can thus influence the solution path."
+  },
+  "epint": {
+    "type": "real",
+    "summary": "integrality tolerance",
+    "range": "[0.0, 0.5]",
+    "default": "1.0e-05",
+    "description": "Integrality Tolerance. This specifies the amount by which an integer variable can be different than an integer and still be considered feasible."
+  },
+  "eplin": {
+    "type": "real",
+    "summary": "degree of tolerance used in linearization",
+    "default": "0.001"
+  },
+  "epmrk": {
+    "type": "real",
+    "summary": "Markowitz pivot tolerance",
+    "range": "[1.0e-04, 1.0]",
+    "default": "0.01",
+    "description": "The Markowitz tolerance influences pivot selection during basis factorization. Increasing the Markowitz threshold may improve the numerical properties of the solution."
+  },
+  "epopt": {
+    "type": "real",
+    "summary": "optimality tolerance",
+    "range": "[1.0e-09, 0.1]",
+    "default": "1.0e-06",
+    "description": "The optimality tolerance influences the reduced-cost tolerance for optimality. This option setting governs how closely Cplex must approach the theoretically optimal solution."
+  },
+  "epper": {
+    "type": "real",
+    "summary": "perturbation constant",
+    "default": "1.0e-06",
+    "description": "Perturbation setting. Highly degenerate problems tend to stall optimization progress. Cplex automatically perturbs the variable bounds when this occurs. Perturbation expands the bounds on every variable by a small amount thereby creating a different but closely related problem. Generally, the solution to the less constrained problem is easier to solve. Once the solution to the perturbed problem has advanced as far as it can go, Cplex removes the perturbation by resetting the bounds to their original values. If the problem is perturbed more than once, the perturbation constant is probably too large. Reduce the epper option to a level where only one perturbation is required. Any value greater than or equal to 1.0e-8 is valid."
+  },
+  "eprhs": {
+    "type": "real",
+    "summary": "feasibility tolerance",
+    "range": "[1.0e-09, 0.1]",
+    "default": "1.0e-06",
+    "description": "Feasibility tolerance. This specifies the degree to which a problem's basic variables may violate their bounds. This tolerance influences the selection of an optimal basis and can be reset to a higher value when a problem is having difficulty maintaining feasibility during optimization. You may also wish to lower this tolerance after finding an optimal solution if there is any doubt that the solution is truly optimal. If the feasibility tolerance is set too low, Cplex may falsely conclude that a problem is infeasible."
+  },
+  "exactkappa": {
+    "type": "boolean",
+    "summary": "report exact condition number in quality report",
+    "default": "0"
+  },
+  "feasopt": {
+    "type": "boolean",
+    "summary": "computes a minimum-cost relaxation to make an infeasible model feasible",
+    "default": "0",
+    "values": [
+      {
+        "value": "0",
+        "meaning": "Turns Feasible Relaxation off"
+      },
+      {
+        "value": "1",
+        "meaning": "Turns Feasible Relaxation on"
+      }
+    ],
+    "description": "With Feasopt turned on, a minimum-cost relaxation of the right hand side values of constraints or bounds on variables is computed in order to make an infeasible model feasible. It marks the relaxed right hand side values and bounds in the solution listing. Several options are available for the metric used to determine what constitutes a minimum-cost relaxation which can be set by option FeasOptMode. Feasible relaxations are available for all problem types with the exception of quadratically constraint problems."
+  },
+  "feasoptmode": {
+    "type": "integer",
+    "summary": "mode of FeasOpt",
+    "default": "0",
+    "values": [
+      {
+        "value": "0",
+        "meaning": "Minimize sum of relaxations"
+      },
+      {
+        "value": "Minimize",
+        "meaning": "the sum of all required relaxations in first phase only"
+      },
+      {
+        "value": "1",
+        "meaning": "Minimize sum of relaxations and optimize"
+      },
+      {
+        "value": "Minimize",
+        "meaning": "the sum of all required relaxations in first phase and execute second phase to find optimum among minimal relaxations"
+      },
+      {
+        "value": "2",
+        "meaning": "Minimize number of relaxations"
+      },
+      {
+        "value": "Minimize",
+        "meaning": "the number of constraints and bounds requiring relaxation in first phase only"
+      },
+      {
+        "value": "3",
+        "meaning": "Minimize number of relaxations and optimize"
+      },
+      {
+        "value": "Minimize",
+        "meaning": "the number of constraints and bounds requiring relaxation in first phase and execute second phase to find optimum among minimal relaxations"
+      },
+      {
+        "value": "4",
+        "meaning": "Minimize sum of squares of relaxations"
+      },
+      {
+        "value": "Minimize",
+        "meaning": "the sum of squares of required relaxations in first phase only"
+      },
+      {
+        "value": "5",
+        "meaning": "Minimize sum of squares of relaxations and optimize"
+      },
+      {
+        "value": "Minimize",
+        "meaning": "the sum of squares of required relaxations in first phase and execute second phase to find optimum among minimal relaxations"
+      }
+    ],
+    "description": "The parameter FeasOptMode allows different strategies in finding feasible relaxation in one or two phases. In its first phase, it attempts to minimize its relaxation of the infeasible model. That is, it attempts to find a feasible solution that requires minimal change. In its second phase, it finds an optimal solution (using the original objective) among those that require only as much relaxation as it found necessary in the first phase. Values of the parameter FeasOptMode indicate two aspects: (1) whether to stop in phase one or continue to phase two and (2) how to measure the minimality of the relaxation (as a sum of required relaxations; as the number of constraints and bounds required to be relaxed; as a sum of the squares of required relaxations)."
+  },
+  ".feaspref": {
+    "type": "real",
+    "summary": "feasibility preference",
+    "default": "1",
+    "description": "You can express the costs associated with relaxing a bound or right hand side value during a FeasOpt run through the .feaspref option. The input value denotes the users willingness to relax a constraint or bound. More precisely, the reciprocal of the specified value is used to weight the relaxation of that constraint or bound. The user may specify a preference value less than or equal to 0 (zero), which denotes that the corresponding constraint or bound must not be relaxed."
+  },
+  "fixoptfile": {
+    "type": "string",
+    "summary": "name of option file which is read just before solving the fixed problem"
+  },
+  "flowcovers": {
+    "type": "integer",
+    "summary": "flow cover cut generation",
+    "default": "0",
+    "values": [
+      {
+        "value": "-1",
+        "meaning": "Do not generate flow cover cuts"
+      },
+      {
+        "value": "0",
+        "meaning": "Determined automatically"
+      },
+      {
+        "value": "1",
+        "meaning": "Generate flow cover cuts moderately"
+      },
+      {
+        "value": "2",
+        "meaning": "Generate flow cover cuts aggressively"
+      }
+    ],
+    "description": "Determines whether or not flow cover cuts should be generated during optimization."
+  },
+  "flowpaths": {
+    "type": "integer",
+    "summary": "flow path cut generation",
+    "default": "0",
+    "values": [
+      {
+        "value": "-1",
+        "meaning": "Do not generate flow path cuts"
+      },
+      {
+        "value": "0",
+        "meaning": "Determined automatically"
+      },
+      {
+        "value": "1",
+        "meaning": "Generate flow path cuts moderately"
+      },
+      {
+        "value": "2",
+        "meaning": "Generate flow path cuts aggressively"
+      }
+    ],
+    "description": "Determines whether or not flow path cuts should be generated during optimization. At the default of 0, generation is continued only if it seems to be helping."
+  },
+  "folding": {
+    "type": "integer",
+    "summary": "LP folding will be attempted during the preprocessing phase",
+    "default": "-1",
+    "values": [
+      {
+        "value": "-1",
+        "meaning": "Automatic"
+      },
+      {
+        "value": "0",
+        "meaning": "Turn off folder"
+      },
+      {
+        "value": "1",
+        "meaning": "Moderate level of folding"
+      },
+      {
+        "value": "2",
+        "meaning": "Aggressive level of folding"
+      },
+      {
+        "value": "3",
+        "meaning": "Very aggressive level of folding"
+      },
+      {
+        "value": "4",
+        "meaning": "Highly aggressive level of folding"
+      },
+      {
+        "value": "5",
+        "meaning": "Extremely aggressive level of folding"
+      }
+    ]
+  },
+  "fpheur": {
+    "type": "integer",
+    "summary": "feasibility pump heuristic",
+    "default": "0",
+    "values": [
+      {
+        "value": "-1",
+        "meaning": "Turns Feasible Pump heuristic off"
+      },
+      {
+        "value": "0",
+        "meaning": "Automatic"
+      },
+      {
+        "value": "1",
+        "meaning": "Apply the feasibility pump heuristic with an emphasis on finding a feasible solution"
+      },
+      {
+        "value": "2",
+        "meaning": "Apply the feasibility pump heuristic with an emphasis on finding a feasible solution with a good objective value"
+      }
+    ],
+    "description": "Controls the use of the feasibility pump heuristic for mixed integer programming (MIP) models."
+  },
+  "fraccand": {
+    "type": "integer",
+    "summary": "candidate limit for generating Gomory fractional cuts",
+    "default": "200",
+    "description": "Limits the number of candidate variables for generating Gomory fractional cuts."
+  },
+  "fraccuts": {
+    "type": "integer",
+    "summary": "Gomory fractional cut generation",
+    "default": "0",
+    "values": [
+      {
+        "value": "-1",
+        "meaning": "Do not generate Gomory fractional cuts"
+      },
+      {
+        "value": "0",
+        "meaning": "Determined automatically"
+      },
+      {
+        "value": "1",
+        "meaning": "Generate Gomory fractional cuts moderately"
+      },
+      {
+        "value": "2",
+        "meaning": "Generate Gomory fractional cuts aggressively"
+      }
+    ],
+    "description": "Determines whether or not Gomory fractional cuts should be generated during optimization."
+  },
+  "fracpass": {
+    "type": "integer",
+    "summary": "maximum number of passes for generating Gomory fractional cuts",
+    "default": "0",
+    "values": [
+      {
+        "value": "0",
+        "meaning": "0 Automatically determined"
+      },
+      {
+        "value": ">0",
+        "meaning": "Maximum passes to perform"
+      }
+    ],
+    "description": "Sets the upper limit on the number of passes that will be performed when generating Gomory fractional cuts on a mixed integer model. Ignored if parameter FracCuts is set to a nonzero value."
+  },
+  "freegamsmodel": {
+    "type": "boolean",
+    "summary": "preserves memory by dumping the GAMS model instance representation temporarily to disk",
+    "default": "0",
+    "description": "In order to provide the maximum amount of memory to the solver this option dumps the internal representation of the model instance temporarily to disk and frees memory. This option only works with SolveLink=0 and only for models without quadratic constraints."
+  },
+  "gubcovers": {
+    "type": "integer",
+    "summary": "GUB cover cut generation",
+    "default": "0",
+    "values": [
+      {
+        "value": "-1",
+        "meaning": "Do not generate GUB cover cuts"
+      },
+      {
+        "value": "0",
+        "meaning": "Determined automatically"
+      },
+      {
+        "value": "1",
+        "meaning": "Generate GUB cover cuts moderately"
+      },
+      {
+        "value": "2",
+        "meaning": "Generate GUB cover cuts aggressively"
+      }
+    ],
+    "description": "Determines whether or not GUB (Generalized Upper Bound) cover cuts should be generated during optimization. The default of 0 indicates that the attempt to generate GUB cuts should continue only if it seems to be helping."
+  },
+  "heurfreq": {
+    "type": "integer",
+    "summary": "heuristic frequency",
+    "default": "0",
+    "values": [
+      {
+        "value": "-1",
+        "meaning": "Do not use the node heuristic"
+      },
+      {
+        "value": "0",
+        "meaning": "Determined automatically"
+      },
+      {
+        "value": ">0",
+        "meaning": "Call heuristic at the requested node interval"
+      }
+    ],
+    "description": "This option specifies how often to apply the node heuristic. Setting to a positive number applies the heuristic at the requested node interval. A value of 100, for example, means that heuristics are invoked every hundredth node in the tree."
+  },
+  "heuristiceffort": {
+    "type": "real",
+    "summary": "the effort that CPLEX spends on heuristics during a MIP solve",
+    "default": "1.0",
+    "description": "The value is used to increase (if >1) or decrease (if <1) the effort that CPLEX spends on heuristics during a MIP solve. If set to 0, no heuristic will run."
+  },
+  "iafile": {
+    "type": "string",
+    "summary": "secondary option file to be read in interactive mode triggered by iatriggerfile",
+    "description": "If in interactive mode and this option is set, options will be read from the file specified by this option instead of direct user input (as described in interactive). This option file read can be triggered by interrupting Cplex with a Control-C or using the option iatriggerfile. If defined, GAMS/CPLEX looks for this file (content irrelevant) all iatriggertime seconds and if found, reads the option file iafile. The iatriggerfile is removed afterwards so it does not trigger twice."
+  },
+  "iatriggerfile": {
+    "type": "string",
+    "summary": "file that triggers the reading of a secondary option file in interactive mode",
+    "description": "See iafile."
+  },
+  "iatriggertime": {
+    "type": "real",
+    "summary": "time interval in seconds the link looks for the trigger file in interactive mode",
+    "default": "60",
+    "description": "See iafile."
+  },
+  "iis": {
+    "type": "integer",
+    "summary": "run the conflict refiner also known as IIS finder if the problem is infeasible",
+    "default": "0",
+    "values": [
+      {
+        "value": "0",
+        "meaning": "No conflict analysis"
+      },
+      {
+        "value": "1",
+        "meaning": "Conflict analysis after solve if infeasible"
+      },
+      {
+        "value": "2",
+        "meaning": "Conflict analysis without previous solve"
+      }
+    ],
+    "description": "Find an set of conflicting constraints or IIS (Irreducably Inconsistent Set) and write an conflict report to the GAMS solution listing if the model is found to be infeasible."
+  },
+  "implbd": {
+    "type": "integer",
+    "summary": "implied bound cut generation",
+    "default": "0",
+    "values": [
+      {
+        "value": "-1",
+        "meaning": "Do not generate implied bound cuts"
+      },
+      {
+        "value": "0",
+        "meaning": "Determined automatically"
+      },
+      {
+        "value": "1",
+        "meaning": "Generate implied bound cuts moderately"
+      },
+      {
+        "value": "2",
+        "meaning": "Generate implied bound cuts aggressively"
+      }
+    ],
+    "description": "Determines whether or not implied bound cuts should be generated during optimization."
+  },
+  "indicoptstrict": {
+    "type": "boolean",
+    "summary": "abort in case of an error in indicator constraint in solver option file",
+    "default": "1",
+    "description": "If enabled and a variable or equation specified in an indicator constraint is not present in the model, model generation will abort with an error message. Otherwise, if this option is disabled, erroneous indicator constraints are ignored and a warning is printed."
+  },
+  "interactive": {
+    "type": "boolean",
+    "summary": "allow interactive option setting after a Control-C",
+    "default": "0",
+    "description": "When set to yes, options can be set interactively after interrupting Cplex with a Control-C. Options are entered just as if they were being entered in the cplex.opt file. Control is returned to Cplex by entering continue. The optimization can be aborted by entering abort. This option can only be used when running from the command line. Moreover, the GAMS option InteractiveSolver needs to be set to 1."
+  },
+  "intsollim": {
+    "type": "integer",
+    "summary": "maximum number of integer solutions",
+    "default": "large",
+    "description": "This option limits the MIP optimization to finding only this number of mixed integer solutions before stopping."
+  },
+  "itlim": {
+    "type": "integer",
+    "summary": "iteration limit",
+    "synonyms": [
+      "iterlim"
+    ],
+    "default": "GAMS IterLim",
+    "description": "The iteration limit option sets the maximum number of iterations before the algorithm terminates, without reaching optimality. This Cplex option overrides the GAMS IterLim option. Any non-negative integer value is valid."
+  },
+  ".lazy": {
+    "type": "boolean",
+    "summary": "Lazy constraints activation",
+    "default": "0",
+    "description": "Determines whether a linear constraint is treated as a lazy constraint. At the beginning of the MIP solution process, any constraint whose Lazy attribute is set to 1 (the default value is 0) is removed from the model and placed in the lazy constraint pool. Lazy constraints remain inactive until a feasible solution is found, at which point the solution is checked against the lazy constraint pool. If the solution violates any lazy constraint, the solution is discarded and one or more of the violated lazy constraints are pulled into the active model. Lazy constraints are only active if option LazyConstraints is enabled and are specified through the option .lazy. The syntax for dot options is explained in the Introduction chapter of the Solver Manual."
+  },
+  "lazyconstraints": {
+    "type": "boolean",
+    "summary": "Indicator to use lazy constraints",
+    "default": "0"
+  },
+  "lbheur": {
+    "type": "boolean",
+    "summary": "local branching heuristic",
+    "default": "0",
+    "values": [
+      {
+        "value": "0",
+        "meaning": "Off"
+      },
+      {
+        "value": "1",
+        "meaning": "Apply local branching heuristic to new incumbent"
+      }
+    ],
+    "description": "This parameter lets you control whether Cplex applies a local branching heuristic to try to improve new incumbents found during a MIP search. By default, this parameter is off. If you turn it on, Cplex will invoke a local branching heuristic only when it finds a new incumbent. If Cplex finds multiple incumbents at a single node, the local branching heuristic will be applied only to the last one found."
+  },
+  "liftprojcuts": {
+    "type": "integer",
+    "summary": "lift-and-project cuts",
+    "default": "0",
+    "values": [
+      {
+        "value": "-1",
+        "meaning": "Do not generate lift-and-project cuts"
+      },
+      {
+        "value": "0",
+        "meaning": "Determined automatically"
+      },
+      {
+        "value": "1",
+        "meaning": "Generate lift-and-project cuts moderately"
+      },
+      {
+        "value": "2",
+        "meaning": "Generate lift-and-project cuts aggressively"
+      },
+      {
+        "value": "3",
+        "meaning": "Generate lift-and-project cuts very aggressively"
+      }
+    ]
+  },
+  "localimplied": {
+    "type": "integer",
+    "summary": "generation of locally valid implied bound cuts",
+    "default": "0",
+    "values": [
+      {
+        "value": "-1",
+        "meaning": "Do not generate locally valid implied bound cuts"
+      },
+      {
+        "value": "0",
+        "meaning": "Determined automatically"
+      },
+      {
+        "value": "1",
+        "meaning": "Generate locally valid implied bound cuts moderately"
+      },
+      {
+        "value": "2",
+        "meaning": "Generate locally valid implied bound cuts aggressively"
+      },
+      {
+        "value": "3",
+        "meaning": "Generate locally valid implied bound cuts very aggressively"
+      }
+    ]
+  },
+  "lowerobjstop": {
+    "type": "real",
+    "summary": "in a minimization MILP or MIQP, the solver will abort the optimization process as soon as it finds a solution of value lower than or equal to the specified value",
+    "default": "-1e75"
+  },
+  "lpmethod": {
+    "type": "integer",
+    "summary": "algorithm to be used for LP problems",
+    "default": "0",
+    "values": [
+      {
+        "value": "0",
+        "meaning": "Automatic"
+      },
+      {
+        "value": "1",
+        "meaning": "Primal Simplex"
+      },
+      {
+        "value": "2",
+        "meaning": "Dual Simplex"
+      },
+      {
+        "value": "3",
+        "meaning": "Network Simplex"
+      },
+      {
+        "value": "4",
+        "meaning": "Barrier"
+      },
+      {
+        "value": "5",
+        "meaning": "Sifting"
+      },
+      {
+        "value": "6",
+        "meaning": "Concurrent"
+      }
+    ],
+    "description": "The default setting means that CPLEX will select the algorithm in a way that should give best overall performance. For specific problem classes, the following details document the automatic settings. Note that future versions of CPLEX could adopt different strategies. Therefore, if you select any nondefault settings, you should review them periodically. Currently, the behavior of the automatic setting is that CPLEX almost always invokes the dual simplex algorithm when it is solving an LP model from scratch. When it is continuing from an advanced basis, it will check whether the basis is primal or dual feasible, and choose the primal or dual simplex algorithm accordingly. If multiple threads have been requested (see threads), in either deterministic or opportunistic mode, the concurrent optimization algorithm is selected by the automatic setting when CPLEX is solving a continuous linear programming model (LP) from scratch. When three or more threads are available, and you select concurrent optimization for the value of this parameter, its behavior depends on whether parallel mode is opportunistic or deterministic (default parallel mode). Concurrent optimization in opportunistic parallel mode runs the dual simplex optimizer on one thread, the primal simplex optimizer on a second thread, the parallel barrier optimizer on a third thread and on any additional available threads. In contrast, concurrent optimization in deterministic parallel mode runs the dual optimizer on one thread and the parallel barrier optimizer on any additional available threads. The automatic setting may be expanded in the future so that CPLEX chooses the algorithm based on additional problem characteristics."
+  },
+  "ltol": {
+    "type": "real",
+    "summary": "basis identification primal tolerance",
+    "default": "0"
+  },
+  "mcfcuts": {
+    "type": "integer",
+    "summary": "multi-commodity flow cut generation",
+    "default": "0",
+    "values": [
+      {
+        "value": "-1",
+        "meaning": "Do not generate MCF cuts"
+      },
+      {
+        "value": "0",
+        "meaning": "Determined automatically"
+      },
+      {
+        "value": "1",
+        "meaning": "Generate MCF cuts moderately"
+      },
+      {
+        "value": "2",
+        "meaning": "Generate MCF cuts aggressively"
+      }
+    ],
+    "description": "Specifies whether Cplex should generate multi-commodity flow (MCF) cuts in a problem where Cplex detects the characteristics of a multi-commodity flow network with arc capacities. By default, Cplex decides whether or not to generate such cuts. To turn off generation of such cuts, set this parameter to -1. Cplex is able to recognize the structure of a network as represented in many real-world models. When it recognizes such a network structure, Cplex is able to generate cutting planes that usually help solve such problems. In this case, the cuts that Cplex generates state that the capacities installed on arcs pointing into a component of the network must be at least as large as the total flow demand of the component that cannot be satisfied by flow sources within the component."
+  },
+  "memoryemphasis": {
+    "type": "boolean",
+    "summary": "reduces use of memory",
+    "default": "0",
+    "values": [
+      {
+        "value": "0",
+        "meaning": "Do not conserve memory"
+      },
+      {
+        "value": "1",
+        "meaning": "Conserve memory where possible"
+      }
+    ],
+    "description": "This parameter lets you indicate to Cplex that it should conserve memory where possible. When you set this parameter to its non default value, Cplex will choose tactics, such as data compression or disk storage, for some of the data computed by the barrier and MIP optimizers. Of course, conserving memory may impact performance in some models. Also, while solution information will be available after optimization, certain computations that require a basis that has been factored (for example, for the computation of the condition number Kappa) may be unavailable."
+  },
+  "mipdisplay": {
+    "type": "integer",
+    "summary": "progress display level",
+    "default": "4",
+    "values": [
+      {
+        "value": "0",
+        "meaning": "No display"
+      },
+      {
+        "value": "1",
+        "meaning": "Display integer feasible solutions"
+      },
+      {
+        "value": "2",
+        "meaning": "Displays nodes under mipinterval control"
+      },
+      {
+        "value": "3",
+        "meaning": "Same as 2 but adds information on cuts"
+      },
+      {
+        "value": "4",
+        "meaning": "Same as 3 but adds LP display for the root node"
+      },
+      {
+        "value": "5",
+        "meaning": "Same as 3 but adds LP display for all nodes"
+      }
+    ],
+    "description": "The amount of information displayed during MIP solution increases with increasing values of this option."
+  },
+  "mipemphasis": {
+    "type": "integer",
+    "summary": "MIP solution tactics",
+    "default": "0",
+    "values": [
+      {
+        "value": "0",
+        "meaning": "Balance optimality and feasibility"
+      },
+      {
+        "value": "1",
+        "meaning": "Emphasize feasibility over optimality"
+      },
+      {
+        "value": "2",
+        "meaning": "Emphasize optimality over feasibility"
+      },
+      {
+        "value": "3",
+        "meaning": "Emphasize moving the best bound"
+      },
+      {
+        "value": "4",
+        "meaning": "Emphasize hidden feasible solutions"
+      },
+      {
+        "value": "5",
+        "meaning": "Find high quality feasible solutions as early as possible"
+      }
+    ],
+    "description": "This option controls the tactics for solving a mixed integer programming problem."
+  },
+  "mipinterval": {
+    "type": "integer",
+    "summary": "progress display interval",
+    "default": "0",
+    "description": "Controls the frequency of node logging when the parameter MIPDisplay is set higher than 1 (one). Frequency must be an integer; it may be 0 (zero), positive, or negative. By default, CPLEX displays new information in the node log during a MIP solve at relatively high frequency during the early stages of solving a MIP model, and adds lines to the log at progressively longer intervals as solving continues. In other words, CPLEX logs information frequently in the beginning and progressively less often as it works. When the value is a positive integer n, CPLEX displays new incumbents, plus it displays a new line in the log every n nodes. When the value is a negative integer n, CPLEX displays new incumbents, and the negative value determines how much processing CPLEX does before it displays a new line in the node log. A negative value close to zero means that CPLEX displays new lines in the log frequently. A negative value far from zero means that CPLEX displays new lines in the log less frequently. In other words, a negative value of this parameter contracts or dilates the interval at which CPLEX displays information in the node log."
+  },
+  "mipkappastats": {
+    "type": "integer",
+    "summary": "MIP kappa computation",
+    "default": "0",
+    "values": [
+      {
+        "value": "-1",
+        "meaning": "No MIP kappa statistics; default"
+      },
+      {
+        "value": "0",
+        "meaning": "Automatic: let CPLEX decide"
+      },
+      {
+        "value": "1",
+        "meaning": "Compute MIP kappa for a sample of subproblems"
+      },
+      {
+        "value": "2",
+        "meaning": "Compute MIP kappa for all subproblems"
+      }
+    ],
+    "description": "MIP kappa summarizes the distribution of the condition number of the optimal bases CPLEX encountered during the solution of a MIP model. That summary may let you know more about the numerical difficulties of your MIP model. Because MIP kappa (as a statistical distribution) requires CPLEX to compute the condition number of the optimal bases of the subproblems during branch-and-cut search, you can compute the MIP kappa only when CPLEX solves the subproblem with its simplex optimizer. In other words, in order to obtain results with this parameter, you can not use the sifting optimizer nor the barrier without crossover to solve the subproblems. See the parameters StartAlg and SubAlg. Computing the kappa of a subproblem has a cost. In fact, computing MIP kappa for the basis matrices can be computationally expensive and thus generally slows down the solution of a problem. Therefore, the setting 0 (automatic) tells CPLEX generally not to compute MIP kappa, but in cases where the parameter NumericalEmphasis is turned on, CPLEX computes MIP kappa for a sample of subproblems. The value 1 (sample) leads to a negligible performance degradation on average, but can slow down the branch-and-cut exploration by as much as 10% on certain models. The value 2 (full) leads to a 2% performance degradation on average, but can significantly slow the branch-and-cut exploration on certain models. In practice, the value 1 (sample) is a good trade-off between performance and accuracy of statistics. If you need very accurate statistics, then use value 2 (full). In case CPLEX is instructed to compute a MIP kappa distribution, the parameter Quality is automatically turned on."
+  },
+  "mipordind": {
+    "type": "boolean",
+    "summary": "priority list on/off",
+    "synonyms": [
+      "prioropt"
+    ],
+    "default": "GAMS PriorOpt",
+    "values": [
+      {
+        "value": "0",
+        "meaning": "Do not use priorities for branching"
+      },
+      {
+        "value": "1",
+        "meaning": "Priority orders are utilized"
+      }
+    ],
+    "description": "Use priorities. Priorities should be assigned based on your knowledge of the problem. Variables with higher priorities will be branched upon before variables of lower priorities. This direction of the tree search can often dramatically reduce the number of nodes searched. For example, consider a problem with a binary variable representing a yes/no decision to build a factory, and other binary variables representing equipment selections within that factory. You would naturally want to explore whether or not the factory should be built before considering what specific equipment to purchased within the factory. By assigning a higher priority to the build/no build decision variable, you can force this logic into the tree search and eliminate wasted computation time exploring uninteresting portions of the tree. When set at 0 (default), the MIPOrdInd option instructs Cplex not to use priorities for branching. When set to 1, priority orders are utilized. Note: Priorities are assigned to discrete variables using the .prior suffix in the GAMS model. Lower .prior values mean higher priority. The .prioropt model suffix has to be used to signal GAMS to export the priorities to the solver."
+  },
+  "mipordtype": {
+    "type": "integer",
+    "summary": "priority order generation",
+    "default": "0",
+    "values": [
+      {
+        "value": "0",
+        "meaning": "None"
+      },
+      {
+        "value": "1",
+        "meaning": "decreasing cost magnitude"
+      },
+      {
+        "value": "2",
+        "meaning": "increasing bound range"
+      },
+      {
+        "value": "3",
+        "meaning": "increasing cost per coefficient count"
+      }
+    ],
+    "description": "This option is used to select the type of generic priority order to generate when no priority order is present."
+  },
+  "mipsearch": {
+    "type": "integer",
+    "summary": "search strategy for mixed integer programs",
+    "default": "0",
+    "values": [
+      {
+        "value": "0",
+        "meaning": "Automatic"
+      },
+      {
+        "value": "1",
+        "meaning": "Apply traditional branch and cut strategy"
+      },
+      {
+        "value": "2",
+        "meaning": "Apply dynamic search"
+      }
+    ],
+    "description": "Sets the search strategy for a mixed integer program. By default, Cplex chooses whether to apply dynamic search or conventional branch and cut based on characteristics of the model."
+  },
+  "mipstart": {
+    "type": "integer",
+    "summary": "use mip starting values",
+    "default": "0",
+    "values": [
+      {
+        "value": "0",
+        "meaning": "do not use the values"
+      },
+      {
+        "value": "1",
+        "meaning": "set discrete variable values and use auto mipstart level"
+      },
+      {
+        "value": "2",
+        "meaning": "set all variable values and use check feasibility mipstart level"
+      },
+      {
+        "value": "3",
+        "meaning": "set discrete variable values and use solve fixed mipstart level"
+      },
+      {
+        "value": "4",
+        "meaning": "set discrete variable values and use solve sub-MIP mipstart level"
+      },
+      {
+        "value": "5",
+        "meaning": "set discrete variable values and use solve repair-MIP mipstart level"
+      },
+      {
+        "value": "6",
+        "meaning": "set discrete variable values and use no checks at all. Warning: CPLEX may accept infeasible points as solutions!"
+      }
+    ],
+    "description": "This option controls the use of advanced starting values for mixed integer programs. A setting of 2 indicates that the values should be checked to see if they provide an integer feasible solution before starting optimization. For mipstart equals 1, 2, 3 or 4 fractional values are rounded to the nearest integer value if the integrality violation is larger than CPLEX's integer tolerance and smaller or equal to tryint. A partial MIP start is applied for mipstart equals 1, 3 or 4. Here, for discrete variables only integer values (after possible rounding) are added to the advanced starting values."
+  },
+  "mipstopexpr": {
+    "type": "string",
+    "summary": "stopping expression for branch and bound",
+    "description": "If the provided logical expression is true, the branch-and-bound is aborted. Supported values are: etalg, resusd, nodusd, objest, objval, is_feasible. Supported opertators are: +, -, *, /, ^, %, !=, ==, <, <=, >, >=, !, &&, ||, (, ), abs, ceil, exp, floor, log, log10, pow, sqrt. Example: nodusd >= 1000 && is_feasible && abs(objest - objval) / abs(objval) < 0.1 If multiple stop expressions are given in an option file, the algorithm stops if any of them is true (|| concatenation)."
+  },
+  "miptrace": {
+    "type": "string",
+    "summary": "filename of MIP trace file",
+    "description": "For a description of this feature, see chapter Solve trace. Note: In contrast to other solvers, GAMS/CPLEX doesn't append the MIP trace file after a certain time or node count, but when CPLEX reports global progress. In order to indicate this, the MIP trace file will show X instead of N or T."
+  },
+  "miqcpstrat": {
+    "type": "integer",
+    "summary": "MIQCP relaxation choice",
+    "default": "0",
+    "values": [
+      {
+        "value": "0",
+        "meaning": "Automatic"
+      },
+      {
+        "value": "1",
+        "meaning": "QCP relaxation"
+      },
+      {
+        "value": "Cplex",
+        "meaning": "will solve a QCP relaxation of the model at each node."
+      },
+      {
+        "value": "2",
+        "meaning": "LP relaxation"
+      },
+      {
+        "value": "Cplex",
+        "meaning": "will solve a LP relaxation of the model at each node."
+      }
+    ],
+    "description": "This option controls how MIQCPs are solved. For some models, the setting 2 may be more effective than 1. You may need to experiment with this parameter to determine the best setting for your model."
+  },
+  "mircuts": {
+    "type": "integer",
+    "summary": "mixed integer rounding cut generation",
+    "default": "0",
+    "values": [
+      {
+        "value": "-1",
+        "meaning": "Do not generate MIR cuts"
+      },
+      {
+        "value": "0",
+        "meaning": "Determined automatically"
+      },
+      {
+        "value": "1",
+        "meaning": "Generate MIR cuts moderately"
+      },
+      {
+        "value": "2",
+        "meaning": "Generate MIR cuts aggressively"
+      }
+    ],
+    "description": "Determines whether or not to generate mixed integer rounding (MIR) cuts during optimization. At the default of 0, generation is continued only if it seems to be helping."
+  },
+  "mpslongnum": {
+    "type": "boolean",
+    "summary": "MPS file format precision of numeric output",
+    "default": "1",
+    "values": [
+      {
+        "value": "0",
+        "meaning": "Use limited MPS precision"
+      },
+      {
+        "value": "1",
+        "meaning": "Use full-precision"
+      }
+    ],
+    "description": "Determines the precision of numeric output in the MPS file formats. When this parameter is set to its default value 1 (one), numbers are written to MPS files in full-precision; that is, up to 15 significant digits may be written. The setting 0 (zero) writes files that correspond to the standard MPS format, where at most 12 characters can be used to represent a value. This limit may result in loss of precision."
+  },
+  "mtol": {
+    "type": "real",
+    "summary": "basis identification dual tolerance",
+    "default": "0"
+  },
+  "multimipstart": {
+    "type": "string",
+    "summary": "use multiple mipstarts provided via gdx files",
+    "description": "Specifies (multiple) GDX files with values for the variables. Each file is treated as one intial guess for the MIP start. These MIP starts are added in addition to the initial guess provided by the level attribute. A MIP start GDX file can be created, for example, by using the command line option savepoint."
+  },
+  "multobj": {
+    "type": "boolean",
+    "summary": "controls the hierarchical optimization of multiple objectives",
+    "default": "0"
+  },
+  "multobjdisplay": {
+    "type": "integer",
+    "summary": "level of display during multiobjective optimization",
+    "default": "1",
+    "values": [
+      {
+        "value": "0",
+        "meaning": "No display"
+      },
+      {
+        "value": "1",
+        "meaning": "Summary display after each subproblem"
+      },
+      {
+        "value": "2",
+        "meaning": "Summary display after each subproblem, as well as subproblem logs"
+      }
+    ]
+  },
+  "multobjmethod": {
+    "type": "integer",
+    "summary": "method used for multi-objective solves",
+    "default": "0",
+    "description": "When solving a continuous multi-objective model using a hierarchical approach, the model is solved once for each objective. The algorithm used to solve for the highest priority objective is controlled by the LPMethod parameter. This parameter determines the algorithm used to solve for subsequent objectives."
+  },
+  "multobjoptfiles": {
+    "type": "string",
+    "summary": "List of option files used for individual solves within multi-objective optimization",
+    "description": "The options given by the option files in multobjoptfiles are applied on top of the default GAMS/CPLEX options. This includes options set by the user via the standard option file. If the list of option files in multobjoptfiles is less than the number of objective functions, the default GAMS/CPLEX options (incl. user options as before) are used to solve the remaining instances. Additional option files (i.e. more than objective functions) are ignored. Applied options can be verified by setting multobjdisplay to 2."
+  },
+  "multobjtolmip": {
+    "type": "boolean",
+    "summary": "enables hard constraints for hierarchical optimization objectives based on degradation tolerances",
+    "default": "1",
+    "description": "CPLEX supports two different strategies to handle the degradation tolerances objnabstol and objnreltol depending on the problem type (continuous or discrete), see objnabstol. This setting enables the discrete strategy for continous models. Note that objnreltol has no effect for discrete models. Enabling this option can lead to higher solution times."
+  },
+  "names": {
+    "type": "boolean",
+    "summary": "load GAMS names into Cplex",
+    "default": "1",
+    "description": "This option causes GAMS names for the variables and equations to be loaded into Cplex. These names will then be used for error messages, log entries, and so forth. Setting names to no may help if memory is very tight."
+  },
+  "netdisplay": {
+    "type": "integer",
+    "summary": "network display level",
+    "default": "2",
+    "values": [
+      {
+        "value": "0",
+        "meaning": "No network log."
+      },
+      {
+        "value": "1",
+        "meaning": "Displays true objective values"
+      },
+      {
+        "value": "2",
+        "meaning": "Displays penalized objective values"
+      }
+    ],
+    "description": "This option controls the log for network iterations."
+  },
+  "netepopt": {
+    "type": "real",
+    "summary": "optimality tolerance for the network simplex method",
+    "range": "[1.0e-11, 0.1]",
+    "default": "1.0e-06",
+    "description": "This optimality tolerance influences the reduced-cost tolerance for optimality when using the network simplex method. This option setting governs how closely Cplex must approach the theoretically optimal solution."
+  },
+  "neteprhs": {
+    "type": "real",
+    "summary": "feasibility tolerance for the network simplex method",
+    "range": "[1.0e-11, 0.1]",
+    "default": "1.0e-06",
+    "description": "This feasibility tolerance determines the degree to which the network simplex algorithm will allow a flow value to violate its bounds."
+  },
+  "netfind": {
+    "type": "integer",
+    "summary": "attempt network extraction",
+    "default": "2",
+    "values": [
+      {
+        "value": "1",
+        "meaning": "Extract pure network only"
+      },
+      {
+        "value": "2",
+        "meaning": "Try reflection scaling"
+      },
+      {
+        "value": "3",
+        "meaning": "Try general scaling"
+      }
+    ],
+    "description": "Specifies the level of network extraction to be done."
+  },
+  "netitlim": {
+    "type": "integer",
+    "summary": "iteration limit for network simplex",
+    "default": "large",
+    "description": "Iteration limit for the network simplex method."
+  },
+  "netppriind": {
+    "type": "integer",
+    "summary": "network simplex pricing",
+    "default": "0",
+    "values": [
+      {
+        "value": "0",
+        "meaning": "Automatic"
+      },
+      {
+        "value": "1",
+        "meaning": "Partial pricing"
+      },
+      {
+        "value": "2",
+        "meaning": "Multiple partial pricing"
+      },
+      {
+        "value": "3",
+        "meaning": "Multiple partial pricing with sorting"
+      }
+    ],
+    "description": "Network simplex pricing algorithm. The default of 0 (currently equivalent to 3) shows best performance for most problems."
+  },
+  "nodecuts": {
+    "type": "integer",
+    "summary": "decide whether or not cutting planes are separated at the nodes of the branch-and-bound tree",
+    "default": "0"
+  },
+  "nodefileind": {
+    "type": "integer",
+    "summary": "node storage file indicator",
+    "default": "1",
+    "values": [
+      {
+        "value": "0",
+        "meaning": "No node files"
+      },
+      {
+        "value": "1",
+        "meaning": "Node files in memory and compressed"
+      },
+      {
+        "value": "2",
+        "meaning": "Node files on disk"
+      },
+      {
+        "value": "3",
+        "meaning": "Node files on disk and compressed"
+      }
+    ],
+    "description": "Specifies how node files are handled during MIP processing. Used when parameter WorkMem has been exceeded by the size of the branch and cut tree. If set to 0 when the tree memory limit is reached, optimization is terminated. Otherwise a group of nodes is removed from the in-memory set as needed. By default, Cplex transfers nodes to node files when the in-memory set is larger than 128 MBytes, and it keeps the resulting node files in compressed form in memory. At settings 2 and 3, the node files are transferred to disk. They are stored under a directory specified by parameter WorkDir and Cplex actively manages which nodes remain in memory for processing."
+  },
+  "nodelim": {
+    "type": "integer",
+    "summary": "maximum number of nodes to solve",
+    "synonyms": [
+      "nodlim"
+    ],
+    "default": "GAMS NodLim",
+    "description": "The maximum number of nodes solved before the algorithm terminates, without reaching optimality. This option overrides the GAMS NodLim model suffix. When this parameter is set to 0 (this is only possible through an option file), Cplex completes processing at the root; that is, it creates cuts and applies heuristics at the root. When this parameter is set to 1 (one), it allows branching from the root; that is, nodes are created but not solved."
+  },
+  "nodesel": {
+    "type": "integer",
+    "summary": "node selection strategy",
+    "default": "1",
+    "values": [
+      {
+        "value": "0",
+        "meaning": "Depth-first search"
+      },
+      {
+        "value": "This",
+        "meaning": "chooses the most recently created node."
+      },
+      {
+        "value": "1",
+        "meaning": "Best-bound search"
+      },
+      {
+        "value": "This",
+        "meaning": "chooses the unprocessed node with the best objective function for the associated LP relaxation."
+      },
+      {
+        "value": "2",
+        "meaning": "Best-estimate search"
+      },
+      {
+        "value": "This",
+        "meaning": "chooses the node with the best estimate of the integer objective value that would be obtained once all integer infeasibilities are removed."
+      },
+      {
+        "value": "3",
+        "meaning": "Alternate best-estimate search"
+      }
+    ],
+    "description": "This option is used to set the rule for selecting the next node to process when backtracking."
+  },
+  "numericalemphasis": {
+    "type": "boolean",
+    "summary": "emphasizes precision in numerically unstable or difficult problems",
+    "default": "0",
+    "values": [
+      {
+        "value": "0",
+        "meaning": "Off"
+      },
+      {
+        "value": "1",
+        "meaning": "Exercise extreme caution in computation"
+      }
+    ],
+    "description": "This parameter lets you indicate to Cplex that it should emphasize precision in numerically difficult or unstable problems, with consequent performance trade-offs in time and memory."
+  },
+  "objdif": {
+    "type": "real",
+    "summary": "overrides GAMS Cheat parameter",
+    "synonyms": [
+      "cheat"
+    ],
+    "default": "0.0",
+    "description": "A means for automatically updating the cutoff to more restrictive values. Normally the most recently found integer feasible solution objective value is used as the cutoff for subsequent nodes. When this option is set to a positive value, the value will be subtracted from (added to) the newly found integer objective value when minimizing (maximizing). This forces the MIP optimization to ignore integer solutions that are not at least this amount better than the one found so far. The option can be adjusted to improve problem solving efficiency by limiting the number of nodes; however, setting this option at a value other than zero (the default) can cause some integer solutions, including the true integer optimum, to be missed. Negative values for this option will result in some integer solutions that are worse than or the same as those previously generated, but will not necessarily result in the generation of all possible integer solutions. This option overrides the GAMS Cheat parameter."
+  },
+  "objllim": {
+    "type": "real",
+    "summary": "objective function lower limit",
+    "default": "-1.0e+75",
+    "description": "Setting a lower objective function limit will cause Cplex to halt the optimization process once the minimum objective function value limit has been exceeded."
+  },
+  "objnabstol": {
+    "type": "string",
+    "summary": "allowable absolute degradation for objective",
+    "description": "This parameter is used to set the allowable degradation for an objective when doing hierarchical multi-objective optimization (MultObj). The syntax for this parameter is ObjNAbsTol ObjVarName value. Hierarchical multi-objective optimization will optimize for the different objectives in the model one at a time, in priority order. For MIPs (or if MultObjTolMip is enabled), if it achieves objective value z when it optimizes for this objective, then subsequent steps are allowed to degrade this value by at most ObjNAbsTol. For LPs, ObjNAbsTol defines a threshold for reduced costs above which nonbasic variables in the associated LP solve will be fixed at the bound at which they reside."
+  },
+  "objnreltol": {
+    "type": "string",
+    "summary": "allowable relative degradation for objective",
+    "description": "This parameter is used to set the allowable degradation for an objective when doing hierarchical multi-objective optimization (MultObj). The syntax for this parameter is ObjNRelTol ObjVarName value. Hierarchical multi-objective optimization will optimize for the different objectives in the model one at a time, in priority order. For MIPs (or if MultObjTolMip is enabled), if it achieves objective value z when it optimizes for this objective, then subsequent steps are allowed to degrade this value by at most ObjNRelTol*|z|. This option has no effect for continuous models."
+  },
+  "objrng": {
+    "type": "string",
+    "summary": "do objective ranging",
+    "default": "no objective ranging is done",
+    "description": "Calculate sensitivity ranges for the specified GAMS variables. Unlike most options, ObjRng can be repeated multiple times in the options file. Sensitivity range information will be produced for each GAMS variable named. Specifying all will cause range information to be produced for all variables. Range information will be printed to the beginning of the solution listing in the GAMS listing file unless option RngRestart is specified."
+  },
+  "objulim": {
+    "type": "real",
+    "summary": "objective function upper limit",
+    "default": "1.0e+75",
+    "description": "Setting an upper objective function limit will cause Cplex to halt the optimization process once the maximum objective function value limit has been exceeded."
+  },
+  "optimalitytarget": {
+    "type": "integer",
+    "summary": "type of optimality that Cplex targets",
+    "default": "0",
+    "values": [
+      {
+        "value": "0",
+        "meaning": "Automatic"
+      },
+      {
+        "value": "CPLEX",
+        "meaning": "first attempts to compute a provably optimal solution. If CPLEX cannot compute a provably optimal solution because the objective function is not convex, CPLEX will return with an error (Q is not PSD)."
+      },
+      {
+        "value": "1",
+        "meaning": "Search for a globally optimal solution to a convex model"
+      },
+      {
+        "value": "CPLEX",
+        "meaning": "searches for a globally optimal solution to a convex model. In problems of type QP or MIQP, this setting interacts with linearization switch QToLin for QP, MIQP"
+      },
+      {
+        "value": "2",
+        "meaning": "Search for a solution that satisfies first-order optimality conditions no optimality guarantee"
+      },
+      {
+        "value": "CPLEX",
+        "meaning": "first attempt to compute a provably optimal solution. If CPLEX cannot compute a provably optimal solution because the objective function is not convex, CPLEX searches for a solution that satisfies first-order optimality conditions but is not necessarily globally optimal."
+      },
+      {
+        "value": "3",
+        "meaning": "Search for a globally optimal solution regardless of convexity"
+      },
+      {
+        "value": "If",
+        "meaning": "the problem type is QP, CPLEX first changes the problem type to MIQP. CPLEX then solves the problem (whether originally QP or MIQP) to global optimality. In problems of type QP or MIQP, this setting interacts with with linearization switch QToLin for QP, MIQP. With this setting information about dual values is not available for the solution."
+      }
+    ],
+    "description": "This parameter specifies the type of solution that CPLEX attempts to compute with respect to the optimality of that solution when CPLEX solves a continuous (QP) or mixed integer (MIQP) quadratic model. In other words, the variables of the model can be continuous or mixed integer and continuous; the objective function includes a quadratic term, and perhaps the objective function is not positive semi-definite (non PSD). This parameter does not apply to quadratically constrained mixed integer problems (MIQCP); that is, this parameter does not apply to mixed integer problems that include a quadratic term among the constraints."
+  },
+  "parallelmode": {
+    "type": "integer",
+    "summary": "parallel optimization mode",
+    "default": "1",
+    "values": [
+      {
+        "value": "-1",
+        "meaning": "Enable opportunistic parallel search mode"
+      },
+      {
+        "value": "0",
+        "meaning": "Automatic"
+      },
+      {
+        "value": "1",
+        "meaning": "Enable deterministic parallel search mode"
+      }
+    ],
+    "description": "Sets the parallel optimization mode. Possible modes are automatic, deterministic, and opportunistic. In this context, deterministic means that multiple runs with the same model at the same parameter settings on the same platform will reproduce the same solution path and results. In contrast, opportunistic implies that even slight differences in timing among threads or in the order in which tasks are executed in different threads may produce a different solution path and consequently different timings or different solution vectors during optimization executed in parallel threads. When running with multiple threads, the opportunistic setting entails less synchronization between threads and consequently may provide better performance. In deterministic mode, Cplex applies as much parallelism as possible while still achieving deterministic results. That is, when you run the same model twice on the same platform with the same parameter settings, you will see the same solution and optimization run. More opportunities to exploit parallelism are available if you do not require determinism. In other words, Cplex can find more opportunities for parallelism if you do not require an invariant, repeatable solution path and precisely the same solution vector. To use all available parallelism, you need to select the opportunistic parallel mode. In this mode, Cplex will utilize all opportunities for parallelism in order to achieve best performance. However, in opportunistic mode, the actual optimization may differ from run to run, including the solution time itself and the path traveled in the search. Parallel MIP optimization can be opportunistic or deterministic. Parallel barrier optimization is only deterministic. A GAMS/Cplex run will use deterministic mode unless explicitly specified. If ParallelMode is explicitly set to 0 (automatic) the settings of this parallel mode parameter interact with settings of the Threads parameter. Let the result number of threads available to Cplex be n (note that negative values for the threads parameter are possible to exclude work on some cores). Here is is list of possible value:"
+  },
+  "perind": {
+    "type": "boolean",
+    "summary": "force initial perturbation",
+    "default": "0",
+    "values": [
+      {
+        "value": "0",
+        "meaning": "not automatically perturbed"
+      },
+      {
+        "value": "1",
+        "meaning": "automatically perturbed"
+      }
+    ],
+    "description": "Perturbation Indicator. If a problem automatically perturbs early in the solution process, consider starting the solution process with a perturbation by setting PerInd to 1. Manually perturbing the problem will save the time of first allowing the optimization to stall before activating the perturbation mechanism, but is useful only rarely, for extremely degenerate problems."
+  },
+  "perlim": {
+    "type": "integer",
+    "summary": "number of stalled iterations before perturbation",
+    "default": "0",
+    "description": "Perturbation limit. The number of stalled iterations before perturbation is invoked. The default value of 0 means the number is determined automatically."
+  },
+  "polishafterdettime": {
+    "type": "real",
+    "summary": "deterministic time before starting to polish a feasible solution",
+    "default": "1.0e+75"
+  },
+  "polishafterepagap": {
+    "type": "real",
+    "summary": "absolute MIP gap before starting to polish a feasible solution",
+    "default": "0.0",
+    "description": "Solution polishing can yield better solutions in situations where good solutions are otherwise hard to find. More time-intensive than other heuristics, solution polishing is actually a variety of branch-and-cut that works after an initial solution is available. In fact, it requires a solution to be available for polishing, either a solution produced by branch-and-cut, or a MIP start supplied by a user. Because of the high cost entailed by solution polishing, it is not called throughout branch-and-cut like other heuristics. Instead, solution polishing works in a second phase after a first phase of conventional branch-and-cut. As an additional step after branch-and-cut, solution polishing can improve the best known solution. As a kind of branch-and-cut algorithm itself, solution polishing focuses solely on finding better solutions. Consequently, it may not prove optimality, even if the optimal solution has indeed been found. Like the RINS heuristic, solution polishing explores neighborhoods of previously found solutions by solving subMIPs. Sets an absolute MIP gap (that is, the difference between the best integer objective and the objective of the best node remaining) after which CPLEX stops branch-and-cut and begins polishing a feasible solution. The default value is such that CPLEX does not invoke solution polishing by default."
+  },
+  "polishafterepgap": {
+    "type": "real",
+    "summary": "relative MIP gap before starting to polish a solution",
+    "default": "0.0",
+    "description": "Sets a relative MIP gap after which CPLEX will stop branch-and-cut and begin polishing a feasible solution. The default value is such that CPLEX does not invoke solution polishing by default."
+  },
+  "polishafterintsol": {
+    "type": "integer",
+    "summary": "MIP integer solutions to find before starting to polish a feasible solution",
+    "default": "2147483647",
+    "description": "Sets the number of integer solutions to find before CPLEX stops branch-and-cut and begins to polish a feasible solution. The default value is such that CPLEX does not invoke solution polishing by default."
+  },
+  "polishafternode": {
+    "type": "integer",
+    "summary": "nodes to process before starting to polish a feasible solution",
+    "default": "2147483647",
+    "description": "Sets the number of nodes processed in branch-and-cut before CPLEX starts solution polishing, if a feasible solution is available."
+  },
+  "polishaftertime": {
+    "type": "real",
+    "summary": "time before starting to polish a feasible solution",
+    "default": "1.0e+75",
+    "description": "Tells CPLEX how much time in seconds to spend during mixed integer optimization before CPLEX starts polishing a feasible solution. The default value is such that CPLEX does not start solution polishing by default."
+  },
+  "populatelim": {
+    "type": "integer",
+    "summary": "limit of solutions generated for the solution pool by populate method",
+    "default": "20",
+    "description": "Limits the number of solutions generated for the solution pool during each call to the populate procedure. Populate stops when it has generated PopulateLim solutions. A solution is counted if it is valid for all filters (see DivFlt and consistent with the relative and absolute pool gap parameters (see SolnPoolGap and SolnPoolAGap), and has not been rejected by the incumbent checking routine (see UserIncbCall), whether or not it improves the objective of the model. This parameter does not apply to MIP optimization generally; it applies only to the populate procedure. If you are looking for a parameter to control the number of solutions stored in the solution pool, consider the parameter SolnPoolCapacity instead. Populate will stop before it reaches the limit set by this parameter if it reaches another limit, such as a time or node limit set by the user."
+  },
+  "ppriind": {
+    "type": "integer",
+    "summary": "primal simplex pricing",
+    "default": "0",
+    "values": [
+      {
+        "value": "-1",
+        "meaning": "Reduced-cost pricing"
+      },
+      {
+        "value": "This",
+        "meaning": "is less compute intensive and may be preferred if the problem is small or easy. This option may also be advantageous for dense problems (say 20 to 30 nonzeros per column)."
+      },
+      {
+        "value": "0",
+        "meaning": "Hybrid reduced-cost and Devex pricing"
+      },
+      {
+        "value": "1",
+        "meaning": "Devex pricing"
+      },
+      {
+        "value": "This",
+        "meaning": "may be useful for more difficult problems which take many iterations to complete Phase I. Each iteration may consume more time, but the reduced number of total iterations may lead to an overall reduction in time. Tenfold iteration count reductions leading to threefold speed improvements have been observed. Do not use devex pricing if the problem has many columns and relatively few rows. The number of calculations required per iteration will usually be disadvantageous."
+      },
+      {
+        "value": "2",
+        "meaning": "Steepest edge pricing"
+      },
+      {
+        "value": "If",
+        "meaning": "devex pricing helps, this option may be beneficial. Steepest-edge pricing is computationally expensive, but may produce the best results on exceptionally difficult problems."
+      },
+      {
+        "value": "3",
+        "meaning": "Steepest edge pricing with slack initial norms"
+      },
+      {
+        "value": "This",
+        "meaning": "reduces the computationally intensive nature of steepest edge pricing."
+      },
+      {
+        "value": "4",
+        "meaning": "Full pricing"
+      }
+    ],
+    "description": "Pricing algorithm. Likely to show the biggest impact on performance. Look at overall solution time and the number of Phase I and total iterations as a guide in selecting alternate pricing algorithms. If you are using the dual Simplex method use DPriInd to select a pricing algorithm. If the number of iterations required to solve your problem is approximately the same as the number of rows in your problem, then you are doing well. Iteration counts more than three times greater than the number of rows suggest that improvements might be possible."
+  },
+  "predual": {
+    "type": "integer",
+    "summary": "give dual problem to the optimizer",
+    "default": "0",
+    "values": [
+      {
+        "value": "-1",
+        "meaning": "do not give dual to optimizer"
+      },
+      {
+        "value": "0",
+        "meaning": "automatic"
+      },
+      {
+        "value": "1",
+        "meaning": "give dual to optimizer"
+      }
+    ],
+    "description": "Solve the dual. Some linear programs with many more rows than columns may be solved faster by explicitly solving the dual. The PreDual option will cause Cplex to solve the dual while returning the solution in the context of the original problem. This option is ignored if presolve is turned off."
+  },
+  "preind": {
+    "type": "boolean",
+    "summary": "turn presolver on/off",
+    "default": "1",
+    "description": "Perform Presolve. This helps most problems by simplifying, reducing and eliminating redundancies. However, if there are no redundancies or opportunities for simplification in the model, if may be faster to turn presolve off to avoid this step. On rare occasions, the presolved model, although smaller, may be more difficult than the original problem. In this case turning the presolve off leads to better performance. Specifying 0 turns the aggregator off as well."
+  },
+  "prepass": {
+    "type": "integer",
+    "summary": "number of presolve applications to perform",
+    "default": "-1",
+    "values": [
+      {
+        "value": "-1",
+        "meaning": "Determined automatically"
+      },
+      {
+        "value": "0",
+        "meaning": "No presolve"
+      },
+      {
+        "value": ">0",
+        "meaning": "Number of MIP presolve applications to perform"
+      }
+    ],
+    "description": "Number of MIP presolve applications to perform. By default, Cplex determines this automatically. Specifying 0 turns off the presolve but not the aggregator. Set PreInd to 0 to turn both off."
+  },
+  "prereform": {
+    "type": "integer",
+    "summary": "set presolve reformulations",
+    "default": "3"
+  },
+  "preslvnd": {
+    "type": "integer",
+    "summary": "node presolve selector",
+    "default": "0",
+    "values": [
+      {
+        "value": "-1",
+        "meaning": "No node presolve"
+      },
+      {
+        "value": "0",
+        "meaning": "Automatic"
+      },
+      {
+        "value": "1",
+        "meaning": "Force node presolve"
+      },
+      {
+        "value": "2",
+        "meaning": "Perform probing on integer-infeasible variables"
+      },
+      {
+        "value": "3",
+        "meaning": "Perform aggressive node probing"
+      }
+    ],
+    "description": "Indicates whether node presolve should be performed at the nodes of a mixed integer programming solution. Node presolve can significantly reduce solution time for some models. The default setting is generally effective."
+  },
+  "pricelim": {
+    "type": "integer",
+    "summary": "pricing candidate list",
+    "default": "0, in which case it is determined automatically",
+    "description": "Size for the pricing candidate list. Cplex dynamically determines a good value based on problem dimensions. Only very rarely will setting this option manually improve performance. Any non-negative integer values are valid."
+  },
+  "printoptions": {
+    "type": "boolean",
+    "summary": "list values of all options to GAMS listing file",
+    "default": "0",
+    "description": "Write the values of all options to the GAMS listing file. Valid values are no or yes."
+  },
+  "probe": {
+    "type": "integer",
+    "summary": "perform probing before solving a MIP",
+    "default": "0",
+    "values": [
+      {
+        "value": "-1",
+        "meaning": "No probing"
+      },
+      {
+        "value": "0",
+        "meaning": "Automatic"
+      },
+      {
+        "value": "1",
+        "meaning": "Limited probing"
+      },
+      {
+        "value": "2",
+        "meaning": "More probing"
+      },
+      {
+        "value": "3",
+        "meaning": "Full probing"
+      }
+    ],
+    "description": "Determines the amount of probing performed on a MIP. Probing can be both very powerful and very time consuming. Setting the value to 1 can result in dramatic reductions or dramatic increases in solution time depending on the particular model."
+  },
+  "probedettime": {
+    "type": "real",
+    "summary": "deterministic time spent probing",
+    "default": "1.0e+75"
+  },
+  "probetime": {
+    "type": "real",
+    "summary": "time spent probing",
+    "default": "1.0e+75",
+    "description": "Limits the amount of time in seconds spent probing."
+  },
+  "qextractalg": {
+    "type": "integer",
+    "summary": "quadratic extraction algorithm in GAMS interface",
+    "default": "0",
+    "values": [
+      {
+        "value": "0",
+        "meaning": "Automatic"
+      },
+      {
+        "value": "1",
+        "meaning": "ThreePass: Uses a three-pass forward / backward / forward AD technique to compute function / gradient / Hessian values and a hybrid scheme for storage."
+      },
+      {
+        "value": "2",
+        "meaning": "DoubleForward: Uses forward-mode AD to compute and store function, gradient, and Hessian values at each node or stack level as required. The gradients and Hessians are stored in linked lists."
+      },
+      {
+        "value": "3",
+        "meaning": "Concurrent: Uses ThreePass and DoubleForward in parallel. As soon as one finishes, the other one stops."
+      }
+    ]
+  },
+  "qpmakepsdind": {
+    "type": "boolean",
+    "summary": "adjust MIQP formulation to make the quadratic matrix positive-semi-definite",
+    "default": "1",
+    "values": [
+      {
+        "value": "0",
+        "meaning": "Off"
+      },
+      {
+        "value": "1",
+        "meaning": "On"
+      }
+    ],
+    "description": "Determines whether Cplex will attempt to adjust a MIQP formulation, in which all the variables appearing in the quadratic term are binary. When this feature is active, adjustments will be made to the elements of a quadratic matrix that is not nominally positive semi-definite (PSD, as required by Cplex for all QP formulations), to make it PSD, and will also attempt to tighten an already PSD matrix for better numerical behavior. The default setting of 1 means yes but you can turn it off if necessary; most models should benefit from the default setting."
+  },
+  "qpmethod": {
+    "type": "integer",
+    "summary": "algorithm to be used for QP problems",
+    "default": "0",
+    "values": [
+      {
+        "value": "0",
+        "meaning": "Automatic"
+      },
+      {
+        "value": "1",
+        "meaning": "Primal Simplex"
+      },
+      {
+        "value": "2",
+        "meaning": "Dual Simplex"
+      },
+      {
+        "value": "3",
+        "meaning": "Network Simplex"
+      },
+      {
+        "value": "4",
+        "meaning": "Barrier"
+      },
+      {
+        "value": "5",
+        "meaning": "Sifting"
+      },
+      {
+        "value": "6",
+        "meaning": "Concurrent dual, barrier, and primal"
+      }
+    ],
+    "description": "Specifies which QP algorithm to use. At the default of 0 (automatic), barrier is used for QP problems and dual simplex for the root relaxation of MIQP problems."
+  },
+  "qtolin": {
+    "type": "integer",
+    "summary": "linearization of the quadratic terms in the objective function of a QP or MIQP model",
+    "default": "-1",
+    "values": [
+      {
+        "value": "-1",
+        "meaning": "Automatic"
+      },
+      {
+        "value": "0",
+        "meaning": "Off, Cplex does not linearize quadratic terms in the objective"
+      },
+      {
+        "value": "1",
+        "meaning": "On, Cplex linearizes quadratic terms in the objective"
+      }
+    ],
+    "description": "This parameter switches on or off linearization of the quadratic terms in the objective function of a quadratic program or of a mixed integer quadratic program. In a convex mixed integer quadratic program, this parameter controls whether Cplex linearizes the product of binary variables in the objective function during presolve. In a nonconvex quadratic program or mixed integer quadratic program solved to global optimality according to OptimalityTarget, this parameter controls how Cplex linearizes the product of bounded variables in the objective function during presolve. This parameter interacts with the existing parameter OptimalityTarget: When the solution target type is set to 1 (that is, Cplex searches for a globally optimal solution to a convex model), then in a convex MIQP, this parameter tells Cplex to replace the product of a binary variable and a bounded linear variable by a linearly constrained variable. When the solution target type is set to 3, then in a nonconvex QP or nonconvex MIQP, this parameter controls the initial relaxation."
+  },
+  "quality": {
+    "type": "boolean",
+    "summary": "write solution quality statistics",
+    "default": "0",
+    "description": "Write solution quality statistics to the listing and log file. If set to yes, the statistics appear after the Solve Summary and before the Solution Listing and contain information about infeasibility levels, solution value magnitued, and the condition number (kappa): Solution Quality Statistics: unscaled                scaled max         sum         max         sum primal infeasibility        0.000e+00   0.000e+00   0.000e+00   0.000e+00 dual infeasibility          0.000e+00   0.000e+00   0.000e+00   0.000e+00 primal residual             0.000e+00   0.000e+00   0.000e+00   0.000e+00 dual residual               0.000e+00   0.000e+00   0.000e+00   0.000e+00 primal solution vector      3.000e+02   9.000e+02   3.000e+02   9.000e+02 dual solution vector        1.000e+00   1.504e+00   1.000e+00   1.504e+00 slacks                      5.000e+01   5.000e+01   5.000e+01   5.000e+01 reduced costs               3.600e-02   4.500e-02   3.600e-02   4.500e-02 Condition number of the scaled basis matrix =    9.000e+00"
+  },
+  "randomseed": {
+    "type": "integer",
+    "summary": "sets the random seed differently for diversity of solutions",
+    "default": "changes with each Cplex release"
+  },
+  "readflt": {
+    "type": "string",
+    "summary": "reads Cplex solution pool filter file",
+    "description": "The GAMS/Cplex solution pool options cover the basic use of diversity and range filters for producing multiple solutions. If you need multiple filters, weights on diversity filters or other advanced uses of solution pool filters, you could produce a Cplex filter file with your favorite editor or the GAMS Put Facility and read this into GAMS/Cplex using this option."
+  },
+  "readparams": {
+    "type": "string",
+    "summary": "read Cplex parameter file"
+  },
+  "reduce": {
+    "type": "integer",
+    "summary": "primal and dual reduction type",
+    "default": "3",
+    "values": [
+      {
+        "value": "0",
+        "meaning": "No primal or dual reductions"
+      },
+      {
+        "value": "1",
+        "meaning": "Only primal reductions"
+      },
+      {
+        "value": "2",
+        "meaning": "Only dual reductions"
+      },
+      {
+        "value": "3",
+        "meaning": "Both primal and dual reductions"
+      }
+    ],
+    "description": "Determines whether primal reductions, dual reductions, or both, are performed during preprocessing. It is occasionally advisable to do only one or the other when diagnosing infeasible or unbounded models."
+  },
+  "reinv": {
+    "type": "integer",
+    "summary": "refactorization frequency",
+    "default": "0, in which case it is determined automatically",
+    "description": "Refactorization Frequency. This option determines the number of iterations between refactorizations of the basis matrix. The default should be optimal for most problems. Cplex's performance is relatively insensitive to changes in refactorization frequency. Only for extremely large, difficult problems should reducing the number of iterations between refactorizations be considered. Any non-negative integer value is valid."
+  },
+  "relaxfixedinfeas": {
+    "type": "boolean",
+    "summary": "accept small infeasibilties in the solve of the fixed problem",
+    "default": "0",
+    "values": [
+      {
+        "value": "0",
+        "meaning": "Off"
+      },
+      {
+        "value": "1",
+        "meaning": "On"
+      }
+    ],
+    "description": "Sometimes the solution of the fixed problem of a MIP does not solve to optimality due to small (dual) infeasibilities. The default behavior of the GAMS/Cplex link is to return the primal solution values only. If the option is set to 1, the small infeasibilities are ignored and a full solution including the dual values are reported back to GAMS."
+  },
+  "relaxpreind": {
+    "type": "integer",
+    "summary": "presolve for initial relaxation on/off",
+    "default": "-1",
+    "values": [
+      {
+        "value": "-1",
+        "meaning": "Automatic"
+      },
+      {
+        "value": "0",
+        "meaning": "do not presolve initial relaxation"
+      },
+      {
+        "value": "1",
+        "meaning": "use presolve on initial relaxation"
+      }
+    ],
+    "description": "This option will cause the Cplex presolve to be invoked for the initial relaxation of a mixed integer program (according to the other presolve option settings). Sometimes, additional reductions can be made beyond any MIP presolve reductions that may already have been done."
+  },
+  "relobjdif": {
+    "type": "real",
+    "summary": "relative cheat parameter",
+    "default": "0.0",
+    "description": "The relative version of the ObjDif option. Ignored if ObjDif is non-zero."
+  },
+  "repairtries": {
+    "type": "integer",
+    "summary": "try to repair infeasible MIP start",
+    "default": "0",
+    "values": [
+      {
+        "value": "-1",
+        "meaning": "None: do not try to repair"
+      },
+      {
+        "value": "0",
+        "meaning": "Automatic"
+      },
+      {
+        "value": ">0",
+        "meaning": "Maximum tries to perform"
+      }
+    ],
+    "description": "This parameter lets you indicate to Cplex whether and how many times it should try to repair an infeasible MIP start that you supplied. The parameter has no effect if the MIP start you supplied is feasible. It has no effect if no MIP start was supplied."
+  },
+  "repeatpresolve": {
+    "type": "integer",
+    "summary": "reapply presolve at root after preprocessing",
+    "default": "-1",
+    "values": [
+      {
+        "value": "-1",
+        "meaning": "Automatic"
+      },
+      {
+        "value": "0",
+        "meaning": "Turn off represolve"
+      },
+      {
+        "value": "1",
+        "meaning": "Represolve without cuts"
+      },
+      {
+        "value": "2",
+        "meaning": "Represolve with cuts"
+      },
+      {
+        "value": "3",
+        "meaning": "Represolve with cuts and allow new root cuts"
+      }
+    ],
+    "description": "This integer parameter tells Cplex whether to re-apply presolve, with or without cuts, to a MIP model after processing at the root is otherwise complete."
+  },
+  "rerun": {
+    "type": "string",
+    "summary": "rerun problem if presolve infeasible or unbounded",
+    "default": "nono",
+    "values": [
+      {
+        "value": "auto",
+        "meaning": "Automatic"
+      },
+      {
+        "value": "yes",
+        "meaning": "Rerun infeasible models with presolve turned off"
+      },
+      {
+        "value": "no",
+        "meaning": "Do not rerun infeasible models"
+      },
+      {
+        "value": "nono",
+        "meaning": "Do not rerun infeasible fixed MIP models"
+      }
+    ],
+    "description": "The Cplex presolve can sometimes diagnose a problem as being infeasible or unbounded. When this happens, GAMS/Cplex can, in order to get better diagnostic information, rerun the problem with presolve turned off. The GAMS solution listing will then mark variables and equations as infeasible or unbounded according to the final solution returned by the simplex algorithm. The IIS option can be used to get even more diagnostic information. The rerun option controls this behavior. Valid values are auto, yes, no and nono. The value of auto is equivalent to no if names are successfully loaded into Cplex and option IIS is set to no. In that case the Cplex messages from presolve help identify the cause of infeasibility or unboundedness in terms of GAMS variable and equation names. If names are not successfully loaded, rerun defaults to yes. Loading of GAMS names into Cplex is controlled by option Names. The value of nono only affects MIP models for which Cplex finds a feasible solution in the branch-and-bound tree but the fixed problem turns out to be infeasible. In this case the value nono also disables the rerun without presolve, while the value of no still tries this run. Feasible integer solution but an infeasible fixed problem happens in few cases and mostly with badly scaled models. If you experience this try more aggressive scaling (ScaInd) or tightening the integer feasibility tolerance EPInt. If the fixed model is infeasible only the primal solution is returned to GAMS. You can recognize this inside GAMS by checking the marginal of the objective defining constraint which is always nonzero."
+  },
+  "rhsrng": {
+    "type": "string",
+    "summary": "do right-hand-side ranging",
+    "default": "no right-hand-side ranging is done",
+    "description": "Calculate sensitivity ranges for the specified GAMS equations. Unlike most options, RHSRng can be repeated multiple times in the options file. Sensitivity range information will be produced for each GAMS equation named. Specifying all will cause range information to be produced for all equations. Range information will be printed to the beginning of the solution listing in the GAMS listing file unless option RngRestart is specified."
+  },
+  "rinsheur": {
+    "type": "integer",
+    "summary": "relaxation induced neighborhood search frequency",
+    "default": "0",
+    "values": [
+      {
+        "value": "-1",
+        "meaning": "Disable RINS"
+      },
+      {
+        "value": "0",
+        "meaning": "Automatic"
+      },
+      {
+        "value": ">0",
+        "meaning": "Call RINS at the requested node interval"
+      }
+    ],
+    "description": "Cplex implements a heuristic known a Relaxation Induced Neighborhood Search (RINS) for MIP and MIQCP problems. RINS explores a neighborhood of the current incumbent to try to find a new, improved incumbent. It formulates the neighborhood exploration as a MIP, a subproblem known as the subMIP, and truncates the subMIP solution by limiting the number of nodes explored in the search tree. Parameter RINSHeur controls how often RINS is invoked. A value of 100, for example, means that RINS is invoked every hundredth node in the tree."
+  },
+  "rltcuts": {
+    "type": "integer",
+    "summary": "Reformulation Linearization Technique (RLT) cuts",
+    "default": "0",
+    "values": [
+      {
+        "value": "-1",
+        "meaning": "Do not generate RLT cuts"
+      },
+      {
+        "value": "0",
+        "meaning": "Determined automatically"
+      },
+      {
+        "value": "1",
+        "meaning": "Generate RLT cuts moderately"
+      },
+      {
+        "value": "2",
+        "meaning": "Generate RLT cuts aggressively"
+      },
+      {
+        "value": "3",
+        "meaning": "Generate RLT cuts very aggressively"
+      }
+    ],
+    "description": "This parameter controls the addition of cuts based on the Reformulation Linearization Technique (RLT) for nonconvex quadratic programs (QP) or mixed integer quadratic programs (MIQP) solved to global optimality. That is, the OptimalityTarget parameter must be set to 3. The RLTCuts option is not controlled by the option Cuts."
+  },
+  "rngrestart": {
+    "type": "string",
+    "summary": "write GAMS readable ranging information file",
+    "default": "ranging information is printed to the listing file",
+    "description": "Write ranging information, in GAMS readable format, to the file named. If the file extension is GDX, the ranging information is exported as GDX file. Options ObjRng and RHSRng are used to specify which GAMS variables or equations are included."
+  },
+  "scaind": {
+    "type": "integer",
+    "summary": "matrix scaling on/off",
+    "default": "0",
+    "values": [
+      {
+        "value": "-1",
+        "meaning": "No scaling"
+      },
+      {
+        "value": "0",
+        "meaning": "Standard scaling"
+      },
+      {
+        "value": "An",
+        "meaning": "equilibration scaling method is implemented which is generally very effective."
+      },
+      {
+        "value": "1",
+        "meaning": "Modified, more aggressive scaling method"
+      },
+      {
+        "value": "This",
+        "meaning": "method can produce improvements on some problems. This scaling should be used if the problem is observed to have difficulty staying feasible during the solution process."
+      }
+    ],
+    "description": "This option influences the scaling of the problem matrix."
+  },
+  "siftalg": {
+    "type": "integer",
+    "summary": "sifting subproblem algorithm",
+    "default": "0",
+    "values": [
+      {
+        "value": "0",
+        "meaning": "Automatic"
+      },
+      {
+        "value": "1",
+        "meaning": "Primal simplex"
+      },
+      {
+        "value": "2",
+        "meaning": "Dual simplex"
+      },
+      {
+        "value": "3",
+        "meaning": "Network simplex"
+      },
+      {
+        "value": "4",
+        "meaning": "Barrier"
+      }
+    ],
+    "description": "Sets the algorithm to be used for solving sifting subproblems."
+  },
+  "siftdisplay": {
+    "type": "integer",
+    "summary": "sifting display level",
+    "default": "1",
+    "values": [
+      {
+        "value": "0",
+        "meaning": "No display"
+      },
+      {
+        "value": "1",
+        "meaning": "Display major iterations"
+      },
+      {
+        "value": "2",
+        "meaning": "Display LP subproblem information"
+      }
+    ],
+    "description": "Determines the amount of sifting progress information to be displayed."
+  },
+  "sifting": {
+    "type": "boolean",
+    "summary": "switch for sifting from simplex optimization",
+    "default": "1"
+  },
+  "siftitlim": {
+    "type": "integer",
+    "summary": "limit on sifting iterations",
+    "default": "large",
+    "description": "Sets the maximum number of sifting iterations that may be performed if convergence to optimality has not been reached."
+  },
+  "simdisplay": {
+    "type": "integer",
+    "summary": "simplex display level",
+    "default": "1",
+    "values": [
+      {
+        "value": "0",
+        "meaning": "No iteration messages are issued until the optimal solution is reported"
+      },
+      {
+        "value": "1",
+        "meaning": "An iteration log message will be issued after each refactorization"
+      },
+      {
+        "value": "Each",
+        "meaning": "entry will contain the iteration count and scaled infeasibility or objective value."
+      },
+      {
+        "value": "2",
+        "meaning": "An iteration log message will be issued after each iteration"
+      },
+      {
+        "value": "The",
+        "meaning": "variables, slacks and artificials entering and leaving the basis will also be reported."
+      }
+    ],
+    "description": "This option controls what Cplex reports (normally to the screen) during optimization. The amount of information displayed increases as the setting value increases."
+  },
+  "singlim": {
+    "type": "integer",
+    "summary": "limit on singularity repairs",
+    "default": "10",
+    "description": "The singularity limit setting restricts the number of times Cplex will attempt to repair the basis when singularities are encountered. Once the limit is exceeded, Cplex replaces the current basis with the best factorizable basis that has been found. Any non-negative integer value is valid."
+  },
+  "solnpool": {
+    "type": "string",
+    "summary": "solution pool file name",
+    "description": "The solution pool enables you to generate and store multiple solutions to a MIP problem. The option expects a GDX filename. This GDX file name contains the information about the different solutions generated by Cplex. Inside your GAMS program you can process the GDX file and read the different solution point files. Please check the GAMS/Cplex solver guide document and the example model solnpool.gms from the GAMS model library."
+  },
+  "solnpoolagap": {
+    "type": "real",
+    "summary": "absolute tolerance for the solutions in the solution pool",
+    "default": "1.0e+75",
+    "description": "Sets an absolute tolerance on the objective bound for the solutions in the solution pool. Solutions that are worse (either greater in the case of a minimization, or less in the case of a maximization) than the objective of the incumbent solution according to this measure are not kept in the solution pool. Values of the solution pool absolute gap and the solution pool relative gap SolnPoolGap may differ: For example, you may specify that solutions must be within 15 units by means of the solution pool absolute gap and also within 1% of the incumbent by means of the solution pool relative gap. A solution is accepted in the pool only if it is valid for both the relative and the absolute gaps. The solution pool absolute gap parameter can also be used as a stopping criterion for the populate procedure: if populate cannot enumerate any more solutions that satisfy this objective quality, then it will stop. In the presence of both an absolute and a relative solution pool gap parameter, populate will stop when the smaller of the two is reached."
+  },
+  "solnpoolcapacity": {
+    "type": "integer",
+    "summary": "limits of solutions kept in the solution pool",
+    "default": "2100000000",
+    "description": "Limits the number of solutions kept in the solution pool. At most, SolnPoolCapacity solutions will be stored in the pool. Superfluous solutions are managed according to the replacement strategy set by the solution pool replacement parameter SolnPoolReplace. The optimization (whether by MIP optimization or the populate procedure) will not stop if more than SolnPoolCapacity are generated. Instead, stopping criteria are regular node and time limits and PopulateLim, SolnPoolGap and SolnPoolAGap."
+  },
+  "solnpoolgap": {
+    "type": "real",
+    "summary": "relative tolerance for the solutions in the solution pool",
+    "default": "1.0e+75",
+    "description": "Sets a relative tolerance on the objective bound for the solutions in the solution pool. Solutions that are worse (either greater in the case of a minimization, or less in the case of a maximization) than the incumbent solution by this measure are not kept in the solution pool. Values of the solution pool absolute gap SolnPoolAGap and the solution pool relative gap may differ: For example, you may specify that solutions must be within 15 units by means of the solution pool absolute gap and within 1% of the incumbent by means of the solution pool relative gap. A solution is accepted in the pool only if it is valid for both the relative and the absolute gaps. The solution pool relative gap parameter can also be used as a stopping criterion for the populate procedure: if populate cannot enumerate any more solutions that satisfy this objective quality, then it will stop. In the presence of both an absolute and a relative solution pool gap parameter, populate will stop when the smaller of the two is reached."
+  },
+  "solnpoolintensity": {
+    "type": "integer",
+    "summary": "solution pool intensity for ability to produce multiple solutions",
+    "default": "0",
+    "values": [
+      {
+        "value": "0",
+        "meaning": "Automatic"
+      },
+      {
+        "value": "Its",
+        "meaning": "default value, 0 , lets Cplex choose which intensity to apply."
+      },
+      {
+        "value": "1",
+        "meaning": "Mild: generate few solutions quickly"
+      },
+      {
+        "value": "For",
+        "meaning": "value 1, the performance of MIP optimization is not affected. There is no slowdown and no additional consumption of memory due to this setting. However, populate will quickly generate only a small number of solutions. Generating more than a few solutions with this setting will be slow. When you are looking for a larger number of solutions, use a higher value of this parameter."
+      },
+      {
+        "value": "2",
+        "meaning": "Moderate: generate a larger number of solutions"
+      },
+      {
+        "value": "For",
+        "meaning": "value 2, some information is stored in the branch and cut tree so that it is easier to generate a larger number of solutions. This storage has an impact on memory used but does not lead to a slowdown in the performance of MIP optimization. With this value, calling populate is likely to yield a number of solutions large enough for most purposes. This value is a good choice for most models."
+      },
+      {
+        "value": "3",
+        "meaning": "Aggressive: generate many solutions and expect performance penalty"
+      },
+      {
+        "value": "For",
+        "meaning": "value 3, the algorithm is more aggressive in computing and storing information in order to generate a large number of solutions. Compared to values 1 and 2, this value will generate a larger number of solutions, but it will slow MIP optimization and increase memory consumption. Use this value only if setting this parameter to 2 does not generate enough solutions."
+      },
+      {
+        "value": "4",
+        "meaning": "Very aggressive: enumerate all practical solutions"
+      },
+      {
+        "value": "For",
+        "meaning": "value 4, the algorithm generates all solutions to your model. Even for small models, the number of possible solutions is likely to be huge; thus enumerating all of them will take time and consume a large quantity of memory."
+      }
+    ],
+    "description": "Controls the trade-off between the number of solutions generated for the solution pool and the amount of time or memory consumed. This parameter applies both to MIP optimization and to the populate procedure. Values from 1 to 4 invoke increasing effort to find larger numbers of solutions. Higher values are more expensive in terms of time and memory but are likely to yield more solutions."
+  },
+  "solnpoolmerge": {
+    "type": "string",
+    "summary": "solution pool file name for merged solutions",
+    "description": "Similar to solnpool this option enables you to generate and store multiple solutions to a MIP problem. The option expects a GDX filename. This GDX file contains all variables with an additional first index (determined through SolnPoolPrefix) as parameters (Cplex only reports the primal solution). Inside your GAMS program you can process the GDX file and read all solutions in one read operation. Please check the GAMS/Cplex solver guide document for further solution pool options and the example model solmpool.gms from the GAMS model library."
+  },
+  "solnpoolnumsym": {
+    "type": "integer",
+    "summary": "maximum number of variable symbols when writing merged solutions",
+    "default": "10"
+  },
+  "solnpoolpop": {
+    "type": "integer",
+    "summary": "methods to populate the solution pool",
+    "default": "1",
+    "values": [
+      {
+        "value": "1",
+        "meaning": "Just collect the incumbents found during regular optimization"
+      },
+      {
+        "value": "2",
+        "meaning": "Calls the populate procedure"
+      }
+    ],
+    "description": "Regular MIP optimization automatically adds incumbents to the solution pool as they are discovered. Cplex also provides a procedure known as populate specifically to generate multiple solutions. You can invoke this procedure either as an alternative to the usual MIP optimizer or as a successor to the MIP optimizer. You can also invoke this procedure many times in a row in order to explore the solution space differently (see option SolnPoolPopRepeat). In particular, you may invoke this procedure multiple times to find additional solutions, especially if the first solutions found are not satisfactory."
+  },
+  "solnpoolpopdel": {
+    "type": "string",
+    "summary": "file with solution numbers to delete from the solution pool",
+    "description": "After the GAMS program specified in SolnPoolPopRepeat determined to continue the search for alternative solutions, the file specified by this option is read in. The solution numbers present in this file will be delete from the solution pool before the populate routine is called again. The file is automatically deleted by the GAMS/Cplex link after processing."
+  },
+  "solnpoolpoprepeat": {
+    "type": "string",
+    "summary": "method to decide if populating the solution should be repeated",
+    "description": "After the termination of the populate procedure (see option SolnPoolPop). The GAMS program specified in this option will be called which can examine the solutions in the solution pool and can decide to run the populate procedure again. If the GAMS program terminates normally (not compilation or execution time error) the search for new alternative solutions will be repeated."
+  },
+  "solnpoolprefix": {
+    "type": "string",
+    "summary": "file name prefix for GDX solution files",
+    "default": "soln"
+  },
+  "solnpoolreplace": {
+    "type": "integer",
+    "summary": "strategy for replacing a solution in the solution pool",
+    "default": "0",
+    "values": [
+      {
+        "value": "0",
+        "meaning": "Replace the first solution (oldest) by the most recent solution; first in, first out"
+      },
+      {
+        "value": "1",
+        "meaning": "Replace the solution which has the worst objective"
+      },
+      {
+        "value": "2",
+        "meaning": "Replace solutions in order to build a set of diverse solutions"
+      }
+    ]
+  },
+  "solutiontype": {
+    "type": "integer",
+    "summary": "type of solution (basic or non basic) for an LP or QP",
+    "default": "0",
+    "values": [
+      {
+        "value": "0",
+        "meaning": "Automatic"
+      },
+      {
+        "value": "1",
+        "meaning": "Basic solution"
+      },
+      {
+        "value": "2",
+        "meaning": "primal-dual pair"
+      }
+    ],
+    "description": "Specifies the type of solution (basic or non basic) that CPLEX attempts to compute for a linear program (LP) or for a quadratic program (QP). In this context, basic means having to do with the basis, and non basic applies to the variables and constraints not participating in the basis. By default (that is, when the value of this parameter is 0 (zero) automatic), CPLEX seeks a basic solution (that is, a solution with a basis) for all linear programs (LP) and for all quadratic programs (QP). When the value of this parameter is 1 (one), CPLEX seeks a basic solution, that is, a solution that includes a basis with a basic status for variables and constraints. In other words, CPLEX behaves the same way for the values 0 (zero) and 1 (one) of this parameter. When the value of this parameter is 2, CPLEX seeks a pair of primal-dual solution vectors. This setting does not prevent CPLEX from producing status information, but in seeking a pair of primal-dual solution vectors, CPLEX possibly may not produce basic status information; that is, it is possible that CPLEX does not produce status information about which variables and constraints participate in the basis at this setting. Do not use the deprecated value -1 (minus one) of the parameter barrier crossover algorithm to turn off crossover of the barrier algorithm but use this parameter to indicate that a primal-dual pair is sufficient."
+  },
+  "solvefinal": {
+    "type": "boolean",
+    "summary": "switch to solve the problem with fixed discrete variables",
+    "default": "1",
+    "values": [
+      {
+        "value": "0",
+        "meaning": "Do not solve the fixed problem"
+      },
+      {
+        "value": "1",
+        "meaning": "Solve the fixed problem and return duals"
+      }
+    ],
+    "description": "Sometimes the solution process after the branch-and-cut that solves the problem with fixed discrete variables takes a long time and the user is interested in the primal values of the solution only. In these cases, solvefinal can be used to turn this final solve off. Without the final solve no proper marginal values are available and only NAs are returned to GAMS."
+  },
+  "sos1reform": {
+    "type": "integer",
+    "summary": "automatic logarithmic reformulation of special ordered sets of type 1 (SOS1)",
+    "default": "0"
+  },
+  "sos2reform": {
+    "type": "integer",
+    "summary": "automatic logarithmic reformulation of special ordered sets of type 2 (SOS2)",
+    "default": "0"
+  },
+  "startalg": {
+    "type": "integer",
+    "summary": "MIP starting algorithm",
+    "default": "0",
+    "values": [
+      {
+        "value": "0",
+        "meaning": "Automatic"
+      },
+      {
+        "value": "1",
+        "meaning": "Primal simplex"
+      },
+      {
+        "value": "2",
+        "meaning": "Dual simplex"
+      },
+      {
+        "value": "3",
+        "meaning": "Network simplex"
+      },
+      {
+        "value": "4",
+        "meaning": "Barrier"
+      },
+      {
+        "value": "5",
+        "meaning": "Sifting"
+      },
+      {
+        "value": "6",
+        "meaning": "Concurrent"
+      }
+    ],
+    "description": "Selects the algorithm to use for the initial relaxation of a MIP."
+  },
+  "strongcandlim": {
+    "type": "integer",
+    "summary": "size of the candidates list for strong branching",
+    "default": "10",
+    "description": "Limit on the length of the candidate list for strong branching (VarSel = 3)."
+  },
+  "strongitlim": {
+    "type": "integer",
+    "summary": "limit on iterations per branch for strong branching",
+    "default": "0",
+    "description": "Limit on the number of iterations per branch in strong branching (VarSel = 3). The default value of 0 causes the limit to be chosen automatically which is normally satisfactory. Try reducing this value if the time per node seems excessive. Try increasing this value if the time per node is reasonable but Cplex is making little progress."
+  },
+  "subalg": {
+    "type": "integer",
+    "summary": "algorithm for subproblems",
+    "default": "0",
+    "values": [
+      {
+        "value": "0",
+        "meaning": "Automatic"
+      },
+      {
+        "value": "1",
+        "meaning": "Primal simplex"
+      },
+      {
+        "value": "2",
+        "meaning": "Dual simplex"
+      },
+      {
+        "value": "3",
+        "meaning": "Network optimizer followed by dual simplex"
+      },
+      {
+        "value": "4",
+        "meaning": "Barrier with crossover"
+      },
+      {
+        "value": "5",
+        "meaning": "Sifting"
+      }
+    ],
+    "description": "Strategy for solving linear sub-problems at each node."
+  },
+  "submipnodelim": {
+    "type": "integer",
+    "summary": "limit on number of nodes in an RINS subMIP",
+    "default": "500",
+    "description": "Controls the number of nodes explored in an RINS subMIP. See option RINSHeur."
+  },
+  "submipscale": {
+    "type": "integer",
+    "summary": "scale the problem matrix when CPLEX solves a subMIP during MIP optimization",
+    "default": "0",
+    "values": [
+      {
+        "value": "-1",
+        "meaning": "No scaling"
+      },
+      {
+        "value": "0",
+        "meaning": "Standard scaling"
+      },
+      {
+        "value": "1",
+        "meaning": "Modified, more aggressive scaling method"
+      }
+    ]
+  },
+  "submipstartalg": {
+    "type": "integer",
+    "summary": "starting algorithm for a subMIP of a MIP",
+    "default": "0",
+    "values": [
+      {
+        "value": "0",
+        "meaning": "Automatic"
+      },
+      {
+        "value": "1",
+        "meaning": "Primal simplex"
+      },
+      {
+        "value": "2",
+        "meaning": "Dual simplex"
+      },
+      {
+        "value": "3",
+        "meaning": "Network simplex"
+      },
+      {
+        "value": "4",
+        "meaning": "Barrier"
+      },
+      {
+        "value": "5",
+        "meaning": "Sifting"
+      }
+    ]
+  },
+  "submipsubalg": {
+    "type": "integer",
+    "summary": "algorithm for subproblems of a subMIP of a MIP",
+    "default": "0",
+    "values": [
+      {
+        "value": "0",
+        "meaning": "Automatic"
+      },
+      {
+        "value": "1",
+        "meaning": "Primal simplex"
+      },
+      {
+        "value": "2",
+        "meaning": "Dual simplex"
+      },
+      {
+        "value": "3",
+        "meaning": "Network optimizer followed by dual simplex"
+      },
+      {
+        "value": "4",
+        "meaning": "Barrier with crossover"
+      },
+      {
+        "value": "5",
+        "meaning": "Sifting"
+      }
+    ]
+  },
+  "symmetry": {
+    "type": "integer",
+    "summary": "symmetry breaking cuts",
+    "default": "-1",
+    "values": [
+      {
+        "value": "-1",
+        "meaning": "Automatic"
+      },
+      {
+        "value": "0",
+        "meaning": "Turn off symmetry breaking"
+      },
+      {
+        "value": "1",
+        "meaning": "Moderate level of symmetry breaking"
+      },
+      {
+        "value": "2",
+        "meaning": "Aggressive level of symmetry breaking"
+      },
+      {
+        "value": "3",
+        "meaning": "Very aggressive level of symmetry breaking"
+      },
+      {
+        "value": "4",
+        "meaning": "Highly aggressive level of symmetry breaking"
+      },
+      {
+        "value": "5",
+        "meaning": "Extremely aggressive level of symmetry breaking"
+      }
+    ],
+    "description": "Determines whether symmetry breaking cuts may be added, during the preprocessing phase, to a MIP model."
+  },
+  "threads": {
+    "type": "integer",
+    "summary": "global default thread count",
+    "synonyms": [
+      "gthreads"
+    ],
+    "default": "GAMS Threads",
+    "description": "Default number of parallel threads allowed for any solution method. Negative values are interpreted as the number of cores to leave free so setting threads to -1 leaves one core free for other tasks. Cplex does not understand negative values for the threads parameter. GAMS/Cplex will translate this into a positive number by applying the following formula: max(1,number of cores-|threads|). Setting threads to 0 lets Cplex use at most 32 threads or the number of cores of the machine, whichever is smaller."
+  },
+  "tilim": {
+    "type": "real",
+    "summary": "overrides the GAMS ResLim option",
+    "synonyms": [
+      "reslim"
+    ],
+    "default": "GAMS ResLim",
+    "description": "The time limit setting determines the amount of time in seconds that Cplex will continue to solve a problem. This Cplex option overrides the GAMS ResLim option. Any non-negative value is valid."
+  },
+  "trelim": {
+    "type": "real",
+    "summary": "maximum space in memory for tree",
+    "default": "1.0e+75",
+    "description": "Sets an absolute upper limit on the size (in megabytes) of the branch and cut tree. If this limit is exceeded, Cplex terminates optimization."
+  },
+  "tuning": {
+    "type": "string",
+    "summary": "invokes parameter tuning tool",
+    "description": "Invokes the Cplex parameter tuning tool. The mandatory value following the keyword specifies a GAMS/Cplex option file. All options found in this option file will be used but not modified during the tuning. A sequence of file names specifying existing problem files may follow the option file name. The files can be in LP, MPS or SAV format. Cplex will tune the parameters either for the problem provided by GAMS (no additional problem files specified) or for the suite of problems listed after the GAMS/Cplex option file name without considering the problem provided by GAMS. Due to technical reasons a single option input line is limited by 256 characters. If the list of model files exceeds this length you can provide a second, third, ... line starting again with keyword tuning and a list of model instance files. The result of such a tuning run is the updated GAMS/Cplex option file with a tuned set of parameters. The solver and model status returned to GAMS will be NORMAL COMPLETION and NO SOLUTION. More details on Cplex tuning can be found on IBM's web page. Tuning is incompatible with the BCH facility and other advanced features of GAMS/Cplex."
+  },
+  "tuningdettilim": {
+    "type": "real",
+    "summary": "tuning deterministic time limit per model or suite",
+    "default": "1.0e+75"
+  },
+  "tuningdisplay": {
+    "type": "integer",
+    "summary": "level of information reported by the tuning tool",
+    "default": "1",
+    "values": [
+      {
+        "value": "0",
+        "meaning": "Turn off display"
+      },
+      {
+        "value": "1",
+        "meaning": "Display standard minimal reporting"
+      },
+      {
+        "value": "2",
+        "meaning": "Display standard report plus parameter settings being tried"
+      },
+      {
+        "value": "3",
+        "meaning": "Display exhaustive report and log"
+      }
+    ],
+    "description": "Specifies the level of information reported by the tuning tool as it works."
+  },
+  "tuningmeasure": {
+    "type": "integer",
+    "summary": "measure for evaluating progress for a suite of models",
+    "default": "1",
+    "values": [
+      {
+        "value": "1",
+        "meaning": "mean average"
+      },
+      {
+        "value": "2",
+        "meaning": "minmax"
+      }
+    ],
+    "description": "Controls the measure for evaluating progress when a suite of models is being tuned. Choices are mean average and minmax of time to compare different parameter sets over a suite of models"
+  },
+  "tuningrepeat": {
+    "type": "integer",
+    "summary": "number of times tuning is to be repeated on perturbed versions",
+    "default": "1",
+    "description": "Specifies the number of times tuning is to be repeated on perturbed versions of a given problem. The problem is perturbed automatically by Cplex permuting its rows and columns. This repetition is helpful when only one problem is being tuned, as repeated perturbation and re-tuning may lead to more robust tuning results. This parameter applies to only one problem in a tuning session."
+  },
+  "tuningtilim": {
+    "type": "real",
+    "summary": "tuning time limit per model or suite",
+    "default": "0.2*GAMS ResLim",
+    "description": "Sets a time limit per model and per test set (that is, suite of models). As an example, suppose that you want to spend an overall amount of time tuning the parameter settings for a given model, say, 2000 seconds. Also suppose that you want Cplex to make multiple attempts within that overall time limit to tune the parameter settings for your model. Suppose further that you want to set a time limit on each of those attempts, say, 200 seconds per attempt. In this case you need to specify an overall time limit of 2000 using GAMS option reslim or Cplex option TiLim and tuningtilim to 200."
+  },
+  "upperobjstop": {
+    "type": "real",
+    "summary": "in a maximization MILP or MIQP, the solver will abort the optimization process as soon as it finds a solution of value greater than or equal to the specified value",
+    "default": "1e75"
+  },
+  "usercallparmfile": {
+    "type": "string",
+    "summary": "Command-line parameter include file used in GAMS command-line calls triggered by BCH"
+  },
+  ".usercut": {
+    "type": "boolean",
+    "summary": "User cut activation",
+    "default": "0",
+    "description": "Determines whether a linear constraint is treated as a user cut. At the beginning of the MIP solution process, any constraint whose usercut attribute is set to 1 (the default value is 0) is removed from the model and placed in the user cut pool. User cuts may be used by CPLEX at any time to improve the solution process. There is no guarantee that they are actually used. The user cut pool is only active if option usercutpool is enabled and are specified through the option .usercut. The syntax for dot options is explained in the Introduction chapter of the Solver Manual."
+  },
+  "usercutcall": {
+    "type": "string",
+    "summary": "the GAMS command line to call the cut generator",
+    "description": "More info is available in chapter The GAMS Branch-and-Cut-and-Heuristic Facility."
+  },
+  "usercutfirst": {
+    "type": "integer",
+    "summary": "calls the cut generator for the first n nodes",
+    "default": "10",
+    "description": "More info is available in chapter The GAMS Branch-and-Cut-and-Heuristic Facility."
+  },
+  "usercutfreq": {
+    "type": "integer",
+    "summary": "determines the frequency of the cut generator model calls",
+    "default": "10",
+    "description": "More info is available in chapter The GAMS Branch-and-Cut-and-Heuristic Facility."
+  },
+  "usercutinterval": {
+    "type": "integer",
+    "summary": "determines the interval when to apply the multiplier for the frequency of the cut generator model calls",
+    "default": "100",
+    "description": "More info is available in chapter The GAMS Branch-and-Cut-and-Heuristic Facility."
+  },
+  "usercutmult": {
+    "type": "integer",
+    "summary": "determines the multiplier for the frequency of the cut generator model calls",
+    "default": "2",
+    "description": "More info is available in chapter The GAMS Branch-and-Cut-and-Heuristic Facility."
+  },
+  "usercutnewint": {
+    "type": "boolean",
+    "summary": "calls the cut generator if the solver found a new integer feasible solution",
+    "default": "1",
+    "description": "More info is available in chapter The GAMS Branch-and-Cut-and-Heuristic Facility."
+  },
+  "usercutpool": {
+    "type": "boolean",
+    "summary": "Indicator to use user cuts",
+    "default": "0"
+  },
+  "usergdxin": {
+    "type": "string",
+    "summary": "the name of the GDX file read back into Cplex",
+    "default": "bchin.gdx",
+    "description": "More info is available in chapter The GAMS Branch-and-Cut-and-Heuristic Facility."
+  },
+  "usergdxname": {
+    "type": "string",
+    "summary": "the name of the GDX file exported from the solver with the solution at the node",
+    "default": "bchout.gdx",
+    "description": "More info is available in chapter The GAMS Branch-and-Cut-and-Heuristic Facility."
+  },
+  "usergdxnameinc": {
+    "type": "string",
+    "summary": "the name of the GDX file exported from the solver with the incumbent solution",
+    "default": "bchout_i.gdx",
+    "description": "More info is available in chapter The GAMS Branch-and-Cut-and-Heuristic Facility."
+  },
+  "usergdxprefix": {
+    "type": "string",
+    "summary": "prefixes usergdxin, usergdxname, and usergdxnameinc",
+    "description": "More info is available in chapter The GAMS Branch-and-Cut-and-Heuristic Facility."
+  },
+  "usergdxsol": {
+    "type": "string",
+    "summary": "the name of the GDX file exported by Cplex to store the solution of extra columns",
+    "default": "bchsol.gdx",
+    "description": "More info is available in chapter The GAMS Branch-and-Cut-and-Heuristic Facility."
+  },
+  "userheurcall": {
+    "type": "string",
+    "summary": "the GAMS command line to call the heuristic",
+    "description": "More info is available in chapter The GAMS Branch-and-Cut-and-Heuristic Facility."
+  },
+  "userheurfirst": {
+    "type": "integer",
+    "summary": "calls the heuristic for the first n nodes",
+    "default": "10",
+    "description": "More info is available in chapter The GAMS Branch-and-Cut-and-Heuristic Facility."
+  },
+  "userheurfreq": {
+    "type": "integer",
+    "summary": "determines the frequency of the heuristic model calls",
+    "default": "10",
+    "description": "More info is available in chapter The GAMS Branch-and-Cut-and-Heuristic Facility."
+  },
+  "userheurinterval": {
+    "type": "integer",
+    "summary": "determines the interval when to apply the multiplier for the frequency of the heuristic model calls",
+    "default": "100",
+    "description": "More info is available in chapter The GAMS Branch-and-Cut-and-Heuristic Facility."
+  },
+  "userheurmult": {
+    "type": "integer",
+    "summary": "determines the multiplier for the frequency of the heuristic model calls",
+    "default": "2",
+    "description": "More info is available in chapter The GAMS Branch-and-Cut-and-Heuristic Facility."
+  },
+  "userheurnewint": {
+    "type": "boolean",
+    "summary": "calls the heuristic if the solver found a new integer feasible solution",
+    "default": "1",
+    "description": "More info is available in chapter The GAMS Branch-and-Cut-and-Heuristic Facility."
+  },
+  "userheurobjfirst": {
+    "type": "integer",
+    "summary": "Similar to UserHeurFirst but only calls the heuristic if the relaxed objective promises an improvement",
+    "default": "0",
+    "description": "More info is available in chapter The GAMS Branch-and-Cut-and-Heuristic Facility."
+  },
+  "userincbcall": {
+    "type": "string",
+    "summary": "the GAMS command line to call the incumbent checking program",
+    "description": "More info is available in chapter The GAMS Branch-and-Cut-and-Heuristic Facility."
+  },
+  "userincbicall": {
+    "type": "string",
+    "summary": "the GAMS command line to call the incumbent reporting program",
+    "description": "More info is available in chapter The GAMS Branch-and-Cut-and-Heuristic Facility."
+  },
+  "userjobid": {
+    "type": "string",
+    "summary": "postfixes lf, o on call adds –userjobid to the call. Postfixes gdxname, gdxnameinc and gdxin",
+    "description": "More info is available in chapter The GAMS Branch-and-Cut-and-Heuristic Facility."
+  },
+  "userkeep": {
+    "type": "boolean",
+    "summary": "calls gamskeep instead of gams",
+    "default": "0",
+    "description": "More info is available in chapter The GAMS Branch-and-Cut-and-Heuristic Facility."
+  },
+  "userlazyconcall": {
+    "type": "string",
+    "summary": "the GAMS command line to call the lazy constraint generator",
+    "description": "More info is available in chapter The GAMS Branch-and-Cut-and-Heuristic Facility. Note: There is no guarantee that CPLEX will use all of the added violated lazy constraints provided due to technical and/or efficiency reasons. It may thus happen that a later candidate solution violates previously provided lazy constraints. In this case consider passing the constraint again."
+  },
+  "varsel": {
+    "type": "integer",
+    "summary": "variable selection strategy at each node",
+    "default": "0",
+    "values": [
+      {
+        "value": "-1",
+        "meaning": "Branch on variable with minimum infeasibility"
+      },
+      {
+        "value": "This",
+        "meaning": "rule may lead more quickly to a first integer feasible solution, but will usually be slower overall to reach the optimal integer solution."
+      },
+      {
+        "value": "0",
+        "meaning": "Branch variable automatically selected"
+      },
+      {
+        "value": "1",
+        "meaning": "Branch on variable with maximum infeasibility"
+      },
+      {
+        "value": "This",
+        "meaning": "rule forces larger changes earlier in the tree, which tends to produce faster overall times to reach the optimal integer solution."
+      },
+      {
+        "value": "2",
+        "meaning": "Branch based on pseudo costs"
+      },
+      {
+        "value": "Generally,",
+        "meaning": "the pseudo-cost setting is more effective when the problem contains complex trade-offs and the dual values have an economic interpretation."
+      },
+      {
+        "value": "3",
+        "meaning": "Strong Branching"
+      },
+      {
+        "value": "This",
+        "meaning": "setting causes variable selection based on partially solving a number of subproblems with tentative branches to see which branch is most promising. This is often effective on large, difficult problems."
+      },
+      {
+        "value": "4",
+        "meaning": "Branch based on pseudo reduced costs"
+      }
+    ],
+    "description": "This option is used to set the rule for selecting the branching variable at the node which has been selected for branching. The default value of 0 allows Cplex to select the best rule based on the problem and its progress."
+  },
+  "warninglimit": {
+    "type": "integer",
+    "summary": "determines how many times warnings of a specific type (datacheck=2) will be displayed",
+    "default": "10",
+    "description": "By default, when modeling assistance is turned on via the data consistency checking parameter, CPLEX will display 10 warnings for a given modeling issue and then omit the rest. This parameter controls this limit and allows the user to display all of the warnings if desired. In order to see all warnings change the value to its negative."
+  },
+  "workdir": {
+    "type": "string",
+    "summary": "directory for working files",
+    "default": "current or project directory",
+    "description": "The name of an existing directory into which Cplex may store temporary working files. Used for MIP node files and by out-of-core Barrier."
+  },
+  "workeralgorithm": {
+    "type": "integer",
+    "summary": "set method for optimizing benders subproblems",
+    "default": "0",
+    "values": [
+      {
+        "value": "0",
+        "meaning": "Automatic"
+      },
+      {
+        "value": "1",
+        "meaning": "Primal Simplex"
+      },
+      {
+        "value": "2",
+        "meaning": "Dual Simplex"
+      },
+      {
+        "value": "3",
+        "meaning": "Network Simplex"
+      },
+      {
+        "value": "4",
+        "meaning": "Barrier"
+      },
+      {
+        "value": "5",
+        "meaning": "Sifting"
+      }
+    ]
+  },
+  "workmem": {
+    "type": "real",
+    "summary": "memory available for working storage",
+    "default": "2048.0",
+    "description": "Upper limit on the amount of memory, in megabytes, that Cplex is permitted to use for working files. See parameter WorkDir."
+  },
+  "writeannotation": {
+    "type": "string",
+    "summary": "produce a Cplex annotation file"
+  },
+  "writebas": {
+    "type": "string",
+    "summary": "produce a Cplex basis file",
+    "description": "Write a basis file."
+  },
+  "writeflt": {
+    "type": "string",
+    "summary": "produce a Cplex solution pool filter file",
+    "description": "Write the diversity filter to a Cplex FLT file."
+  },
+  "writelp": {
+    "type": "string",
+    "summary": "produce a Cplex LP file",
+    "description": "Write a file in Cplex LP format."
+  },
+  "writemps": {
+    "type": "string",
+    "summary": "produce a Cplex MPS file",
+    "description": "Write an MPS problem file."
+  },
+  "writemst": {
+    "type": "string",
+    "summary": "produce a Cplex mst file",
+    "description": "Write a Cplex MST (containing the MIP start) file."
+  },
+  "writeord": {
+    "type": "string",
+    "summary": "produce a Cplex ord file",
+    "description": "Write a Cplex ORD (containing priority and branch direction information) file."
+  },
+  "writeparam": {
+    "type": "string",
+    "summary": "produce a Cplex parameter file with all active options",
+    "description": "Write a Cplex parameter (containing all modified Cplex options) file."
+  },
+  "writepre": {
+    "type": "string",
+    "summary": "produce a Cplex LP/MPS/SAV file of the presolved problem",
+    "synonyms": [
+      "writepremps"
+    ],
+    "description": "Write a Cplex LP, MPS, or SAV file of the presolved problem. The file extension determines the problem format. For example, WritePre presolved.lp creates a file presolved.lp in Cplex LP format."
+  },
+  "writeprob": {
+    "type": "string",
+    "summary": "produce a Cplex problem file and inferrs the type from the extension",
+    "description": "Write a problem file in a format inferred from the extension. Possible formats are SAV: Binary matrix and basis file MPS: MPS format LP: CPLEX LP format with names modified to conform to LP format REW: MPS format, with all names changed to generic names RLP: LP format, with all names changed to generic names ALP: LP format, with generic name of each variable, type of each variable, bound of each variable If the file name ends with .bz2 or .gz, a compressed file is written."
+  },
+  "writesav": {
+    "type": "string",
+    "summary": "produce a Cplex binary problem file",
+    "description": "Write a binary problem file."
+  },
+  "zerohalfcuts": {
+    "type": "integer",
+    "summary": "zero-half cuts",
+    "default": "0",
+    "values": [
+      {
+        "value": "-1",
+        "meaning": "Off"
+      },
+      {
+        "value": "0",
+        "meaning": "Automatic"
+      },
+      {
+        "value": "1",
+        "meaning": "Generate zero-half cuts moderately"
+      },
+      {
+        "value": "2",
+        "meaning": "Generate zero-half cuts aggressively"
+      }
+    ],
+    "description": "Decides whether or not to generate zero-half cuts for the problem. The value 0, the default, specifies that the attempt to generate zero-half cuts should continue only if it seems to be helping. If the dual bound of your model does not make sufficient progress, consider setting this parameter to 2 to generate zero-half cuts more aggressively."
+  }
+}
