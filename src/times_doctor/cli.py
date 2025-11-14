@@ -573,6 +573,67 @@ def run_gams_with_progress(
             job_registry.attach_popen(run_name, proc)
             job_registry.set_status(run_name, "running")
 
+        # Update monitor with parent PID
+        if use_monitor and monitor and run_name:
+            monitor.update_pids(run_name, proc.pid, None)
+
+        # Start child process tracker thread (if psutil available)
+        def _child_tracker():
+            try:
+                import psutil
+
+                _has_psutil = True
+            except Exception:
+                _has_psutil = False
+
+            if not _has_psutil:
+                return
+
+            try:
+                parent = psutil.Process(proc.pid)
+            except Exception:
+                return
+
+            # Track while parent alive
+            while proc.poll() is None:
+                try:
+                    children = parent.children(recursive=True)
+                    # Filter to known GAMS worker names
+                    worker_names = {"gamscmex.exe", "gmsgennx.exe"}
+                    filtered = []
+                    for c in children:
+                        try:
+                            name = c.name().lower()
+                            if name in worker_names:
+                                filtered.append(c.pid)
+                        except Exception:
+                            pass
+
+                    if job_registry and run_name:
+                        job_registry.update_child_pids(run_name, filtered)
+                    if use_monitor and monitor and run_name:
+                        monitor.update_pids(run_name, None, filtered)
+                except Exception:
+                    pass
+                time.sleep(0.5)
+
+        threading.Thread(target=_child_tracker, daemon=True).start()
+
+        # Start exit watcher thread to ensure final status update
+        def _exit_watcher():
+            rc = proc.wait()
+            # If cancellation already marked, don't override
+            if cancel_event and cancel_event.is_set():
+                return
+            if use_monitor and monitor and run_name:
+                status = RunStatus.COMPLETED if rc == 0 else RunStatus.FAILED
+                error_msg = None if rc == 0 else f"Exit code: {rc}"
+                monitor.update_status(run_name, status, error_msg)
+            if job_registry and run_name:
+                job_registry.set_status(run_name, "completed" if rc == 0 else "failed")
+
+        threading.Thread(target=_exit_watcher, daemon=True).start()
+
         if not use_monitor:
             console.print(f"[dim]GAMS process started (PID: {proc.pid})[/dim]")
 

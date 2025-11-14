@@ -44,6 +44,8 @@ class RunProgress:
     )
     start_time: float | None = None
     end_time: float | None = None
+    parent_pid: int | None = None
+    child_pids: list[int] = field(default_factory=list)
 
     def format_progress(self) -> str:
         """Format progress percentage for display."""
@@ -175,6 +177,17 @@ class MultiRunProgressMonitor:
             if run_name in self.runs:
                 self.runs[run_name].termination = termination or "–"
 
+    def update_pids(
+        self, run_name: str, parent_pid: int | None, child_pids: list[int] | None
+    ) -> None:
+        """Update process IDs for a run."""
+        with self.lock:
+            if run_name in self.runs:
+                if parent_pid is not None:
+                    self.runs[run_name].parent_pid = parent_pid
+                if child_pids is not None:
+                    self.runs[run_name].child_pids = child_pids
+
     def get_table(self) -> Table:
         """Generate Rich table for display."""
         table = Table(title=self.title, show_header=True, header_style="bold cyan")
@@ -187,6 +200,8 @@ class MultiRunProgressMonitor:
         table.add_column("Iteration", justify="right")
         table.add_column("Time", justify="right", style="blue")
         table.add_column("Details", style="dim")
+        table.add_column("PID", justify="right", style="dim")
+        table.add_column("Child PIDs", justify="left", style="dim")
 
         with self.lock:
             for run_name, run in self.runs.items():
@@ -205,6 +220,10 @@ class MultiRunProgressMonitor:
                 # Show error message if failed
                 details = run.error_msg if run.error_msg else run.format_details()
 
+                # Format PIDs
+                pid_txt = str(run.parent_pid) if run.parent_pid else "–"
+                child_txt = ",".join(str(x) for x in run.child_pids) if run.child_pids else "–"
+
                 table.add_row(
                     run_name,
                     status_text,
@@ -214,6 +233,8 @@ class MultiRunProgressMonitor:
                     run.format_iteration(),
                     run.format_elapsed(),
                     details,
+                    pid_txt,
+                    child_txt,
                 )
 
         return table

@@ -10,8 +10,15 @@ import subprocess
 import sys
 import threading
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
+
+try:
+    import psutil
+
+    _HAS_PSUTIL = True
+except Exception:
+    _HAS_PSUTIL = False
 
 CTRL_BREAK = getattr(signal, "CTRL_BREAK_EVENT", None) if sys.platform == "win32" else None
 
@@ -22,9 +29,11 @@ class JobHandle:
 
     name: str
     cancel_event: threading.Event
-    pid: int | None = None
+    pid: int | None = None  # parent pid (kept for compatibility)
     pgid: int | None = None
     status: str = "waiting"
+    parent_pid: int | None = None  # explicit alias for clarity
+    child_pids: list[int] = field(default_factory=list)  # gamscmex.exe etc.
 
 
 class JobRegistry:
@@ -78,6 +87,7 @@ class JobRegistry:
                 return
             j = self._jobs[name]
             j.pid = popen.pid
+            j.parent_pid = popen.pid
             try:
                 if os.name == "posix":
                     j.pgid = os.getpgid(popen.pid)
@@ -99,6 +109,21 @@ class JobRegistry:
             if name in self._jobs:
                 self._jobs[name].status = status
                 self._write_state_locked()
+
+    def update_child_pids(self, name: str, child_pids: list[int]) -> None:
+        """
+        Update child process IDs for a job.
+
+        Args:
+            name: Job identifier
+            child_pids: List of child process IDs (e.g., gamscmex.exe)
+        """
+        with self._lock:
+            j = self._jobs.get(name)
+            if not j:
+                return
+            j.child_pids = child_pids
+            self._write_state_locked()
 
     def get_cancel_event(self, name: str) -> threading.Event:
         """
@@ -180,12 +205,33 @@ class JobRegistry:
                     "name": j.name,
                     "pid": j.pid,
                     "pgid": j.pgid,
+                    "parent_pid": j.parent_pid,
+                    "child_pids": j.child_pids,
                     "status": j.status,
                 }
             self._state_path.parent.mkdir(parents=True, exist_ok=True)
             self._state_path.write_text(json.dumps(state, indent=2))
         except Exception:
             pass
+
+
+def _list_children_pids(pid: int) -> list[int]:
+    """
+    List child process IDs using psutil if available.
+
+    Args:
+        pid: Parent process ID
+
+    Returns:
+        List of child PIDs, empty if psutil unavailable or error
+    """
+    if not _HAS_PSUTIL:
+        return []
+    try:
+        p = psutil.Process(pid)
+        return [c.pid for c in p.children(recursive=True)]
+    except Exception:
+        return []
 
 
 def _terminate_process_group(pid: int, pgid: int | None, grace_seconds: float) -> None:
@@ -226,40 +272,30 @@ def _terminate_process_group(pid: int, pgid: int | None, grace_seconds: float) -
             pass
 
     else:
-        # Windows: Use taskkill for tree termination
+        # Windows: Kill parent first, then remaining children
+        # (Killing child first causes gams.exe to respawn it)
+
+        # 1) Gentle: CTRL_BREAK to parent if possible
         try:
-            # Try CTRL_BREAK first (gentler)
             if CTRL_BREAK is not None:
                 os.kill(pid, CTRL_BREAK)
         except Exception:
             pass
 
-        # Use taskkill to kill process tree
-        if shutil.which("taskkill"):
-            try:
+        # 2) Give GAMS a moment to terminate/cleanup child
+        time.sleep(1.0)
+
+        # 3) If still alive, force terminate parent (not the whole tree yet)
+        try:
+            if shutil.which("taskkill"):
                 subprocess.run(  # noqa: S603
-                    ["taskkill", "/T", "/F", "/PID", str(pid)],  # noqa: S607
+                    ["taskkill", "/F", "/PID", str(pid)],  # noqa: S607
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
-                    timeout=grace_seconds,
+                    timeout=max(1.0, grace_seconds / 2),
                 )
-                return
-            except Exception:
-                pass
-
-        # Fallback: direct kill
-        try:
-            # Wait briefly first
-            t0 = time.time()
-            while time.time() - t0 < grace_seconds / 2:
-                try:
-                    os.kill(pid, 0)
-                except OSError:
-                    return
-                time.sleep(0.2)
-
-            # Force terminate
-            try:
+            else:
+                # Fallback to TerminateProcess
                 import ctypes
 
                 kernel32 = ctypes.windll.kernel32  # type: ignore
@@ -267,10 +303,42 @@ def _terminate_process_group(pid: int, pgid: int | None, grace_seconds: float) -
                 if handle:
                     kernel32.TerminateProcess(handle, 1)
                     kernel32.CloseHandle(handle)
-            except Exception:
-                pass
         except Exception:
             pass
+
+        # 4) Kill any surviving children (if psutil available)
+        if _HAS_PSUTIL:
+            try:
+                for cpid in _list_children_pids(pid):
+                    try:
+                        if shutil.which("taskkill"):
+                            subprocess.run(  # noqa: S603
+                                ["taskkill", "/F", "/PID", str(cpid)],  # noqa: S607
+                                stdout=subprocess.DEVNULL,
+                                stderr=subprocess.DEVNULL,
+                                timeout=2,
+                            )
+                        else:
+                            import ctypes
+
+                            kernel32 = ctypes.windll.kernel32  # type: ignore
+                            handle = kernel32.OpenProcess(1, False, cpid)
+                            if handle:
+                                kernel32.TerminateProcess(handle, 1)
+                                kernel32.CloseHandle(handle)
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+
+        # 5) Final wait loop up to grace_seconds to ensure gone
+        t0 = time.time()
+        while time.time() - t0 < grace_seconds:
+            try:
+                os.kill(pid, 0)
+                time.sleep(0.2)
+            except OSError:
+                break  # parent is gone
 
 
 def terminate_process_tree(proc: subprocess.Popen, grace_seconds: float = 5.0) -> None:
@@ -314,29 +382,73 @@ def terminate_process_tree(proc: subprocess.Popen, grace_seconds: float = 5.0) -
             pass
 
     else:
-        # Windows: Use taskkill for tree termination
-        if shutil.which("taskkill"):
-            try:
+        # Windows: Kill parent first, then remaining children
+        # (Killing child first causes gams.exe to respawn it)
+
+        # 1) Gentle: CTRL_BREAK to parent if possible
+        try:
+            if CTRL_BREAK is not None:
+                os.kill(pid, CTRL_BREAK)
+        except Exception:
+            pass
+
+        # 2) Give GAMS a moment to terminate/cleanup child
+        time.sleep(1.0)
+
+        # 3) If still alive, force terminate parent (not the whole tree yet)
+        try:
+            if shutil.which("taskkill"):
                 subprocess.run(  # noqa: S603
-                    ["taskkill", "/T", "/F", "/PID", str(pid)],  # noqa: S607
+                    ["taskkill", "/F", "/PID", str(pid)],  # noqa: S607
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
-                    timeout=grace_seconds,
+                    timeout=max(1.0, grace_seconds / 2),
                 )
-                return
+            else:
+                # Fallback to TerminateProcess
+                import ctypes
+
+                kernel32 = ctypes.windll.kernel32  # type: ignore
+                handle = kernel32.OpenProcess(1, False, pid)
+                if handle:
+                    kernel32.TerminateProcess(handle, 1)
+                    kernel32.CloseHandle(handle)
+        except Exception:
+            pass
+
+        # 4) Kill any surviving children (if psutil available)
+        if _HAS_PSUTIL:
+            try:
+                for cpid in _list_children_pids(pid):
+                    try:
+                        if shutil.which("taskkill"):
+                            subprocess.run(  # noqa: S603
+                                ["taskkill", "/F", "/PID", str(cpid)],  # noqa: S607
+                                stdout=subprocess.DEVNULL,
+                                stderr=subprocess.DEVNULL,
+                                timeout=2,
+                            )
+                        else:
+                            import ctypes
+
+                            kernel32 = ctypes.windll.kernel32  # type: ignore
+                            handle = kernel32.OpenProcess(1, False, cpid)
+                            if handle:
+                                kernel32.TerminateProcess(handle, 1)
+                                kernel32.CloseHandle(handle)
+                    except Exception:
+                        pass
             except Exception:
                 pass
 
-        # Fallback: direct termination
-        try:
-            proc.terminate()
+        # 5) Final wait loop up to grace_seconds to ensure gone
+        t0 = time.time()
+        while time.time() - t0 < grace_seconds:
             try:
-                proc.wait(timeout=grace_seconds)
-                return
-            except subprocess.TimeoutExpired:
-                proc.kill()
-        except Exception:
-            pass
+                os.kill(pid, 0)
+                time.sleep(0.2)
+            except OSError:
+                break  # parent is gone
 
 
 def create_process_group_kwargs() -> dict:

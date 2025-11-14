@@ -1,6 +1,6 @@
 [project]
 name = "times-doctor"
-version = "0.12.2"
+version = "0.13.0"
 description = "Diagnose and scan failed TIMES/Veda runs; optional LLM advice"
 readme = "README.md"
 requires-python = ">=3.12"
