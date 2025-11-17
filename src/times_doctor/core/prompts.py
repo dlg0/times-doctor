@@ -509,13 +509,13 @@ Rules:
 
 Input
 === QA_CHECK.LOG (CONDENSED) ===
-{{qa_check}}
+{qa_check}
 
 === RUN LOG (CONDENSED EXCERPTS) ===
-{{run_log_excerpts}}
+{run_log_excerpts}
 
 === LST FILE (CONDENSED EXCERPTS) ===
-{{lst_excerpts}}
+{lst_excerpts}
 """
 
     instructions = "You are a concise TIMES/Veda infeasibility specialist."

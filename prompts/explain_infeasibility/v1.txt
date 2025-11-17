@@ -14,7 +14,7 @@ What to produce (in order):
   - The specific constraints/rows or variables that conflict (names/patterns and affected indices: region, timeslice, vintage, year, commodity, process).
   - The mechanism of infeasibility (examples: mutually exclusive bounds on the same var; fixed activity combined with capacity/availability = 0; flow shares summing > 1 or < required; negative demand with binding lower bound; commodity balance with insufficient supply; ramping/seasonal profiles inconsistent with bounds; impossible emissions caps with fixed activity; unit/currency mismatches).
   - Evidence citations using the format:
-    [QA_CHECK: L{start}-{end}]; [RUN_LOG: L{start}-{end}]; [LST: L{start}-{end}]
+    [QA_CHECK: L{{start}}-{{end}}]; [RUN_LOG: L{{start}}-{{end}}]; [LST: L{{start}}-{{end}}]
   - Include values when available (RHS, LB/UB, activity/fixings, duals/infeasibilities).
 
 3) Minimal conflicting set (MCS) hypothesis
