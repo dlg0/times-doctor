@@ -228,10 +228,10 @@ def test_section_name_normalization():
         "C o m p i l a t i o n\n",
     ]
 
-    title = parser._extract_section_title(0)
-    # Should normalize multiple spaces (or just keep as-is)
-    # The actual behavior is to keep the spacing, which is fine
-    assert "ompilation" in title.lower() or title == "C o m p i l a t i o n"
+    title, offset = parser._extract_section_title(0)
+    # Should normalize letter-spaced headings to proper words
+    assert "compilation" in title.lower() or title == "C o m p i l a t i o n"
+    assert offset == 2  # Title is at line 2 (0-indexed)
 
 
 if __name__ == "__main__":

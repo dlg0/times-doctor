@@ -54,11 +54,11 @@ class LSTParser:
 
         return self.sections
 
-    def _find_section_starts(self) -> list[tuple[int, int, str, str]]:
+    def _find_section_starts(self) -> list[tuple[int, int, str, str, int]]:
         """Find line numbers where sections start.
 
         Returns:
-            List of (line_num, page_num, header, section_title) tuples
+            List of (line_num, page_num, header, section_title, title_offset) tuples
         """
         section_starts = []
 
@@ -68,8 +68,8 @@ class LSTParser:
             if gams_match:
                 page_num = int(gams_match.group(1))
 
-                # Look ahead for section title (usually 2-3 lines after)
-                section_title = self._extract_section_title(i)
+                # Look ahead for section title (returns title and offset from header)
+                section_title, title_offset = self._extract_section_title(i)
 
                 # Collect full header (2-3 lines)
                 header_lines = []
@@ -77,27 +77,56 @@ class LSTParser:
                     header_lines.append(self.lines[j].rstrip())
                 header = "\n".join(header_lines)
 
-                section_starts.append((i, page_num, header, section_title))
+                section_starts.append((i, page_num, header, section_title, title_offset))
 
         return section_starts
 
-    def _extract_section_title(self, header_line: int) -> str:
+    def _normalize_title(self, line: str) -> str:
+        """Normalize title by collapsing letter-spaced headings.
+
+        Converts "S o l u t i o n Report" to "Solution Report"
+
+        Args:
+            line: Title line to normalize
+
+        Returns:
+            Normalized title
+        """
+        # Split into tokens
+        tokens = line.split()
+
+        # Find initial run of single-letter tokens
+        k = 0
+        while k < len(tokens) and len(tokens[k]) == 1:
+            k += 1
+
+        # If we have 2+ single-letter tokens, join them into a word
+        if k >= 2:
+            word = "".join(tokens[:k])
+            remaining = tokens[k:]
+            line = " ".join([word] + remaining)
+
+        # Collapse multiple spaces
+        normalized = self.SECTION_TITLE_RE.sub(" ", line).strip()
+        return normalized
+
+    def _extract_section_title(self, header_line: int) -> tuple[str, int]:
         """Extract and normalize section title after header.
 
         Args:
             header_line: Line number of the GAMS/TIMES header
 
         Returns:
-            Normalized section title
+            Tuple of (normalized_title, offset_from_header)
         """
-        # Look in next few lines for section title
-        for offset in range(1, 5):
+        # Look in next 10 lines for section title (expanded from 4)
+        for offset in range(1, 11):
             if header_line + offset >= len(self.lines):
                 break
 
             line = self.lines[header_line + offset].strip()
 
-            # Skip TIMES version lines
+            # Skip TIMES version lines and Veda headers
             if line.startswith("TIMES --") or line.startswith("Veda"):
                 continue
 
@@ -105,33 +134,40 @@ class LSTParser:
             if not line:
                 continue
 
-            # Found a potential section title
-            # Normalize by removing extra spaces
-            normalized = self.SECTION_TITLE_RE.sub(" ", line)
-            return normalized
+            # Skip separator lines (dashes, etc.)
+            if line.lstrip().startswith("----") or re.fullmatch(r"[-\s]+", line):
+                continue
+
+            # Skip lines that are only punctuation/symbols
+            if re.fullmatch(r"[^\w\s]+", line):
+                continue
+
+            # Found a potential section title - normalize it
+            normalized = self._normalize_title(line)
+            return (normalized, offset)
 
         # Fallback to "Unknown"
-        return "Unknown"
+        return ("Unknown", 3)
 
     def _extract_sections(
-        self, section_starts: list[tuple[int, int, str, str]]
+        self, section_starts: list[tuple[int, int, str, str, int]]
     ) -> list[LSTSection]:
         """Extract section content between section boundaries.
 
         Args:
-            section_starts: List of (line_num, page_num, header, title) tuples
+            section_starts: List of (line_num, page_num, header, title, title_offset) tuples
 
         Returns:
             List of LSTSection objects
         """
         sections = []
 
-        for i, (start_line, page_num, header, title) in enumerate(section_starts):
+        for i, (start_line, page_num, header, title, title_offset) in enumerate(section_starts):
             # Determine end line (start of next section or EOF)
             end_line = section_starts[i + 1][0] if i + 1 < len(section_starts) else len(self.lines)
 
-            # Extract content (skip header lines)
-            content_start = start_line + 3  # Skip GAMS, TIMES, title lines
+            # Extract content (skip header and title lines using dynamic offset)
+            content_start = start_line + title_offset + 1  # Line after title
             content_lines = self.lines[content_start:end_line]
             content = "".join(content_lines)
 
@@ -402,6 +438,153 @@ class ModelAnalysisProcessor:
         return "\n".join(lines)
 
 
+class SolutionReportProcessor:
+    """Process Solution Report section - extract solver status and diagnostics."""
+
+    # Pattern for solver status line
+    STATUS_PATTERN = re.compile(
+        r"^\s*(?:---\s*)?(LP|MIP|RMIP|NLP|MINLP|QCP|MIQCP)\s+status\s*\((\d+)\):\s*(.+)$",
+        re.IGNORECASE,
+    )
+
+    # Pattern for resource usage
+    RESOURCE_PATTERN = re.compile(r"^\s*RESOURCE USAGE, LIMIT\s+([\d.]+)\s+([\d.]+)")
+
+    # Pattern for iteration count
+    ITERATION_PATTERN = re.compile(r"^\s*ITERATION COUNT, LIMIT\s+(\d+)\s+(\d+)")
+
+    @staticmethod
+    def process(section: LSTSection) -> dict[str, Any]:
+        """Process solution report section and extract solver status.
+
+        Returns:
+            Dictionary with solver status, diagnostics, and messages
+        """
+        content = section.content
+        lines = content.split("\n")
+
+        # Initialize result
+        result: dict[str, Any] = {
+            "section": section.name,
+            "page": section.page_number,
+            "solver_type": None,
+            "status_code": None,
+            "status_text": None,
+            "infeasible": False,
+            "has_solution": True,  # Assume true unless we see "No solution returned"
+            "resource_usage": None,
+            "resource_limit": None,
+            "iteration_count": None,
+            "iteration_limit": None,
+            "messages": [],
+            "execution_errors": [],
+        }
+
+        for line in lines:
+            # Check for solver status
+            status_match = SolutionReportProcessor.STATUS_PATTERN.match(line)
+            if status_match:
+                result["solver_type"] = status_match.group(1).upper()
+                result["status_code"] = int(status_match.group(2))
+                status_text = status_match.group(3).strip()
+                result["status_text"] = status_text
+
+                # Check if infeasible
+                if "infeasible" in status_text.lower():
+                    result["infeasible"] = True
+
+            # Check for infeasibility message
+            if "model has been proven infeasible" in line.lower():
+                result["infeasible"] = True
+                result["messages"].append(line.strip())
+
+            # Check for no solution
+            if "no solution returned" in line.lower():
+                result["has_solution"] = False
+                result["messages"].append(line.strip())
+
+            # Check for execution errors
+            if "EXECUTION ERROR" in line or "EXECERROR" in line:
+                result["execution_errors"].append(line.strip())
+                result["messages"].append(line.strip())
+
+            # Check for resource usage
+            resource_match = SolutionReportProcessor.RESOURCE_PATTERN.match(line)
+            if resource_match:
+                result["resource_usage"] = float(resource_match.group(1))
+                result["resource_limit"] = float(resource_match.group(2))
+
+            # Check for iteration count
+            iter_match = SolutionReportProcessor.ITERATION_PATTERN.match(line)
+            if iter_match:
+                result["iteration_count"] = int(iter_match.group(1))
+                result["iteration_limit"] = int(iter_match.group(2))
+
+            # Collect other important messages (first 20 non-empty lines)
+            stripped = line.strip()
+            messages = result["messages"]
+            if (
+                stripped
+                and len(messages) < 20
+                and any(
+                    keyword in line.lower()
+                    for keyword in [
+                        "error",
+                        "warning",
+                        "failed",
+                        "abort",
+                        "terminated",
+                        "objective",
+                    ]
+                )
+                and stripped not in messages
+            ):
+                messages.append(stripped)
+
+        # Create summary
+        result["summary"] = SolutionReportProcessor._create_summary(result)
+        result["text_summary"] = result["summary"]
+
+        return result
+
+    @staticmethod
+    def _create_summary(result: dict) -> str:
+        """Create human-readable solution report summary."""
+        lines = []
+
+        if result["solver_type"]:
+            lines.append(f"Solver: {result['solver_type']}")
+
+        if result["status_code"] is not None:
+            lines.append(f"Status: {result['status_text']} (code {result['status_code']})")
+
+        if result["infeasible"]:
+            lines.append("⚠️ MODEL IS INFEASIBLE")
+
+        if not result["has_solution"]:
+            lines.append("⚠️ No solution returned")
+
+        if result["resource_usage"] is not None:
+            lines.append(
+                f"Resource usage: {result['resource_usage']:.2f}s / {result['resource_limit']:.0f}s limit"
+            )
+
+        if result["iteration_count"] is not None:
+            lines.append(
+                f"Iterations: {result['iteration_count']:,} / {result['iteration_limit']:,} limit"
+            )
+
+        if result["execution_errors"]:
+            lines.append(f"\n⚠️ Execution errors: {len(result['execution_errors'])}")
+            for err in result["execution_errors"][:5]:
+                lines.append(f"  - {err}")
+
+        if not lines:
+            return "No solver status information found"
+
+        return "\n".join(lines)
+
+
 def process_lst_file(lst_path: Path) -> dict[str, Any]:
     """Process an LST file and return structured data.
 
@@ -453,6 +636,8 @@ def process_lst_file(lst_path: Path) -> dict[str, Any]:
                 processed["sections"][key] = ExecutionProcessor.process(section)
             elif "model analysis" in section_name_lower:
                 processed["sections"][key] = ModelAnalysisProcessor.process(section)
+            elif "solution report" in section_name_lower or "solutionreport" in section_name_lower:
+                processed["sections"][key] = SolutionReportProcessor.process(section)
             else:
                 # For other sections, keep as-is (they're typically small)
                 processed["sections"][key] = {

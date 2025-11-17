@@ -55,6 +55,7 @@ data/
 *.vde
 *.vds
 *.vdt
+tests/fixtures/sample_files/*.lst
 
 # Testing
 .pytest_cache/

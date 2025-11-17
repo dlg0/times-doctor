@@ -1,0 +1,1644 @@
+{
+  "metadata": {
+    "file": "tests/fixtures/sample_files/test.lst",
+    "section_count": 11,
+    "gams_version": "49.6.1"
+  },
+  "sections": {
+    "C o m p i l a t i o n_1": {
+      "section": "C o m p i l a t i o n",
+      "page": 1,
+      "errors": {},
+      "summary": "No errors found"
+    },
+    "C o m p i l a t i o n_2": {
+      "section": "C o m p i l a t i o n",
+      "page": 2,
+      "errors": {},
+      "summary": "No errors found"
+    },
+    "C o m p i l a t i o n_3": {
+      "section": "C o m p i l a t i o n",
+      "page": 3,
+      "errors": {
+        "170": {
+          "count": 19998,
+          "elements": {
+            "ACT'.YEAR.'AUD25": 1,
+            "ADE'.YEAR.'AUD25": 1,
+            "CAN'.YEAR.'AUD25": 1,
+            "CQ'.YEAR.'AUD25": 1,
+            "CVIC'.YEAR.'AUD25": 1,
+            "DKIS'.YEAR.'AUD25": 1,
+            "GEOS'.YEAR.'AUD25": 1,
+            "LV'.YEAR.'AUD25": 1,
+            "MEL'.YEAR.'AUD25": 1,
+            "MGOS'.YEAR.'AUD25": 1,
+            "NCEN'.YEAR.'AUD25": 1,
+            "NNS'.YEAR.'AUD25": 1,
+            "NQ'.YEAR.'AUD25": 1,
+            "NSA'.YEAR.'AUD25": 1,
+            "NSW'.YEAR.'AUD25": 1,
+            "NT'.YEAR.'AUD25": 1,
+            "NVIC'.YEAR.'AUD25": 1,
+            "NWIS'.YEAR.'AUD25": 1,
+            "PBOS'.YEAR.'AUD25": 1,
+            "QLD'.YEAR.'AUD25": 1,
+            "SA'.YEAR.'AUD25": 1,
+            "SEQ'.YEAR.'AUD25": 1,
+            "SESA'.YEAR.'AUD25": 1,
+            "SWIS'.YEAR.'AUD25": 1,
+            "SWNSW'.YEAR.'AUD25": 1,
+            "SWQ'.YEAR.'AUD25": 1,
+            "TAS'.YEAR.'AUD25": 1,
+            "VIC'.YEAR.'AUD25": 1,
+            "WA'.YEAR.'AUD25": 1,
+            "ACT'.YEAR.'H2prd_elec_AE'.'AUD25": 41,
+            "ACT'.YEAR.'H2prd_elec_PEM'.'AUD25": 41,
+            "ADE'.YEAR.'EN_Battery_Util1'.'AUD25": 41,
+            "ADE'.YEAR.'EN_Battery_Util12'.'AUD25": 41,
+            "ADE'.YEAR.'EN_Battery_Util2'.'AUD25": 41,
+            "ADE'.YEAR.'EN_Battery_Util24'.'AUD25": 41,
+            "ADE'.YEAR.'EN_Battery_Util4'.'AUD25": 41,
+            "ADE'.YEAR.'EN_Battery_Util8'.'AUD25": 41,
+            "ADE'.YEAR.'EN_Bio'.'AUD25": 41,
+            "ADE'.YEAR.'EN_Bio-CCS'.'AUD25": 41,
+            "ADE'.YEAR.'EN_CCGT-CCS'.'AUD25": 41,
+            "ADE'.YEAR.'EN_NPP'.'AUD25": 41,
+            "ADE'.YEAR.'EN_Nc'.'AUD25": 41,
+            "ADE'.YEAR.'EN_OTG'.'AUD25": 41,
+            "ADE'.YEAR.'EN_REGAS'.'AUD25": 41,
+            "ADE'.YEAR.'EN_SPCBro'.'AUD25": 41,
+            "ADE'.YEAR.'EN_WinONS-S11'.'AUD25": 41,
+            "ADE'.YEAR.'H2prd_SMR'.'AUD25": 41,
+            "ADE'.YEAR.'H2prd_SMR_ccs'.'AUD25": 41,
+            "ADE'.YEAR.'H2prd_coal_ccs'.'AUD25": 41,
+            "ADE'.YEAR.'H2prd_elec_AE'.'AUD25": 41,
+            "ADE'.YEAR.'H2prd_elec_PEM'.'AUD25": 41,
+            "ADE'.YEAR.'EN_CCGT'.'AUD25": 40,
+            "ADE'.YEAR.'EN_CSP15-S11'.'AUD25": 40,
+            "ADE'.YEAR.'EN_OCGT'.'AUD25": 40,
+            "ADE'.YEAR.'EN_SPV-SS11'.'AUD25": 40,
+            "CAN'.YEAR.'EN_Battery_Util1'.'AUD25": 41,
+            "CAN'.YEAR.'EN_Battery_Util12'.'AUD25": 41,
+            "CAN'.YEAR.'EN_Battery_Util2'.'AUD25": 41,
+            "CAN'.YEAR.'EN_Battery_Util24'.'AUD25": 41,
+            "CAN'.YEAR.'EN_Battery_Util4'.'AUD25": 41,
+            "CAN'.YEAR.'EN_Battery_Util8'.'AUD25": 41,
+            "CAN'.YEAR.'EN_Bio'.'AUD25": 41,
+            "CAN'.YEAR.'EN_Bio-CCS'.'AUD25": 41,
+            "CAN'.YEAR.'EN_CCGT-CCS'.'AUD25": 41,
+            "CAN'.YEAR.'EN_NPP'.'AUD25": 41,
+            "CAN'.YEAR.'EN_Nc'.'AUD25": 41,
+            "CAN'.YEAR.'EN_OTG'.'AUD25": 41,
+            "CAN'.YEAR.'EN_REGAS'.'AUD25": 41,
+            "CAN'.YEAR.'EN_SPCBro'.'AUD25": 41,
+            "CAN'.YEAR.'EN_WinONS-N8'.'AUD25": 41,
+            "CAN'.YEAR.'H2prd_SMR'.'AUD25": 41,
+            "CAN'.YEAR.'H2prd_SMR_ccs'.'AUD25": 41,
+            "CAN'.YEAR.'H2prd_coal_ccs'.'AUD25": 41,
+            "CAN'.YEAR.'H2prd_elec_AE'.'AUD25": 41,
+            "CAN'.YEAR.'H2prd_elec_PEM'.'AUD25": 41,
+            "CAN'.YEAR.'EN_CCGT'.'AUD25": 40,
+            "CAN'.YEAR.'EN_CSP15-N7'.'AUD25": 40,
+            "CAN'.YEAR.'EN_CSP15-N8'.'AUD25": 40,
+            "CAN'.YEAR.'EN_OCGT'.'AUD25": 40,
+            "CAN'.YEAR.'EN_SPV-SN7'.'AUD25": 40,
+            "CAN'.YEAR.'EN_SPV-SN8'.'AUD25": 40,
+            "CQ'.YEAR.'EN_Battery_Util1'.'AUD25": 41,
+            "CQ'.YEAR.'EN_Battery_Util12'.'AUD25": 41,
+            "CQ'.YEAR.'EN_Battery_Util2'.'AUD25": 41,
+            "CQ'.YEAR.'EN_Battery_Util24'.'AUD25": 41,
+            "CQ'.YEAR.'EN_Battery_Util4'.'AUD25": 41,
+            "CQ'.YEAR.'EN_Battery_Util8'.'AUD25": 41,
+            "CQ'.YEAR.'EN_Bio'.'AUD25": 41,
+            "CQ'.YEAR.'EN_Bio-CCS'.'AUD25": 41,
+            "CQ'.YEAR.'EN_CCGT-CCS'.'AUD25": 41,
+            "CQ'.YEAR.'EN_NPP'.'AUD25": 41,
+            "CQ'.YEAR.'EN_Nc'.'AUD25": 41,
+            "CQ'.YEAR.'EN_OTG'.'AUD25": 41,
+            "CQ'.YEAR.'EN_REGAS'.'AUD25": 41,
+            "CQ'.YEAR.'EN_SPCBla'.'AUD25": 41,
+            "CQ'.YEAR.'EN_SPCBla-CCS'.'AUD25": 41,
+            "CQ'.YEAR.'EN_SPCBro'.'AUD25": 41,
+            "CQ'.YEAR.'EN_WinONS-Q11'.'AUD25": 41,
+            "CQ'.YEAR.'EN_WinONS-Q5'.'AUD25": 41,
+            "CQ'.YEAR.'EN_WinONS-Q6'.'AUD25": 41,
+            "CQ'.YEAR.'EN_WinONS-Q7'.'AUD25": 41,
+            "CQ'.YEAR.'EN_WinONS-Q9'.'AUD25": 41,
+            "CQ'.YEAR.'H2prd_SMR'.'AUD25": 41,
+            "CQ'.YEAR.'H2prd_SMR_ccs'.'AUD25": 41,
+            "CQ'.YEAR.'H2prd_coal_ccs'.'AUD25": 41,
+            "CQ'.YEAR.'H2prd_elec_AE'.'AUD25": 41,
+            "CQ'.YEAR.'H2prd_elec_PEM'.'AUD25": 41,
+            "CQ'.YEAR.'EN_CCGT'.'AUD25": 40,
+            "CQ'.YEAR.'EN_CSP15-Q11'.'AUD25": 40,
+            "CQ'.YEAR.'EN_CSP15-Q5'.'AUD25": 40,
+            "CQ'.YEAR.'EN_CSP15-Q6'.'AUD25": 40,
+            "CQ'.YEAR.'EN_CSP15-Q7'.'AUD25": 40,
+            "CQ'.YEAR.'EN_CSP15-Q9'.'AUD25": 40,
+            "CQ'.YEAR.'EN_OCGT'.'AUD25": 40,
+            "CQ'.YEAR.'EN_SPV-SQ11'.'AUD25": 40,
+            "CQ'.YEAR.'EN_SPV-SQ5'.'AUD25": 40,
+            "CQ'.YEAR.'EN_SPV-SQ6'.'AUD25": 40,
+            "CQ'.YEAR.'EN_SPV-SQ7'.'AUD25": 40,
+            "CQ'.YEAR.'EN_SPV-SQ9'.'AUD25": 40,
+            "CVIC'.YEAR.'EN_Battery_Util1'.'AUD25": 41,
+            "CVIC'.YEAR.'EN_Battery_Util12'.'AUD25": 41,
+            "CVIC'.YEAR.'EN_Battery_Util2'.'AUD25": 41,
+            "CVIC'.YEAR.'EN_Battery_Util24'.'AUD25": 41,
+            "CVIC'.YEAR.'EN_Battery_Util4'.'AUD25": 41,
+            "CVIC'.YEAR.'EN_Battery_Util8'.'AUD25": 41,
+            "CVIC'.YEAR.'EN_Bio'.'AUD25": 41,
+            "CVIC'.YEAR.'EN_Bio-CCS'.'AUD25": 41,
+            "CVIC'.YEAR.'EN_CCGT-CCS'.'AUD25": 41,
+            "CVIC'.YEAR.'EN_NPP'.'AUD25": 41,
+            "CVIC'.YEAR.'EN_Nc'.'AUD25": 41,
+            "CVIC'.YEAR.'EN_OTG'.'AUD25": 41,
+            "CVIC'.YEAR.'EN_REGAS'.'AUD25": 41,
+            "CVIC'.YEAR.'EN_SPCBro'.'AUD25": 41,
+            "CVIC'.YEAR.'EN_WinONS-V3'.'AUD25": 41,
+            "CVIC'.YEAR.'H2prd_SMR'.'AUD25": 41,
+            "CVIC'.YEAR.'H2prd_SMR_ccs'.'AUD25": 41,
+            "CVIC'.YEAR.'H2prd_coal_ccs'.'AUD25": 41,
+            "CVIC'.YEAR.'H2prd_elec_AE'.'AUD25": 41,
+            "CVIC'.YEAR.'H2prd_elec_PEM'.'AUD25": 41,
+            "CVIC'.YEAR.'EN_CCGT'.'AUD25": 40,
+            "CVIC'.YEAR.'EN_CSP15-V3'.'AUD25": 40,
+            "CVIC'.YEAR.'EN_OCGT'.'AUD25": 40,
+            "CVIC'.YEAR.'EN_SPV-SV3'.'AUD25": 40,
+            "DKIS'.YEAR.'EN_Battery_Util1'.'AUD25": 41,
+            "DKIS'.YEAR.'EN_Battery_Util12'.'AUD25": 41,
+            "DKIS'.YEAR.'EN_Battery_Util2'.'AUD25": 41,
+            "DKIS'.YEAR.'EN_Battery_Util24'.'AUD25": 41,
+            "DKIS'.YEAR.'EN_Battery_Util4'.'AUD25": 41,
+            "DKIS'.YEAR.'EN_Battery_Util8'.'AUD25": 41,
+            "DKIS'.YEAR.'EN_Bio'.'AUD25": 41,
+            "DKIS'.YEAR.'EN_Bio-CCS'.'AUD25": 41,
+            "DKIS'.YEAR.'EN_CCGT-CCS'.'AUD25": 41,
+            "DKIS'.YEAR.'EN_NPP'.'AUD25": 41,
+            "DKIS'.YEAR.'EN_Nc'.'AUD25": 41,
+            "DKIS'.YEAR.'EN_OTG'.'AUD25": 41,
+            "DKIS'.YEAR.'EN_REGAS'.'AUD25": 41,
+            "DKIS'.YEAR.'EN_SPCBro'.'AUD25": 41,
+            "DKIS'.YEAR.'EN_WinONS-NT1'.'AUD25": 41,
+            "DKIS'.YEAR.'EN_WinONS-NT2'.'AUD25": 41,
+            "DKIS'.YEAR.'EN_WinONS-NT3'.'AUD25": 41,
+            "DKIS'.YEAR.'H2prd_SMR'.'AUD25": 41,
+            "DKIS'.YEAR.'H2prd_SMR_ccs'.'AUD25": 41,
+            "DKIS'.YEAR.'H2prd_coal_ccs'.'AUD25": 41,
+            "DKIS'.YEAR.'H2prd_elec_AE'.'AUD25": 41,
+            "DKIS'.YEAR.'H2prd_elec_PEM'.'AUD25": 41,
+            "DKIS'.YEAR.'EN_CCGT'.'AUD25": 40,
+            "DKIS'.YEAR.'EN_CSP15-NT1'.'AUD25": 40,
+            "DKIS'.YEAR.'EN_CSP15-NT2'.'AUD25": 40,
+            "DKIS'.YEAR.'EN_CSP15-NT3'.'AUD25": 40,
+            "DKIS'.YEAR.'EN_OCGT'.'AUD25": 40,
+            "DKIS'.YEAR.'EN_SPV-SNT1'.'AUD25": 40,
+            "DKIS'.YEAR.'EN_SPV-SNT2'.'AUD25": 40,
+            "DKIS'.YEAR.'EN_SPV-SNT3'.'AUD25": 40,
+            "GEOS'.YEAR.'EN_Battery_Util1'.'AUD25": 41,
+            "GEOS'.YEAR.'EN_Battery_Util12'.'AUD25": 41,
+            "GEOS'.YEAR.'EN_Battery_Util2'.'AUD25": 41,
+            "GEOS'.YEAR.'EN_Battery_Util24'.'AUD25": 41,
+            "GEOS'.YEAR.'EN_Battery_Util4'.'AUD25": 41,
+            "GEOS'.YEAR.'EN_Battery_Util8'.'AUD25": 41,
+            "GEOS'.YEAR.'EN_Bio'.'AUD25": 41,
+            "GEOS'.YEAR.'EN_Bio-CCS'.'AUD25": 41,
+            "GEOS'.YEAR.'EN_CCGT-CCS'.'AUD25": 41,
+            "GEOS'.YEAR.'EN_NPP'.'AUD25": 41,
+            "GEOS'.YEAR.'EN_Nc'.'AUD25": 41,
+            "GEOS'.YEAR.'EN_OTG'.'AUD25": 41,
+            "GEOS'.YEAR.'EN_REGAS'.'AUD25": 41,
+            "GEOS'.YEAR.'EN_SPCBro'.'AUD25": 41,
+            "GEOS'.YEAR.'EN_WinONS-WA7'.'AUD25": 41,
+            "GEOS'.YEAR.'H2prd_elec_AE'.'AUD25": 41,
+            "GEOS'.YEAR.'H2prd_elec_PEM'.'AUD25": 41,
+            "GEOS'.YEAR.'EN_CCGT'.'AUD25": 40,
+            "GEOS'.YEAR.'EN_CSP15-WA7'.'AUD25": 40,
+            "GEOS'.YEAR.'EN_OCGT'.'AUD25": 40,
+            "GEOS'.YEAR.'EN_SPV-SWA7'.'AUD25": 40,
+            "LV'.YEAR.'EN_Battery_Util1'.'AUD25": 41,
+            "LV'.YEAR.'EN_Battery_Util12'.'AUD25": 41,
+            "LV'.YEAR.'EN_Battery_Util2'.'AUD25": 41,
+            "LV'.YEAR.'EN_Battery_Util24'.'AUD25": 41,
+            "LV'.YEAR.'EN_Battery_Util4'.'AUD25": 41,
+            "LV'.YEAR.'EN_Battery_Util8'.'AUD25": 41,
+            "LV'.YEAR.'EN_Bio'.'AUD25": 41,
+            "LV'.YEAR.'EN_Bio-CCS'.'AUD25": 41,
+            "LV'.YEAR.'EN_CCGT-CCS'.'AUD25": 41,
+            "LV'.YEAR.'EN_NPP'.'AUD25": 41,
+            "LV'.YEAR.'EN_Nc'.'AUD25": 41,
+            "LV'.YEAR.'EN_OTG'.'AUD25": 41,
+            "LV'.YEAR.'EN_REGAS'.'AUD25": 41,
+            "LV'.YEAR.'EN_SPCBro'.'AUD25": 41,
+            "LV'.YEAR.'EN_WinOFSFlt-V7'.'AUD25": 41,
+            "LV'.YEAR.'EN_WinOFSFxd-V7'.'AUD25": 41,
+            "LV'.YEAR.'EN_WinONS-V5'.'AUD25": 41,
+            "LV'.YEAR.'H2prd_SMR'.'AUD25": 41,
+            "LV'.YEAR.'H2prd_SMR_ccs'.'AUD25": 41,
+            "LV'.YEAR.'H2prd_coal_ccs'.'AUD25": 41,
+            "LV'.YEAR.'H2prd_elec_AE'.'AUD25": 41,
+            "LV'.YEAR.'H2prd_elec_PEM'.'AUD25": 41,
+            "LV'.YEAR.'EN_CCGT'.'AUD25": 40,
+            "LV'.YEAR.'EN_CSP15-V5'.'AUD25": 40,
+            "LV'.YEAR.'EN_OCGT'.'AUD25": 40,
+            "LV'.YEAR.'EN_SPV-SV5'.'AUD25": 40,
+            "MEL'.YEAR.'EN_Battery_Util1'.'AUD25": 41,
+            "MEL'.YEAR.'EN_Battery_Util12'.'AUD25": 41,
+            "MEL'.YEAR.'EN_Battery_Util2'.'AUD25": 41,
+            "MEL'.YEAR.'EN_Battery_Util24'.'AUD25": 41,
+            "MEL'.YEAR.'EN_Battery_Util4'.'AUD25": 41,
+            "MEL'.YEAR.'EN_Battery_Util8'.'AUD25": 41,
+            "MEL'.YEAR.'EN_Bio'.'AUD25": 41,
+            "MEL'.YEAR.'EN_Bio-CCS'.'AUD25": 41,
+            "MEL'.YEAR.'EN_CCGT-CCS'.'AUD25": 41,
+            "MEL'.YEAR.'EN_NPP'.'AUD25": 41,
+            "MEL'.YEAR.'EN_Nc'.'AUD25": 41,
+            "MEL'.YEAR.'EN_OTG'.'AUD25": 41,
+            "MEL'.YEAR.'EN_REGAS'.'AUD25": 41,
+            "MEL'.YEAR.'EN_SPCBro'.'AUD25": 41,
+            "MEL'.YEAR.'EN_WinOFSFlt-V8'.'AUD25": 41,
+            "MEL'.YEAR.'EN_WinOFSFxd-V8'.'AUD25": 41,
+            "MEL'.YEAR.'EN_WinONS-V4'.'AUD25": 41,
+            "MEL'.YEAR.'H2prd_SMR'.'AUD25": 41,
+            "MEL'.YEAR.'H2prd_SMR_ccs'.'AUD25": 41,
+            "MEL'.YEAR.'H2prd_coal_ccs'.'AUD25": 41,
+            "MEL'.YEAR.'H2prd_elec_AE'.'AUD25": 41,
+            "MEL'.YEAR.'H2prd_elec_PEM'.'AUD25": 41,
+            "MEL'.YEAR.'EN_CCGT'.'AUD25": 40,
+            "MEL'.YEAR.'EN_CSP15-V4'.'AUD25": 40,
+            "MEL'.YEAR.'EN_OCGT'.'AUD25": 40,
+            "MEL'.YEAR.'EN_SPV-SV4'.'AUD25": 40,
+            "MGOS'.YEAR.'EN_Battery_Util1'.'AUD25": 41,
+            "MGOS'.YEAR.'EN_Battery_Util12'.'AUD25": 41,
+            "MGOS'.YEAR.'EN_Battery_Util2'.'AUD25": 41,
+            "MGOS'.YEAR.'EN_Battery_Util24'.'AUD25": 41,
+            "MGOS'.YEAR.'EN_Battery_Util4'.'AUD25": 41,
+            "MGOS'.YEAR.'EN_Battery_Util8'.'AUD25": 41,
+            "MGOS'.YEAR.'EN_Bio'.'AUD25": 41,
+            "MGOS'.YEAR.'EN_Bio-CCS'.'AUD25": 41,
+            "MGOS'.YEAR.'EN_CCGT-CCS'.'AUD25": 41,
+            "MGOS'.YEAR.'EN_NPP'.'AUD25": 41,
+            "MGOS'.YEAR.'EN_Nc'.'AUD25": 41,
+            "MGOS'.YEAR.'EN_OTG'.'AUD25": 41,
+            "MGOS'.YEAR.'EN_REGAS'.'AUD25": 41,
+            "MGOS'.YEAR.'EN_SPCBro'.'AUD25": 41,
+            "MGOS'.YEAR.'EN_WinONS-WA6'.'AUD25": 41,
+            "MGOS'.YEAR.'H2prd_elec_AE'.'AUD25": 41,
+            "MGOS'.YEAR.'H2prd_elec_PEM'.'AUD25": 41,
+            "MGOS'.YEAR.'EN_CCGT'.'AUD25": 40,
+            "MGOS'.YEAR.'EN_CSP15-WA6'.'AUD25": 40,
+            "MGOS'.YEAR.'EN_OCGT'.'AUD25": 40,
+            "MGOS'.YEAR.'EN_SPV-SWA6'.'AUD25": 40,
+            "NCEN'.YEAR.'EN_Battery_Util1'.'AUD25": 41,
+            "NCEN'.YEAR.'EN_Battery_Util12'.'AUD25": 41,
+            "NCEN'.YEAR.'EN_Battery_Util2'.'AUD25": 41,
+            "NCEN'.YEAR.'EN_Battery_Util24'.'AUD25": 41,
+            "NCEN'.YEAR.'EN_Battery_Util4'.'AUD25": 41,
+            "NCEN'.YEAR.'EN_Battery_Util8'.'AUD25": 41,
+            "NCEN'.YEAR.'EN_Bio'.'AUD25": 41,
+            "NCEN'.YEAR.'EN_Bio-CCS'.'AUD25": 41,
+            "NCEN'.YEAR.'EN_CCGT-CCS'.'AUD25": 41,
+            "NCEN'.YEAR.'EN_NPP'.'AUD25": 41,
+            "NCEN'.YEAR.'EN_Nc'.'AUD25": 41,
+            "NCEN'.YEAR.'EN_OTG'.'AUD25": 41,
+            "NCEN'.YEAR.'EN_REGAS'.'AUD25": 41,
+            "NCEN'.YEAR.'EN_SPCBla'.'AUD25": 41,
+            "NCEN'.YEAR.'EN_SPCBla-CCS'.'AUD25": 41,
+            "NCEN'.YEAR.'EN_SPCBro'.'AUD25": 41,
+            "NCEN'.YEAR.'EN_WinOFSFlt-N10'.'AUD25": 41,
+            "NCEN'.YEAR.'EN_WinOFSFlt-N11'.'AUD25": 41,
+            "NCEN'.YEAR.'EN_WinOFSFxd-N11'.'AUD25": 41,
+            "NCEN'.YEAR.'EN_WinONS-N13'.'AUD25": 41,
+            "NCEN'.YEAR.'EN_WinONS-N3'.'AUD25": 41,
+            "NCEN'.YEAR.'EN_WinONS-N9'.'AUD25": 41,
+            "NCEN'.YEAR.'H2prd_SMR'.'AUD25": 41,
+            "NCEN'.YEAR.'H2prd_SMR_ccs'.'AUD25": 41,
+            "NCEN'.YEAR.'H2prd_coal_ccs'.'AUD25": 41,
+            "NCEN'.YEAR.'H2prd_elec_AE'.'AUD25": 41,
+            "NCEN'.YEAR.'H2prd_elec_PEM'.'AUD25": 41,
+            "NCEN'.YEAR.'EN_CCGT'.'AUD25": 40,
+            "NCEN'.YEAR.'EN_CSP15-N12'.'AUD25": 40,
+            "NCEN'.YEAR.'EN_CSP15-N13'.'AUD25": 40,
+            "NCEN'.YEAR.'EN_CSP15-N3'.'AUD25": 40,
+            "NCEN'.YEAR.'EN_OCGT'.'AUD25": 40,
+            "NCEN'.YEAR.'EN_SPV-SN12'.'AUD25": 40,
+            "NCEN'.YEAR.'EN_SPV-SN13'.'AUD25": 40,
+            "NCEN'.YEAR.'EN_SPV-SN3'.'AUD25": 40,
+            "NNS'.YEAR.'EN_Battery_Util1'.'AUD25": 41,
+            "NNS'.YEAR.'EN_Battery_Util12'.'AUD25": 41,
+            "NNS'.YEAR.'EN_Battery_Util2'.'AUD25": 41,
+            "NNS'.YEAR.'EN_Battery_Util24'.'AUD25": 41,
+            "NNS'.YEAR.'EN_Battery_Util4'.'AUD25": 41,
+            "NNS'.YEAR.'EN_Battery_Util8'.'AUD25": 41,
+            "NNS'.YEAR.'EN_Bio'.'AUD25": 41,
+            "NNS'.YEAR.'EN_Bio-CCS'.'AUD25": 41,
+            "NNS'.YEAR.'EN_CCGT-CCS'.'AUD25": 41,
+            "NNS'.YEAR.'EN_NPP'.'AUD25": 41,
+            "NNS'.YEAR.'EN_Nc'.'AUD25": 41,
+            "NNS'.YEAR.'EN_OTG'.'AUD25": 41,
+            "NNS'.YEAR.'EN_REGAS'.'AUD25": 41,
+            "NNS'.YEAR.'EN_SPCBla'.'AUD25": 41,
+            "NNS'.YEAR.'EN_SPCBla-CCS'.'AUD25": 41,
+            "NNS'.YEAR.'EN_SPCBro'.'AUD25": 41,
+            "NNS'.YEAR.'EN_WinONS-N2'.'AUD25": 41,
+            "NNS'.YEAR.'H2prd_SMR'.'AUD25": 41,
+            "NNS'.YEAR.'H2prd_SMR_ccs'.'AUD25": 41,
+            "NNS'.YEAR.'H2prd_coal_ccs'.'AUD25": 41,
+            "NNS'.YEAR.'H2prd_elec_AE'.'AUD25": 41,
+            "NNS'.YEAR.'H2prd_elec_PEM'.'AUD25": 41,
+            "NNS'.YEAR.'EN_CCGT'.'AUD25": 40,
+            "NNS'.YEAR.'EN_CSP15-N1'.'AUD25": 40,
+            "NNS'.YEAR.'EN_CSP15-N2'.'AUD25": 40,
+            "NNS'.YEAR.'EN_OCGT'.'AUD25": 40,
+            "NNS'.YEAR.'EN_SPV-SN1'.'AUD25": 40,
+            "NNS'.YEAR.'EN_SPV-SN2'.'AUD25": 40,
+            "NQ'.YEAR.'EN_Battery_Util1'.'AUD25": 41,
+            "NQ'.YEAR.'EN_Battery_Util12'.'AUD25": 41,
+            "NQ'.YEAR.'EN_Battery_Util2'.'AUD25": 41,
+            "NQ'.YEAR.'EN_Battery_Util24'.'AUD25": 41,
+            "NQ'.YEAR.'EN_Battery_Util4'.'AUD25": 41,
+            "NQ'.YEAR.'EN_Battery_Util8'.'AUD25": 41,
+            "NQ'.YEAR.'EN_Bio'.'AUD25": 41,
+            "NQ'.YEAR.'EN_Bio-CCS'.'AUD25": 41,
+            "NQ'.YEAR.'EN_CCGT-CCS'.'AUD25": 41,
+            "NQ'.YEAR.'EN_NPP'.'AUD25": 41,
+            "NQ'.YEAR.'EN_Nc'.'AUD25": 41,
+            "NQ'.YEAR.'EN_OTG'.'AUD25": 41,
+            "NQ'.YEAR.'EN_REGAS'.'AUD25": 41,
+            "NQ'.YEAR.'EN_SPCBla'.'AUD25": 41,
+            "NQ'.YEAR.'EN_SPCBla-CCS'.'AUD25": 41,
+            "NQ'.YEAR.'EN_SPCBro'.'AUD25": 41,
+            "NQ'.YEAR.'EN_WinONS-Q1'.'AUD25": 41,
+            "NQ'.YEAR.'EN_WinONS-Q10'.'AUD25": 41,
+            "NQ'.YEAR.'EN_WinONS-Q2'.'AUD25": 41,
+            "NQ'.YEAR.'EN_WinONS-Q4'.'AUD25": 41,
+            "NQ'.YEAR.'H2prd_SMR'.'AUD25": 41,
+            "NQ'.YEAR.'H2prd_SMR_ccs'.'AUD25": 41,
+            "NQ'.YEAR.'H2prd_coal_ccs'.'AUD25": 41,
+            "NQ'.YEAR.'H2prd_elec_AE'.'AUD25": 41,
+            "NQ'.YEAR.'H2prd_elec_PEM'.'AUD25": 41,
+            "NQ'.YEAR.'EN_CCGT'.'AUD25": 40,
+            "NQ'.YEAR.'EN_CSP15-Q1'.'AUD25": 40,
+            "NQ'.YEAR.'EN_CSP15-Q10'.'AUD25": 40,
+            "NQ'.YEAR.'EN_CSP15-Q2'.'AUD25": 40,
+            "NQ'.YEAR.'EN_CSP15-Q3'.'AUD25": 40,
+            "NQ'.YEAR.'EN_CSP15-Q4'.'AUD25": 40,
+            "NQ'.YEAR.'EN_OCGT'.'AUD25": 40,
+            "NQ'.YEAR.'EN_SPV-SQ1'.'AUD25": 40,
+            "NQ'.YEAR.'EN_SPV-SQ10'.'AUD25": 40,
+            "NQ'.YEAR.'EN_SPV-SQ2'.'AUD25": 40,
+            "NQ'.YEAR.'EN_SPV-SQ3'.'AUD25": 40,
+            "NQ'.YEAR.'EN_SPV-SQ4'.'AUD25": 40,
+            "NSA'.YEAR.'EN_Battery_Util1'.'AUD25": 41,
+            "NSA'.YEAR.'EN_Battery_Util12'.'AUD25": 41,
+            "NSA'.YEAR.'EN_Battery_Util2'.'AUD25": 41,
+            "NSA'.YEAR.'EN_Battery_Util24'.'AUD25": 41,
+            "NSA'.YEAR.'EN_Battery_Util4'.'AUD25": 41,
+            "NSA'.YEAR.'EN_Battery_Util8'.'AUD25": 41,
+            "NSA'.YEAR.'EN_Bio'.'AUD25": 41,
+            "NSA'.YEAR.'EN_Bio-CCS'.'AUD25": 41,
+            "NSA'.YEAR.'EN_CCGT-CCS'.'AUD25": 41,
+            "NSA'.YEAR.'EN_NPP'.'AUD25": 41,
+            "NSA'.YEAR.'EN_Nc'.'AUD25": 41,
+            "NSA'.YEAR.'EN_OTG'.'AUD25": 41,
+            "NSA'.YEAR.'EN_REGAS'.'AUD25": 41,
+            "NSA'.YEAR.'EN_SPCBro'.'AUD25": 41,
+            "NSA'.YEAR.'EN_WinONS-S2'.'AUD25": 41,
+            "NSA'.YEAR.'EN_WinONS-S3'.'AUD25": 41,
+            "NSA'.YEAR.'EN_WinONS-S4'.'AUD25": 41,
+            "NSA'.YEAR.'EN_WinONS-S6'.'AUD25": 41,
+            "NSA'.YEAR.'EN_WinONS-S8'.'AUD25": 41,
+            "NSA'.YEAR.'EN_WinONS-S9'.'AUD25": 41,
+            "NSA'.YEAR.'H2prd_SMR'.'AUD25": 41,
+            "NSA'.YEAR.'H2prd_SMR_ccs'.'AUD25": 41,
+            "NSA'.YEAR.'H2prd_coal_ccs'.'AUD25": 41,
+            "NSA'.YEAR.'H2prd_elec_AE'.'AUD25": 41,
+            "NSA'.YEAR.'H2prd_elec_PEM'.'AUD25": 41,
+            "NSA'.YEAR.'EN_CCGT'.'AUD25": 40,
+            "NSA'.YEAR.'EN_CSP15-S2'.'AUD25": 40,
+            "NSA'.YEAR.'EN_CSP15-S3'.'AUD25": 40,
+            "NSA'.YEAR.'EN_CSP15-S4'.'AUD25": 40,
+            "NSA'.YEAR.'EN_CSP15-S5'.'AUD25": 40,
+            "NSA'.YEAR.'EN_CSP15-S6'.'AUD25": 40,
+            "NSA'.YEAR.'EN_CSP15-S7'.'AUD25": 40,
+            "NSA'.YEAR.'EN_CSP15-S8'.'AUD25": 40,
+            "NSA'.YEAR.'EN_CSP15-S9'.'AUD25": 40,
+            "NSA'.YEAR.'EN_OCGT'.'AUD25": 40,
+            "NSA'.YEAR.'EN_SPV-SS2'.'AUD25": 40,
+            "NSA'.YEAR.'EN_SPV-SS3'.'AUD25": 40,
+            "NSA'.YEAR.'EN_SPV-SS4'.'AUD25": 40,
+            "NSA'.YEAR.'EN_SPV-SS5'.'AUD25": 40,
+            "NSA'.YEAR.'EN_SPV-SS6'.'AUD25": 40,
+            "NSA'.YEAR.'EN_SPV-SS7'.'AUD25": 40,
+            "NSA'.YEAR.'EN_SPV-SS8'.'AUD25": 40,
+            "NSA'.YEAR.'EN_SPV-SS9'.'AUD25": 40,
+            "NSW'.YEAR.'H2prd_elec_AE'.'AUD25": 41,
+            "NSW'.YEAR.'H2prd_elec_PEM'.'AUD25": 41,
+            "NT'.YEAR.'H2prd_elec_AE'.'AUD25": 41,
+            "NT'.YEAR.'H2prd_elec_PEM'.'AUD25": 41,
+            "NVIC'.YEAR.'EN_Bio'.'AUD25": 41,
+            "NVIC'.YEAR.'EN_Bio-CCS'.'AUD25": 41,
+            "NVIC'.YEAR.'EN_CCGT-CCS'.'AUD25": 41,
+            "NVIC'.YEAR.'EN_NPP'.'AUD25": 41,
+            "NVIC'.YEAR.'EN_Nc'.'AUD25": 41,
+            "NVIC'.YEAR.'EN_OTG'.'AUD25": 41,
+            "NVIC'.YEAR.'EN_REGAS'.'AUD25": 41,
+            "NVIC'.YEAR.'EN_SPCBro'.'AUD25": 41,
+            "NVIC'.YEAR.'EN_WinONS-V6'.'AUD25": 41,
+            "NVIC'.YEAR.'H2prd_SMR'.'AUD25": 41,
+            "NVIC'.YEAR.'H2prd_SMR_ccs'.'AUD25": 41,
+            "NVIC'.YEAR.'H2prd_coal_ccs'.'AUD25": 41,
+            "NVIC'.YEAR.'H2prd_elec_AE'.'AUD25": 41,
+            "NVIC'.YEAR.'H2prd_elec_PEM'.'AUD25": 41,
+            "NVIC'.YEAR.'EN_CSP15-V1'.'AUD25": 40,
+            "NVIC'.YEAR.'EN_CSP15-V2'.'AUD25": 40,
+            "NVIC'.YEAR.'EN_CSP15-V6'.'AUD25": 40,
+            "NVIC'.YEAR.'EN_SPV-SV1'.'AUD25": 40,
+            "NVIC'.YEAR.'EN_SPV-SV2'.'AUD25": 40,
+            "NVIC'.YEAR.'EN_SPV-SV6'.'AUD25": 40,
+            "NWIS'.YEAR.'EN_Battery_Util1'.'AUD25": 41,
+            "NWIS'.YEAR.'EN_Battery_Util12'.'AUD25": 41,
+            "NWIS'.YEAR.'EN_Battery_Util2'.'AUD25": 41,
+            "NWIS'.YEAR.'EN_Battery_Util24'.'AUD25": 41,
+            "NWIS'.YEAR.'EN_Battery_Util4'.'AUD25": 41,
+            "NWIS'.YEAR.'EN_Battery_Util8'.'AUD25": 41,
+            "NWIS'.YEAR.'EN_Bio'.'AUD25": 41,
+            "NWIS'.YEAR.'EN_Bio-CCS'.'AUD25": 41,
+            "NWIS'.YEAR.'EN_CCGT-CCS'.'AUD25": 41,
+            "NWIS'.YEAR.'EN_NPP'.'AUD25": 41,
+            "NWIS'.YEAR.'EN_Nc'.'AUD25": 41,
+            "NWIS'.YEAR.'EN_OTG'.'AUD25": 41,
+            "NWIS'.YEAR.'EN_REGAS'.'AUD25": 41,
+            "NWIS'.YEAR.'EN_SPCBro'.'AUD25": 41,
+            "NWIS'.YEAR.'EN_WinONS-WA4'.'AUD25": 41,
+            "NWIS'.YEAR.'H2prd_SMR'.'AUD25": 41,
+            "NWIS'.YEAR.'H2prd_SMR_ccs'.'AUD25": 41,
+            "NWIS'.YEAR.'H2prd_coal_ccs'.'AUD25": 41,
+            "NWIS'.YEAR.'H2prd_elec_AE'.'AUD25": 41,
+            "NWIS'.YEAR.'H2prd_elec_PEM'.'AUD25": 41,
+            "NWIS'.YEAR.'EN_CCGT'.'AUD25": 40,
+            "NWIS'.YEAR.'EN_CSP15-WA4'.'AUD25": 40,
+            "NWIS'.YEAR.'EN_OCGT'.'AUD25": 40,
+            "NWIS'.YEAR.'EN_SPV-SWA4'.'AUD25": 40,
+            "PBOS'.YEAR.'EN_Battery_Util1'.'AUD25": 41,
+            "PBOS'.YEAR.'EN_Battery_Util2'.'AUD25": 41,
+            "PBOS'.YEAR.'EN_Battery_Util4'.'AUD25": 41,
+            "PBOS'.YEAR.'EN_Battery_Util8'.'AUD25": 41,
+            "PBOS'.YEAR.'EN_Bio'.'AUD25": 41,
+            "PBOS'.YEAR.'EN_Bio-CCS'.'AUD25": 41,
+            "PBOS'.YEAR.'EN_CCGT-CCS'.'AUD25": 41,
+            "PBOS'.YEAR.'EN_NPP'.'AUD25": 41,
+            "PBOS'.YEAR.'EN_Nc'.'AUD25": 41,
+            "PBOS'.YEAR.'EN_OTG'.'AUD25": 41,
+            "PBOS'.YEAR.'EN_REGAS'.'AUD25": 41,
+            "PBOS'.YEAR.'EN_SPCBro'.'AUD25": 41,
+            "PBOS'.YEAR.'EN_WinONS-WA5'.'AUD25": 41,
+            "PBOS'.YEAR.'H2prd_elec_AE'.'AUD25": 41,
+            "PBOS'.YEAR.'H2prd_elec_PEM'.'AUD25": 41,
+            "PBOS'.YEAR.'EN_CCGT'.'AUD25": 40,
+            "PBOS'.YEAR.'EN_CSP15-WA5'.'AUD25": 40,
+            "PBOS'.YEAR.'EN_OCGT'.'AUD25": 40,
+            "PBOS'.YEAR.'EN_SPV-SWA5'.'AUD25": 40,
+            "QLD'.YEAR.'H2prd_elec_AE'.'AUD25": 41,
+            "QLD'.YEAR.'H2prd_elec_PEM'.'AUD25": 41,
+            "SA'.YEAR.'H2prd_elec_AE'.'AUD25": 41,
+            "SA'.YEAR.'H2prd_elec_PEM'.'AUD25": 41,
+            "SA'.YEAR.'ENPS24-SA'.'AUD25": 40,
+            "SEQ'.YEAR.'EN_Battery_Util1'.'AUD25": 41,
+            "SEQ'.YEAR.'EN_Battery_Util12'.'AUD25": 41,
+            "SEQ'.YEAR.'EN_Battery_Util2'.'AUD25": 41,
+            "SEQ'.YEAR.'EN_Battery_Util24'.'AUD25": 41,
+            "SEQ'.YEAR.'EN_Battery_Util4'.'AUD25": 41,
+            "SEQ'.YEAR.'EN_Battery_Util8'.'AUD25": 41,
+            "SEQ'.YEAR.'EN_Bio'.'AUD25": 41,
+            "SEQ'.YEAR.'EN_Bio-CCS'.'AUD25": 41,
+            "SEQ'.YEAR.'EN_CCGT-CCS'.'AUD25": 41,
+            "SEQ'.YEAR.'EN_NPP'.'AUD25": 41,
+            "SEQ'.YEAR.'EN_Nc'.'AUD25": 41,
+            "SEQ'.YEAR.'EN_OTG'.'AUD25": 41,
+            "SEQ'.YEAR.'EN_REGAS'.'AUD25": 41,
+            "SEQ'.YEAR.'EN_SPCBro'.'AUD25": 41,
+            "SEQ'.YEAR.'EN_WinONS-Q12'.'AUD25": 41,
+            "SEQ'.YEAR.'H2prd_SMR'.'AUD25": 41,
+            "SEQ'.YEAR.'H2prd_SMR_ccs'.'AUD25": 41,
+            "SEQ'.YEAR.'H2prd_coal_ccs'.'AUD25": 41,
+            "SEQ'.YEAR.'H2prd_elec_AE'.'AUD25": 41,
+            "SEQ'.YEAR.'H2prd_elec_PEM'.'AUD25": 41,
+            "SEQ'.YEAR.'EN_CCGT'.'AUD25": 40,
+            "SEQ'.YEAR.'EN_CSP15-Q12'.'AUD25": 40,
+            "SEQ'.YEAR.'EN_OCGT'.'AUD25": 40,
+            "SEQ'.YEAR.'EN_SPV-SQ12'.'AUD25": 40,
+            "SESA'.YEAR.'EN_Battery_Util1'.'AUD25": 21,
+            "SESA'.YEAR.'EN_Battery_Util12'.'AUD25": 21,
+            "SESA'.YEAR.'EN_Battery_Util2'.'AUD25": 21,
+            "SESA'.YEAR.'EN_Battery_Util24'.'AUD25": 21,
+            "SESA'.YEAR.'EN_Battery_Util4'.'AUD25": 21,
+            "SESA'.YEAR.'EN_Battery_Util8'.'AUD25": 21,
+            "SESA'.YEAR.'EN_Bio'.'AUD25": 21,
+            "SESA'.YEAR.'EN_Bio-CCS'.'AUD25": 21,
+            "SESA'.YEAR.'EN_CCGT-CCS'.'AUD25": 20,
+            "SESA'.YEAR.'EN_NPP'.'AUD25": 20,
+            "SESA'.YEAR.'EN_Nc'.'AUD25": 20,
+            "SESA'.YEAR.'EN_OTG'.'AUD25": 20,
+            "SESA'.YEAR.'EN_REGAS'.'AUD25": 20,
+            "SESA'.YEAR.'EN_SPCBro'.'AUD25": 20,
+            "SESA'.YEAR.'EN_WinOFSFlt-S10'.'AUD25": 20,
+            "SESA'.YEAR.'EN_WinOFSFxd-S10'.'AUD25": 20,
+            "SESA'.YEAR.'EN_WinONS-S1'.'AUD25": 20,
+            "SESA'.YEAR.'H2prd_SMR'.'AUD25": 20,
+            "SESA'.YEAR.'H2prd_SMR_ccs'.'AUD25": 20,
+            "SESA'.YEAR.'H2prd_coal_ccs'.'AUD25": 20,
+            "SESA'.YEAR.'H2prd_elec_AE'.'AUD25": 20,
+            "SESA'.YEAR.'H2prd_elec_PEM'.'AUD25": 20,
+            "SESA'.YEAR.'EN_CCGT'.'AUD25": 20,
+            "SESA'.YEAR.'EN_CSP15-S1'.'AUD25": 19,
+            "SESA'.YEAR.'EN_OCGT'.'AUD25": 19,
+            "SESA'.YEAR.'EN_SPV-SS1'.'AUD25": 19
+          },
+          "samples": [
+            {
+              "line_num": 40,
+              "element": "ACT'.2015.'AUD25",
+              "message": "Domain violation for element",
+              "context": "**** 170  Domain violation for element\n557312  'ACT'.2015.'AUD25' 0.07"
+            },
+            {
+              "line_num": 45,
+              "element": "ADE'.2015.'AUD25",
+              "message": "Domain violation for element",
+              "context": "**** 170  Domain violation for element\n557326  'ADE'.2015.'AUD25' 0.07"
+            },
+            {
+              "line_num": 50,
+              "element": "CAN'.2015.'AUD25",
+              "message": "Domain violation for element",
+              "context": "**** 170  Domain violation for element\n557340  'CAN'.2015.'AUD25' 0.07"
+            },
+            {
+              "line_num": 55,
+              "element": "CQ'.2015.'AUD25",
+              "message": "Domain violation for element",
+              "context": "**** 170  Domain violation for element\n557354  'CQ'.2015.'AUD25' 0.07"
+            },
+            {
+              "line_num": 60,
+              "element": "CVIC'.2015.'AUD25",
+              "message": "Domain violation for element",
+              "context": "**** 170  Domain violation for element\n557368  'CVIC'.2015.'AUD25' 0.07"
+            },
+            {
+              "line_num": 65,
+              "element": "DKIS'.2015.'AUD25",
+              "message": "Domain violation for element",
+              "context": "**** 170  Domain violation for element\n557382  'DKIS'.2015.'AUD25' 0.07"
+            },
+            {
+              "line_num": 70,
+              "element": "GEOS'.2015.'AUD25",
+              "message": "Domain violation for element",
+              "context": "**** 170  Domain violation for element\n557396  'GEOS'.2015.'AUD25' 0.07"
+            },
+            {
+              "line_num": 75,
+              "element": "LV'.2015.'AUD25",
+              "message": "Domain violation for element",
+              "context": "**** 170  Domain violation for element\n557410  'LV'.2015.'AUD25' 0.07"
+            },
+            {
+              "line_num": 80,
+              "element": "MEL'.2015.'AUD25",
+              "message": "Domain violation for element",
+              "context": "**** 170  Domain violation for element\n557424  'MEL'.2015.'AUD25' 0.07"
+            },
+            {
+              "line_num": 85,
+              "element": "MGOS'.2015.'AUD25",
+              "message": "Domain violation for element",
+              "context": "**** 170  Domain violation for element\n557438  'MGOS'.2015.'AUD25' 0.07"
+            }
+          ]
+        }
+      },
+      "summary": "Error 170: 19998 occurrences\n  - ACT'.YEAR.'H2prd_elec_AE'.'AUD25: 41\n  - ACT'.YEAR.'H2prd_elec_PEM'.'AUD25: 41\n  - ADE'.YEAR.'EN_Battery_Util1'.'AUD25: 41\n  - ADE'.YEAR.'EN_Battery_Util12'.'AUD25: 41\n  - ADE'.YEAR.'EN_Battery_Util2'.'AUD25: 41"
+    },
+    "C o m p i l a t i o n_4": {
+      "section": "C o m p i l a t i o n",
+      "page": 4,
+      "errors": {
+        "170": {
+          "count": 6367,
+          "elements": {
+            "SESA'.YEAR.'EN_CCGT-CCS'.'AUD25": 21,
+            "SESA'.YEAR.'EN_CSP15-S1'.'AUD25": 21,
+            "SESA'.YEAR.'EN_NPP'.'AUD25": 21,
+            "SESA'.YEAR.'EN_Nc'.'AUD25": 21,
+            "SESA'.YEAR.'EN_OCGT'.'AUD25": 21,
+            "SESA'.YEAR.'EN_OTG'.'AUD25": 21,
+            "SESA'.YEAR.'EN_REGAS'.'AUD25": 21,
+            "SESA'.YEAR.'EN_SPCBro'.'AUD25": 21,
+            "SESA'.YEAR.'EN_SPV-SS1'.'AUD25": 21,
+            "SESA'.YEAR.'EN_WinOFSFlt-S10'.'AUD25": 21,
+            "SESA'.YEAR.'EN_WinOFSFxd-S10'.'AUD25": 21,
+            "SESA'.YEAR.'EN_WinONS-S1'.'AUD25": 21,
+            "SESA'.YEAR.'H2prd_SMR'.'AUD25": 21,
+            "SESA'.YEAR.'H2prd_SMR_ccs'.'AUD25": 21,
+            "SESA'.YEAR.'H2prd_coal_ccs'.'AUD25": 21,
+            "SESA'.YEAR.'H2prd_elec_AE'.'AUD25": 21,
+            "SESA'.YEAR.'H2prd_elec_PEM'.'AUD25": 21,
+            "SESA'.YEAR.'EN_Battery_Util1'.'AUD25": 20,
+            "SESA'.YEAR.'EN_Battery_Util12'.'AUD25": 20,
+            "SESA'.YEAR.'EN_Battery_Util2'.'AUD25": 20,
+            "SESA'.YEAR.'EN_Battery_Util24'.'AUD25": 20,
+            "SESA'.YEAR.'EN_Battery_Util4'.'AUD25": 20,
+            "SESA'.YEAR.'EN_Battery_Util8'.'AUD25": 20,
+            "SESA'.YEAR.'EN_Bio'.'AUD25": 20,
+            "SESA'.YEAR.'EN_Bio-CCS'.'AUD25": 20,
+            "SESA'.YEAR.'EN_CCGT'.'AUD25": 20,
+            "SWIS'.YEAR.'EN_Battery_Util1'.'AUD25": 41,
+            "SWIS'.YEAR.'EN_Battery_Util12'.'AUD25": 41,
+            "SWIS'.YEAR.'EN_Battery_Util2'.'AUD25": 41,
+            "SWIS'.YEAR.'EN_Battery_Util24'.'AUD25": 41,
+            "SWIS'.YEAR.'EN_Battery_Util4'.'AUD25": 41,
+            "SWIS'.YEAR.'EN_Battery_Util8'.'AUD25": 41,
+            "SWIS'.YEAR.'EN_Bio'.'AUD25": 41,
+            "SWIS'.YEAR.'EN_Bio-CCS'.'AUD25": 41,
+            "SWIS'.YEAR.'EN_CCGT-CCS'.'AUD25": 41,
+            "SWIS'.YEAR.'EN_NPP'.'AUD25": 41,
+            "SWIS'.YEAR.'EN_Nc'.'AUD25": 41,
+            "SWIS'.YEAR.'EN_OTG'.'AUD25": 41,
+            "SWIS'.YEAR.'EN_REGAS'.'AUD25": 41,
+            "SWIS'.YEAR.'EN_SPCBro'.'AUD25": 41,
+            "SWIS'.YEAR.'EN_WinOFSFlt-O10'.'AUD25": 41,
+            "SWIS'.YEAR.'EN_WinOFSFlt-O5'.'AUD25": 41,
+            "SWIS'.YEAR.'EN_WinOFSFlt-O6'.'AUD25": 41,
+            "SWIS'.YEAR.'EN_WinOFSFlt-O7'.'AUD25": 41,
+            "SWIS'.YEAR.'EN_WinOFSFlt-O8'.'AUD25": 41,
+            "SWIS'.YEAR.'EN_WinOFSFlt-O9'.'AUD25": 41,
+            "SWIS'.YEAR.'EN_WinOFSFxd-O10'.'AUD25": 41,
+            "SWIS'.YEAR.'EN_WinOFSFxd-O5'.'AUD25": 41,
+            "SWIS'.YEAR.'EN_WinOFSFxd-O6'.'AUD25": 41,
+            "SWIS'.YEAR.'EN_WinOFSFxd-O7'.'AUD25": 41,
+            "SWIS'.YEAR.'EN_WinOFSFxd-O8'.'AUD25": 41,
+            "SWIS'.YEAR.'EN_WinOFSFxd-O9'.'AUD25": 41,
+            "SWIS'.YEAR.'EN_WinONS-WA1'.'AUD25": 41,
+            "SWIS'.YEAR.'EN_WinONS-WA2'.'AUD25": 41,
+            "SWIS'.YEAR.'EN_WinONS-WA3'.'AUD25": 41,
+            "SWIS'.YEAR.'H2prd_SMR'.'AUD25": 41,
+            "SWIS'.YEAR.'H2prd_SMR_ccs'.'AUD25": 41,
+            "SWIS'.YEAR.'H2prd_coal_ccs'.'AUD25": 41,
+            "SWIS'.YEAR.'H2prd_elec_AE'.'AUD25": 41,
+            "SWIS'.YEAR.'H2prd_elec_PEM'.'AUD25": 41,
+            "SWIS'.YEAR.'EN_CCGT'.'AUD25": 40,
+            "SWIS'.YEAR.'EN_CSP15-WA1'.'AUD25": 40,
+            "SWIS'.YEAR.'EN_CSP15-WA2'.'AUD25": 40,
+            "SWIS'.YEAR.'EN_CSP15-WA3'.'AUD25": 40,
+            "SWIS'.YEAR.'EN_OCGT'.'AUD25": 40,
+            "SWIS'.YEAR.'EN_SPV-SWA1'.'AUD25": 40,
+            "SWIS'.YEAR.'EN_SPV-SWA2'.'AUD25": 40,
+            "SWIS'.YEAR.'EN_SPV-SWA3'.'AUD25": 40,
+            "SWNSW'.YEAR.'EN_Battery_Util1'.'AUD25": 41,
+            "SWNSW'.YEAR.'EN_Battery_Util12'.'AUD25": 41,
+            "SWNSW'.YEAR.'EN_Battery_Util2'.'AUD25": 41,
+            "SWNSW'.YEAR.'EN_Battery_Util24'.'AUD25": 41,
+            "SWNSW'.YEAR.'EN_Battery_Util4'.'AUD25": 41,
+            "SWNSW'.YEAR.'EN_Battery_Util8'.'AUD25": 41,
+            "SWNSW'.YEAR.'EN_Bio'.'AUD25": 41,
+            "SWNSW'.YEAR.'EN_Bio-CCS'.'AUD25": 41,
+            "SWNSW'.YEAR.'EN_CCGT-CCS'.'AUD25": 41,
+            "SWNSW'.YEAR.'EN_NPP'.'AUD25": 41,
+            "SWNSW'.YEAR.'EN_Nc'.'AUD25": 41,
+            "SWNSW'.YEAR.'EN_OTG'.'AUD25": 41,
+            "SWNSW'.YEAR.'EN_REGAS'.'AUD25": 41,
+            "SWNSW'.YEAR.'EN_SPCBro'.'AUD25": 41,
+            "SWNSW'.YEAR.'EN_WinONS-N14'.'AUD25": 41,
+            "SWNSW'.YEAR.'EN_WinONS-N4'.'AUD25": 41,
+            "SWNSW'.YEAR.'EN_WinONS-N5'.'AUD25": 41,
+            "SWNSW'.YEAR.'EN_WinONS-N6'.'AUD25": 41,
+            "SWNSW'.YEAR.'H2prd_SMR'.'AUD25": 41,
+            "SWNSW'.YEAR.'H2prd_SMR_ccs'.'AUD25": 41,
+            "SWNSW'.YEAR.'H2prd_coal_ccs'.'AUD25": 41,
+            "SWNSW'.YEAR.'H2prd_elec_AE'.'AUD25": 41,
+            "SWNSW'.YEAR.'H2prd_elec_PEM'.'AUD25": 41,
+            "SWNSW'.YEAR.'EN_CCGT'.'AUD25": 40,
+            "SWNSW'.YEAR.'EN_CSP15-N14'.'AUD25": 40,
+            "SWNSW'.YEAR.'EN_CSP15-N4'.'AUD25": 40,
+            "SWNSW'.YEAR.'EN_CSP15-N5'.'AUD25": 40,
+            "SWNSW'.YEAR.'EN_CSP15-N6'.'AUD25": 40,
+            "SWNSW'.YEAR.'EN_OCGT'.'AUD25": 40,
+            "SWNSW'.YEAR.'EN_SPV-SN14'.'AUD25": 40,
+            "SWNSW'.YEAR.'EN_SPV-SN4'.'AUD25": 40,
+            "SWNSW'.YEAR.'EN_SPV-SN5'.'AUD25": 40,
+            "SWNSW'.YEAR.'EN_SPV-SN6'.'AUD25": 40,
+            "SWQ'.YEAR.'EN_Battery_Util1'.'AUD25": 41,
+            "SWQ'.YEAR.'EN_Battery_Util12'.'AUD25": 41,
+            "SWQ'.YEAR.'EN_Battery_Util2'.'AUD25": 41,
+            "SWQ'.YEAR.'EN_Battery_Util24'.'AUD25": 41,
+            "SWQ'.YEAR.'EN_Battery_Util4'.'AUD25": 41,
+            "SWQ'.YEAR.'EN_Battery_Util8'.'AUD25": 41,
+            "SWQ'.YEAR.'EN_Bio'.'AUD25": 41,
+            "SWQ'.YEAR.'EN_Bio-CCS'.'AUD25": 41,
+            "SWQ'.YEAR.'EN_CCGT-CCS'.'AUD25": 41,
+            "SWQ'.YEAR.'EN_NPP'.'AUD25": 41,
+            "SWQ'.YEAR.'EN_Nc'.'AUD25": 41,
+            "SWQ'.YEAR.'EN_OTG'.'AUD25": 41,
+            "SWQ'.YEAR.'EN_REGAS'.'AUD25": 41,
+            "SWQ'.YEAR.'EN_SPCBla'.'AUD25": 41,
+            "SWQ'.YEAR.'EN_SPCBla-CCS'.'AUD25": 41,
+            "SWQ'.YEAR.'EN_SPCBro'.'AUD25": 41,
+            "SWQ'.YEAR.'EN_WinONS-Q8'.'AUD25": 41,
+            "SWQ'.YEAR.'H2prd_SMR'.'AUD25": 41,
+            "SWQ'.YEAR.'H2prd_SMR_ccs'.'AUD25": 41,
+            "SWQ'.YEAR.'H2prd_coal_ccs'.'AUD25": 41,
+            "SWQ'.YEAR.'H2prd_elec_AE'.'AUD25": 41,
+            "SWQ'.YEAR.'H2prd_elec_PEM'.'AUD25": 41,
+            "SWQ'.YEAR.'EN_CCGT'.'AUD25": 40,
+            "SWQ'.YEAR.'EN_CSP15-Q8'.'AUD25": 40,
+            "SWQ'.YEAR.'EN_OCGT'.'AUD25": 40,
+            "SWQ'.YEAR.'EN_SPV-SQ8'.'AUD25": 40,
+            "TAS'.YEAR.'EN_Battery_Util1'.'AUD25": 41,
+            "TAS'.YEAR.'EN_Battery_Util12'.'AUD25": 41,
+            "TAS'.YEAR.'EN_Battery_Util2'.'AUD25": 41,
+            "TAS'.YEAR.'EN_Battery_Util24'.'AUD25": 41,
+            "TAS'.YEAR.'EN_Battery_Util4'.'AUD25": 41,
+            "TAS'.YEAR.'EN_Battery_Util8'.'AUD25": 41,
+            "TAS'.YEAR.'EN_Bio'.'AUD25": 41,
+            "TAS'.YEAR.'EN_Bio-CCS'.'AUD25": 41,
+            "TAS'.YEAR.'EN_CCGT-CCS'.'AUD25": 41,
+            "TAS'.YEAR.'EN_NPP'.'AUD25": 41,
+            "TAS'.YEAR.'EN_Nc'.'AUD25": 41,
+            "TAS'.YEAR.'EN_OTG'.'AUD25": 41,
+            "TAS'.YEAR.'EN_REGAS'.'AUD25": 41,
+            "TAS'.YEAR.'EN_SPCBro'.'AUD25": 41,
+            "TAS'.YEAR.'EN_WinOFSFlt-T4'.'AUD25": 41,
+            "TAS'.YEAR.'EN_WinOFSFlt-T5'.'AUD25": 41,
+            "TAS'.YEAR.'EN_WinOFSFxd-T4'.'AUD25": 41,
+            "TAS'.YEAR.'EN_WinOFSFxd-T5'.'AUD25": 41,
+            "TAS'.YEAR.'EN_WinONS-T1'.'AUD25": 41,
+            "TAS'.YEAR.'EN_WinONS-T2'.'AUD25": 41,
+            "TAS'.YEAR.'EN_WinONS-T3'.'AUD25": 41,
+            "TAS'.YEAR.'H2prd_SMR'.'AUD25": 41,
+            "TAS'.YEAR.'H2prd_SMR_ccs'.'AUD25": 41,
+            "TAS'.YEAR.'H2prd_coal_ccs'.'AUD25": 41,
+            "TAS'.YEAR.'H2prd_elec_AE'.'AUD25": 41,
+            "TAS'.YEAR.'H2prd_elec_PEM'.'AUD25": 41,
+            "TAS'.YEAR.'ENPS24-TAS'.'AUD25": 40,
+            "TAS'.YEAR.'ENPS48-TAS'.'AUD25": 40,
+            "TAS'.YEAR.'EN_CCGT'.'AUD25": 40,
+            "TAS'.YEAR.'EN_CSP15-T1'.'AUD25": 40,
+            "TAS'.YEAR.'EN_CSP15-T2'.'AUD25": 40,
+            "TAS'.YEAR.'EN_CSP15-T3'.'AUD25": 40,
+            "TAS'.YEAR.'EN_OCGT'.'AUD25": 40,
+            "TAS'.YEAR.'EN_SPV-ST1'.'AUD25": 40,
+            "TAS'.YEAR.'EN_SPV-ST2'.'AUD25": 40,
+            "TAS'.YEAR.'EN_SPV-ST3'.'AUD25": 40,
+            "VIC'.YEAR.'H2prd_elec_AE'.'AUD25": 41,
+            "VIC'.YEAR.'H2prd_elec_PEM'.'AUD25": 41,
+            "VIC'.YEAR.'ENPS24-VIC'.'AUD25": 40,
+            "VIC'.YEAR.'ENPS48-VIC'.'AUD25": 40,
+            "WA'.YEAR.'H2prd_elec_AE'.'AUD25": 41,
+            "WA'.YEAR.'H2prd_elec_PEM'.'AUD25": 41
+          },
+          "samples": [
+            {
+              "line_num": 100035,
+              "element": "SESA'.2041.'EN_CCGT-CCS'.'AUD25",
+              "message": "Domain violation for element",
+              "context": "**** 170  Domain violation for element\n1890751  'SESA'.2041.'EN_CCGT-CCS'.'AUD25' 4798"
+            },
+            {
+              "line_num": 100040,
+              "element": "SESA'.2041.'EN_CSP15-S1'.'AUD25",
+              "message": "Domain violation for element",
+              "context": "**** 170  Domain violation for element\n1890752  'SESA'.2041.'EN_CSP15-S1'.'AUD25' 7207.6855"
+            },
+            {
+              "line_num": 100045,
+              "element": "SESA'.2041.'EN_NPP'.'AUD25",
+              "message": "Domain violation for element",
+              "context": "**** 170  Domain violation for element\n1890753  'SESA'.2041.'EN_NPP'.'AUD25' 9132"
+            },
+            {
+              "line_num": 100050,
+              "element": "SESA'.2041.'EN_Nc'.'AUD25",
+              "message": "Domain violation for element",
+              "context": "**** 170  Domain violation for element\n1890754  'SESA'.2041.'EN_Nc'.'AUD25' 17398"
+            },
+            {
+              "line_num": 100055,
+              "element": "SESA'.2041.'EN_OCGT'.'AUD25",
+              "message": "Domain violation for element",
+              "context": "**** 170  Domain violation for element\n1890755  'SESA'.2041.'EN_OCGT'.'AUD25' 900.48"
+            },
+            {
+              "line_num": 100060,
+              "element": "SESA'.2041.'EN_OTG'.'AUD25",
+              "message": "Domain violation for element",
+              "context": "**** 170  Domain violation for element\n1890756  'SESA'.2041.'EN_OTG'.'AUD25' 2011"
+            },
+            {
+              "line_num": 100065,
+              "element": "SESA'.2041.'EN_REGAS'.'AUD25",
+              "message": "Domain violation for element",
+              "context": "**** 170  Domain violation for element\n1890757  'SESA'.2041.'EN_REGAS'.'AUD25' 2011"
+            },
+            {
+              "line_num": 100070,
+              "element": "SESA'.2041.'EN_SPCBro'.'AUD25",
+              "message": "Domain violation for element",
+              "context": "**** 170  Domain violation for element\n1890758  'SESA'.2041.'EN_SPCBro'.'AUD25' 8302"
+            },
+            {
+              "line_num": 100075,
+              "element": "SESA'.2041.'EN_SPV-SS1'.'AUD25",
+              "message": "Domain violation for element",
+              "context": "**** 170  Domain violation for element\n1890759  'SESA'.2041.'EN_SPV-SS1'.'AUD25' 1141.063"
+            },
+            {
+              "line_num": 100080,
+              "element": "SESA'.2041.'EN_WinOFSFlt-S10'.'AUD25",
+              "message": "Domain violation for element",
+              "context": "**** 170  Domain violation for element\n1890760  'SESA'.2041.'EN_WinOFSFlt-S10'.'AUD25' 8099"
+            }
+          ]
+        },
+        "0": {
+          "count": 1,
+          "elements": {},
+          "samples": [
+            {
+              "line_num": 131867,
+              "element": null,
+              "message": "ERROR(S)   26366 WARNING(S)",
+              "context": "**** 0 ERROR(S)   26366 WARNING(S)\n"
+            }
+          ]
+        }
+      },
+      "summary": "Error 170: 6367 occurrences\n  - SWIS'.YEAR.'EN_Battery_Util1'.'AUD25: 41\n  - SWIS'.YEAR.'EN_Battery_Util12'.'AUD25: 41\n  - SWIS'.YEAR.'EN_Battery_Util2'.'AUD25: 41\n  - SWIS'.YEAR.'EN_Battery_Util24'.'AUD25: 41\n  - SWIS'.YEAR.'EN_Battery_Util4'.'AUD25: 41\nError 0: 1 occurrences"
+    },
+    "Include File Summary": {
+      "section": "Include File Summary",
+      "page": 5,
+      "content": "\n\n   SEQ   GLOBAL TYPE      PARENT   LOCAL  FILENAME\n\n     1        1 INPUT          0       0  D:\\Veda\\Veda2.0_localhost_4.0.6.0\\Veda\\Gams_Wrk-mur421\\17Nov25-refcase\\ref-case\\ref-case~0017\\ref-case~0017.RUN\n     2      519 BATINCLUDE     1      63  .D:\\Veda\\Veda2.0_localhost_4.0.6.0\\Veda\\Gams_Wrk-mur421\\17Nov25-refcase\\ref-case\\ref-case~0017\\ref-case~0017_ts.dd\n     3      549 BATINCLUDE     1      68  .D:\\Veda\\Veda2.0_localhost_4.0.6.0\\Veda\\GAMS_SrcTIMES.v4.8.3\\initsys.mod\n     4      730 BATINCLUDE     3     181  ..D:\\Veda\\Veda2.0_localhost_4.0.6.0\\Veda\\GAMS_SrcTIMES.v4.8.3\\units.def\n     5      771 BATINCLUDE     3     184  ..D:\\Veda\\Veda2.0_localhost_4.0.6.0\\Veda\\GAMS_SrcTIMES.v4.8.3\\maplists.def\n     6      896 BATINCLUDE     3     187  ..D:\\Veda\\Veda2.0_localhost_4.0.6.0\\Veda\\GAMS_SrcTIMES.v4.8.3\\globals.def\n     7      916 BATINCLUDE     1      72  .D:\\Veda\\Veda2.0_localhost_4.0.6.0\\Veda\\GAMS_SrcTIMES.v4.8.3\\initmty.mod\n     8     1331 IF EXIST       7     415  .D:\\Veda\\Veda2.0_localhost_4.0.6.0\\Veda\\Gams_Wrk-mur421\\17Nov25-refcase\\ref-case\\ref-case~0017\\gamssave\\nul\n     9     1391 BATINCLUDE     7     475  ..D:\\Veda\\Veda2.0_localhost_4.0.6.0\\Veda\\GAMS_SrcTIMES.v4.8.3\\main_ext.mod\n    10     1411 IF EXIST       9      20  ..D:\\Veda\\Veda2.0_localhost_4.0.6.0\\Veda\\GAMS_SrcTIMES.v4.8.3\\initmty.VDA\n    11     1411 BATINCLUDE     9      20  ...D:\\Veda\\Veda2.0_localhost_4.0.6.0\\Veda\\GAMS_SrcTIMES.v4.8.3\\initmty.VDA\n    12     1485 BATINCLUDE     7     478  ..D:\\Veda\\Veda2.0_localhost_4.0.6.0\\Veda\\GAMS_SrcTIMES.v4.8.3\\err_stat.mod\n    13     1553 IF EXIST       7     491  .D:\\Veda\\Veda2.0_localhost_4.0.6.0\\Veda\\Gams_Wrk-mur421\\17Nov25-refcase\\ref-case\\ref-case~0017~data.gdx\n    14     1558 BATINCLUDE     1      77  .D:\\Veda\\Veda2.0_localhost_4.0.6.0\\Veda\\Gams_Wrk-mur421\\17Nov25-refcase\\ref-case\\base.dd\n    15   449905 BATINCLUDE     1      78  .D:\\Veda\\Veda2.0_localhost_4.0.6.0\\Veda\\Gams_Wrk-mur421\\17Nov25-refcase\\ref-case\\coalplants-ret-and_lifeext.dd\n    16   451159 BATINCLUDE     1      79  .D:\\Veda\\Veda2.0_localhost_4.0.6.0\\Veda\\Gams_Wrk-mur421\\17Nov25-refcase\\ref-case\\elecfossil.dd\n    17   479800 BATINCLUDE     1      80  .D:\\Veda\\Veda2.0_localhost_4.0.6.0\\Veda\\Gams_Wrk-mur421\\17Nov25-refcase\\ref-case\\coalgasdomexp.dd\n    18   482255 BATINCLUDE     1      81  .D:\\Veda\\Veda2.0_localhost_4.0.6.0\\Veda\\Gams_Wrk-mur421\\17Nov25-refcase\\ref-case\\frontier-levers.dd\n    19   499428 BATINCLUDE     1      82  .D:\\Veda\\Veda2.0_localhost_4.0.6.0\\Veda\\Gams_Wrk-mur421\\17Nov25-refcase\\ref-case\\hydrogen_production.dd\n    20   532029 BATINCLUDE     1      83  .D:\\Veda\\Veda2.0_localhost_4.0.6.0\\Veda\\Gams_Wrk-mur421\\17Nov25-refcase\\ref-case\\eti_techs.dd\n    21   535768 BATINCLUDE     1      84  .D:\\Veda\\Veda2.0_localhost_4.0.6.0\\Veda\\Gams_Wrk-mur421\\17Nov25-refcase\\ref-case\\pumpedstorage.dd\n    22   539535 BATINCLUDE     1      85  .D:\\Veda\\Veda2.0_localhost_4.0.6.0\\Veda\\Gams_Wrk-mur421\\17Nov25-refcase\\ref-case\\windsolarwave.dd\n    23   546485 BATINCLUDE     1      86  .D:\\Veda\\Veda2.0_localhost_4.0.6.0\\Veda\\Gams_Wrk-mur421\\17Nov25-refcase\\ref-case\\syssettings.dd\n    24   565431 BATINCLUDE     1      87  .D:\\Veda\\Veda2.0_localhost_4.0.6.0\\Veda\\Gams_Wrk-mur421\\17Nov25-refcase\\ref-case\\tradeparm.dd\n    25   566011 BATINCLUDE     1      88  .D:\\Veda\\Veda2.0_localhost_4.0.6.0\\Veda\\Gams_Wrk-mur421\\17Nov25-refcase\\ref-case\\base-electricity.dd\n    26   838570 BATINCLUDE     1      89  .D:\\Veda\\Veda2.0_localhost_4.0.6.0\\Veda\\Gams_Wrk-mur421\\17Nov25-refcase\\ref-case\\base-transport.dd\n    27   998497 BATINCLUDE     1      90  .D:\\Veda\\Veda2.0_localhost_4.0.6.0\\Veda\\Gams_Wrk-mur421\\17Nov25-refcase\\ref-case\\base-industry.dd\n    28  1308449 BATINCLUDE     1      91  .D:\\Veda\\Veda2.0_localhost_4.0.6.0\\Veda\\Gams_Wrk-mur421\\17Nov25-refcase\\ref-case\\coalplants_le-control_disable.dd\n    29  1308838 BATINCLUDE     1      92  .D:\\Veda\\Veda2.0_localhost_4.0.6.0\\Veda\\Gams_Wrk-mur421\\17Nov25-refcase\\ref-case\\hydrogen.dd\n    30  1312999 BATINCLUDE     1      93  .D:\\Veda\\Veda2.0_localhost_4.0.6.0\\Veda\\Gams_Wrk-mur421\\17Nov25-refcase\\ref-case\\revmincoalfactors.dd\n    31  1318786 BATINCLUDE     1      94  .D:\\Veda\\Veda2.0_localhost_4.0.6.0\\Veda\\Gams_Wrk-mur421\\17Nov25-refcase\\ref-case\\roadtra_fueleffstandard.dd\n    32  1324358 BATINCLUDE     1      95  .D:\\Veda\\Veda2.0_localhost_4.0.6.0\\Veda\\Gams_Wrk-mur421\\17Nov25-refcase\\ref-case\\revmingpgfactors.dd\n    33  1336335 BATINCLUDE     1      96  .D:\\Veda\\Veda2.0_localhost_4.0.6.0\\Veda\\Gams_Wrk-mur421\\17Nov25-refcase\\ref-case\\transportpolicies.dd\n    34  1339315 BATINCLUDE     1      97  .D:\\Veda\\Veda2.0_localhost_4.0.6.0\\Veda\\Gams_Wrk-mur421\\17Nov25-refcase\\ref-case\\xicecostadj.dd\n    35  1349633 BATINCLUDE     1      98  .D:\\Veda\\Veda2.0_localhost_4.0.6.0\\Veda\\Gams_Wrk-mur421\\17Nov25-refcase\\ref-case\\zscalingcorrection.dd\n    36  1429402 BATINCLUDE     1      99  .D:\\Veda\\Veda2.0_localhost_4.0.6.0\\Veda\\Gams_Wrk-mur421\\17Nov25-refcase\\ref-case\\luseq_shape.dd\n    37  1431891 BATINCLUDE     1     10",
+      "truncated": true
+    },
+    "E x e c u t i o n_1": {
+      "section": "E x e c u t i o n",
+      "page": 6,
+      "summary": {
+        "total_time_secs": 33.0,
+        "peak_memory_mb": 1081,
+        "major_operations_count": 5
+      },
+      "major_operations": [
+        {
+          "line": 2052735,
+          "type": "Assignment",
+          "name": "ACT_FLO",
+          "time": 0.937,
+          "cumulative_time": 25.625,
+          "memory_mb": 968,
+          "count": 230117
+        },
+        {
+          "line": 2048913,
+          "type": "Assignment",
+          "name": "PRC_ACTFLO",
+          "time": 0.797,
+          "cumulative_time": 12.407,
+          "memory_mb": 441,
+          "count": 730367
+        },
+        {
+          "line": 2052137,
+          "type": "Assignment",
+          "name": "RTPCS_VARF",
+          "time": 0.657,
+          "cumulative_time": 21.829,
+          "memory_mb": 801,
+          "count": 2766526
+        },
+        {
+          "line": 2049017,
+          "type": "Loop",
+          "name": "",
+          "time": 0.594,
+          "cumulative_time": 13.657,
+          "memory_mb": 470,
+          "count": null
+        },
+        {
+          "line": 2049045,
+          "type": "Assignment",
+          "name": "FLO_SUM",
+          "time": 0.547,
+          "cumulative_time": 14.344,
+          "memory_mb": 471,
+          "count": 339602
+        }
+      ],
+      "text_summary": "Total execution time: 33.00 seconds\nPeak memory usage: 1081 MB\nMajor operations (>0.5s): 5\n\nTop 10 time-consuming operations:\n  1. Line 2052735: Assignment ACT_FLO (0.937s)\n  2. Line 2048913: Assignment PRC_ACTFLO (0.797s)\n  3. Line 2052137: Assignment RTPCS_VARF (0.657s)\n  4. Line 2049017: Loop  (0.594s)\n  5. Line 2049045: Assignment FLO_SUM (0.547s)"
+    },
+    "E x e c u t i o n_2": {
+      "section": "E x e c u t i o n",
+      "page": 11,
+      "summary": {
+        "total_time_secs": 5.047,
+        "peak_memory_mb": 1222,
+        "major_operations_count": 1
+      },
+      "major_operations": [
+        {
+          "line": 2073452,
+          "type": "GAMS",
+          "name": "Fini",
+          "time": 5.047,
+          "cumulative_time": 5.047,
+          "memory_mb": 1222,
+          "count": null
+        }
+      ],
+      "text_summary": "Total execution time: 5.05 seconds\nPeak memory usage: 1222 MB\nMajor operations (>0.5s): 1\n\nTop 10 time-consuming operations:\n  1. Line 2073452: GAMS Fini (5.047s)"
+    },
+    "Model Analysis SOLVE TIMES Using LP From line 2073416": {
+      "section": "Model Analysis SOLVE TIMES Using LP From line 2073416",
+      "page": 7,
+      "summary": {
+        "total_equation_count": 3081380,
+        "equation_types": 108,
+        "total_generation_time": 74.688
+      },
+      "equations": [
+        {
+          "name": "EQE_ACTEFF",
+          "count": 547526,
+          "time": 8.438,
+          "memory_mb": 2545
+        },
+        {
+          "name": "EQL_CAPACT",
+          "count": 500958,
+          "time": 2.546,
+          "memory_mb": 1658
+        },
+        {
+          "name": "EQL_FLOMRK",
+          "count": 381755,
+          "time": 3.36,
+          "memory_mb": 2327
+        },
+        {
+          "name": "EQG_INSHR",
+          "count": 277357,
+          "time": 1.969,
+          "memory_mb": 2238
+        },
+        {
+          "name": "EQG_COMBAL",
+          "count": 206010,
+          "time": 12.125,
+          "memory_mb": 2041
+        },
+        {
+          "name": "EQ_ACTFLO",
+          "count": 202507,
+          "time": 1.672,
+          "memory_mb": 1350
+        },
+        {
+          "name": "EQE_COMPRD",
+          "count": 162218,
+          "time": 4.593,
+          "memory_mb": 2186
+        },
+        {
+          "name": "EQE_CAPACT",
+          "count": 149048,
+          "time": 1.375,
+          "memory_mb": 1660
+        },
+        {
+          "name": "EQ_CUMRET",
+          "count": 145018,
+          "time": 0.438,
+          "memory_mb": 2408
+        },
+        {
+          "name": "EQE_UCRT",
+          "count": 103039,
+          "time": 7.75,
+          "memory_mb": 2357
+        },
+        {
+          "name": "EQE_COMBAL",
+          "count": 57400,
+          "time": 6.204,
+          "memory_mb": 2122
+        },
+        {
+          "name": "EQE_INSHR",
+          "count": 51967,
+          "time": 0.937,
+          "memory_mb": 2238
+        },
+        {
+          "name": "EQN_UCRTP",
+          "count": 43992,
+          "time": 0.578,
+          "memory_mb": 2545
+        },
+        {
+          "name": "EQG_CAPACT",
+          "count": 36212,
+          "time": 1.125,
+          "memory_mb": 1670
+        },
+        {
+          "name": "EQ_PTRANS",
+          "count": 34455,
+          "time": 0.657,
+          "memory_mb": 2327
+        },
+        {
+          "name": "EQ_IRE",
+          "count": 29134,
+          "time": 0.531,
+          "memory_mb": 2239
+        },
+        {
+          "name": "EQL_CAPFLO",
+          "count": 25552,
+          "time": 0.516,
+          "memory_mb": 2545
+        },
+        {
+          "name": "EQ_STGTSS",
+          "count": 17856,
+          "time": 0.109,
+          "memory_mb": 2327
+        },
+        {
+          "name": "EQ_STGAUX",
+          "count": 15088,
+          "time": 0.125,
+          "memory_mb": 2327
+        },
+        {
+          "name": "EQE_CPT",
+          "count": 14697,
+          "time": 0.641,
+          "memory_mb": 2188
+        },
+        {
+          "name": "EQL_CAFLAC",
+          "count": 13600,
+          "time": 0.25,
+          "memory_mb": 2545
+        },
+        {
+          "name": "EQL_SCAP",
+          "count": 13298,
+          "time": 0.062,
+          "memory_mb": 2408
+        },
+        {
+          "name": "EQE_UCRTS",
+          "count": 9632,
+          "time": 0.438,
+          "memory_mb": 2360
+        },
+        {
+          "name": "EQE_UCRSU",
+          "count": 9499,
+          "time": 2.109,
+          "memory_mb": 2373
+        },
+        {
+          "name": "EQG_FLOMRK",
+          "count": 7842,
+          "time": 0.297,
+          "memory_mb": 2241
+        },
+        {
+          "name": "EQE_FLOBND",
+          "count": 6035,
+          "time": 0.406,
+          "memory_mb": 2189
+        },
+        {
+          "name": "EQ_PEAK",
+          "count": 4872,
+          "time": 1.468,
+          "memory_mb": 2327
+        },
+        {
+          "name": "EQE_OUTSHR",
+          "count": 4808,
+          "time": 0.188,
+          "memory_mb": 2240
+        },
+        {
+          "name": "EQE_FLOMRK",
+          "count": 1648,
+          "time": 0.359,
+          "memory_mb": 2242
+        },
+        {
+          "name": "EQG_OUTSHR",
+          "count": 1568,
+          "time": 0.172,
+          "memory_mb": 2239
+        },
+        {
+          "name": "EQL_INSHR",
+          "count": 1402,
+          "time": 0.688,
+          "memory_mb": 2239
+        },
+        {
+          "name": "EQL_OUTSHR",
+          "count": 1274,
+          "time": 0.187,
+          "memory_mb": 2240
+        },
+        {
+          "name": "EQE_UCT",
+          "count": 1249,
+          "time": 2.5,
+          "memory_mb": 2327
+        },
+        {
+          "name": "EQ_STSBAL",
+          "count": 1064,
+          "time": 0.016,
+          "memory_mb": 2327
+        },
+        {
+          "name": "EQL_FLOBND",
+          "count": 680,
+          "time": 0.109,
+          "memory_mb": 2189
+        },
+        {
+          "name": "EQE_UCTS",
+          "count": 490,
+          "time": 0.515,
+          "memory_mb": 2327
+        },
+        {
+          "name": "EQG_CPT",
+          "count": 367,
+          "time": 0.125,
+          "memory_mb": 2188
+        },
+        {
+          "name": "EQL_ACTBND",
+          "count": 93,
+          "time": 0.062,
+          "memory_mb": 1350
+        },
+        {
+          "name": "EQL_CPT",
+          "count": 40,
+          "time": 0.0,
+          "memory_mb": 2188
+        },
+        {
+          "name": "EQ_OBJFIX",
+          "count": 29,
+          "time": 2.079,
+          "memory_mb": 1095
+        },
+        {
+          "name": "EQ_OBJINV",
+          "count": 29,
+          "time": 0.203,
+          "memory_mb": 1101
+        },
+        {
+          "name": "EQ_OBJSALV",
+          "count": 29,
+          "time": 0.031,
+          "memory_mb": 1104
+        },
+        {
+          "name": "EQ_OBJVAR",
+          "count": 29,
+          "time": 6.25,
+          "memory_mb": 1189
+        },
+        {
+          "name": "EQE_UCSU",
+          "count": 13,
+          "time": 0.031,
+          "memory_mb": 2360
+        },
+        {
+          "name": "EQ_OBJ",
+          "count": 1,
+          "time": 0.0,
+          "memory_mb": 1081
+        },
+        {
+          "name": "EQG_ACTBND",
+          "count": 0,
+          "time": 0.0,
+          "memory_mb": 1350
+        },
+        {
+          "name": "EQE_ACTBND",
+          "count": 0,
+          "time": 0.0,
+          "memory_mb": 1350
+        },
+        {
+          "name": "EQG_BNDNET",
+          "count": 0,
+          "time": 0.016,
+          "memory_mb": 1350
+        },
+        {
+          "name": "EQE_BNDNET",
+          "count": 0,
+          "time": 0.0,
+          "memory_mb": 1350
+        },
+        {
+          "name": "EQL_BNDNET",
+          "count": 0,
+          "time": 0.016,
+          "memory_mb": 1350
+        },
+        {
+          "name": "EQG_BNDPRD",
+          "count": 0,
+          "time": 0.0,
+          "memory_mb": 1350
+        },
+        {
+          "name": "EQE_BNDPRD",
+          "count": 0,
+          "time": 0.0,
+          "memory_mb": 1350
+        },
+        {
+          "name": "EQL_BNDPRD",
+          "count": 0,
+          "time": 0.0,
+          "memory_mb": 1350
+        },
+        {
+          "name": "EQG_FLOBND",
+          "count": 0,
+          "time": 0.016,
+          "memory_mb": 2188
+        },
+        {
+          "name": "EQG_FLOFR",
+          "count": 0,
+          "time": 0.0,
+          "memory_mb": 2189
+        },
+        {
+          "name": "EQE_FLOFR",
+          "count": 0,
+          "time": 0.0,
+          "memory_mb": 2189
+        },
+        {
+          "name": "EQL_FLOFR",
+          "count": 0,
+          "time": 0.0,
+          "memory_mb": 2189
+        },
+        {
+          "name": "EQG_IREBND",
+          "count": 0,
+          "time": 0.0,
+          "memory_mb": 2239
+        },
+        {
+          "name": "EQE_IREBND",
+          "count": 0,
+          "time": 0.0,
+          "memory_mb": 2239
+        },
+        {
+          "name": "EQL_IREBND",
+          "count": 0,
+          "time": 0.0,
+          "memory_mb": 2239
+        },
+        {
+          "name": "EQG_XBND",
+          "count": 0,
+          "time": 0.0,
+          "memory_mb": 2239
+        },
+        {
+          "name": "EQE_XBND",
+          "count": 0,
+          "time": 0.0,
+          "memory_mb": 2239
+        },
+        {
+          "name": "EQL_XBND",
+          "count": 0,
+          "time": 0.0,
+          "memory_mb": 2239
+        },
+        {
+          "name": "EQ_CUMNET",
+          "count": 0,
+          "time": 0.0,
+          "memory_mb": 2327
+        },
+        {
+          "name": "EQ_CUMPRD",
+          "count": 0,
+          "time": 0.0,
+          "memory_mb": 2327
+        },
+        {
+          "name": "EQ_CUMFLO",
+          "count": 0,
+          "time": 0.0,
+          "memory_mb": 2327
+        },
+        {
+          "name": "EQ_STSLEV",
+          "count": 0,
+          "time": 0.0,
+          "memory_mb": 2327
+        },
+        {
+          "name": "EQG_STGIN",
+          "count": 0,
+          "time": 0.0,
+          "memory_mb": 2327
+        },
+        {
+          "name": "EQE_STGIN",
+          "count": 0,
+          "time": 0.0,
+          "memory_mb": 2327
+        },
+        {
+          "name": "EQL_STGIN",
+          "count": 0,
+          "time": 0.0,
+          "memory_mb": 2327
+        },
+        {
+          "name": "EQG_STGOUT",
+          "count": 0,
+          "time": 0.0,
+          "memory_mb": 2327
+        },
+        {
+          "name": "EQE_STGOUT",
+          "count": 0,
+          "time": 0.0,
+          "memory_mb": 2327
+        },
+        {
+          "name": "EQL_STGOUT",
+          "count": 0,
+          "time": 0.0,
+          "memory_mb": 2327
+        },
+        {
+          "name": "EQ_STGIPS",
+          "count": 0,
+          "time": 0.0,
+          "memory_mb": 2327
+        },
+        {
+          "name": "EQE_UC",
+          "count": 0,
+          "time": 0.0,
+          "memory_mb": 2327
+        },
+        {
+          "name": "EQE_UCR",
+          "count": 0,
+          "time": 0.0,
+          "memory_mb": 2327
+        },
+        {
+          "name": "EQE_UCRS",
+          "count": 0,
+          "time": 0.0,
+          "memory_mb": 2327
+        },
+        {
+          "name": "EQE_UCSUS",
+          "count": 0,
+          "time": 0.0,
+          "memory_mb": 2373
+        },
+        {
+          "name": "EQE_UCRSUS",
+          "count": 0,
+          "time": 0.016,
+          "memory_mb": 2373
+        },
+        {
+          "name": "EQ_BNDCST",
+          "count": 0,
+          "time": 0.0,
+          "memory_mb": 2373
+        },
+        {
+          "name": "EQL_BLND",
+          "count": 0,
+          "time": 0.0,
+          "memory_mb": 2373
+        },
+        {
+          "name": "EQG_BLND",
+          "count": 0,
+          "time": 0.0,
+          "memory_mb": 2373
+        },
+        {
+          "name": "EQE_BLND",
+          "count": 0,
+          "time": 0.0,
+          "memory_mb": 2373
+        },
+        {
+          "name": "EQN_BLND",
+          "count": 0,
+          "time": 0.0,
+          "memory_mb": 2373
+        },
+        {
+          "name": "EQ_DSCRET",
+          "count": 0,
+          "time": 0.0,
+          "memory_mb": 2373
+        },
+        {
+          "name": "EQL_REFIT",
+          "count": 0,
+          "time": 0.0,
+          "memory_mb": 2408
+        },
+        {
+          "name": "EQE_CAFLAC",
+          "count": 0,
+          "time": 0.093,
+          "memory_mb": 2545
+        },
+        {
+          "name": "EQ_CAPLOAD",
+          "count": 0,
+          "time": 0.0,
+          "memory_mb": 2545
+        },
+        {
+          "name": "EQ_ACTRAMP",
+          "count": 0,
+          "time": 0.0,
+          "memory_mb": 2545
+        },
+        {
+          "name": "EQE_ACTUPS",
+          "count": 0,
+          "time": 0.0,
+          "memory_mb": 2545
+        },
+        {
+          "name": "EQL_ACTUPS",
+          "count": 0,
+          "time": 0.0,
+          "memory_mb": 2545
+        },
+        {
+          "name": "EQL_ACTUPC",
+          "count": 0,
+          "time": 0.0,
+          "memory_mb": 2545
+        },
+        {
+          "name": "EQ_ACTPL",
+          "count": 0,
+          "time": 0.0,
+          "memory_mb": 2545
+        },
+        {
+          "name": "EQ_ACTRMPC",
+          "count": 0,
+          "time": 0.0,
+          "memory_mb": 2545
+        },
+        {
+          "name": "EQ_SLSIFT",
+          "count": 0,
+          "time": 0.0,
+          "memory_mb": 2545
+        },
+        {
+          "name": "EQL_STGCCL",
+          "count": 0,
+          "time": 0.0,
+          "memory_mb": 2545
+        },
+        {
+          "name": "EQE_UCRTP",
+          "count": 0,
+          "time": 0.031,
+          "memory_mb": 2545
+        },
+        {
+          "name": "EQN_UCRTC",
+          "count": 0,
+          "time": 0.0,
+          "memory_mb": 2545
+        },
+        {
+          "name": "EQE_ASHAR",
+          "count": 0,
+          "time": 0.094,
+          "memory_mb": 2545
+        },
+        {
+          "name": "EQL_ASHAR",
+          "count": 0,
+          "time": 0.078,
+          "memory_mb": 2545
+        },
+        {
+          "name": "EQG_ASHAR",
+          "count": 0,
+          "time": 0.094,
+          "memory_mb": 2545
+        },
+        {
+          "name": "EQ_SDLOGIC",
+          "count": 0,
+          "time": 0.0,
+          "memory_mb": 2545
+        },
+        {
+          "name": "EQ_SUDUPT",
+          "count": 0,
+          "time": 0.0,
+          "memory_mb": 2545
+        },
+        {
+          "name": "EQ_SDSLANT",
+          "count": 0,
+          "time": 0.0,
+          "memory_mb": 2545
+        },
+        {
+          "name": "EQ_SDMINON",
+          "count": 0,
+          "time": 0.0,
+          "memory_mb": 2545
+        },
+        {
+          "name": "EQ_SUDLOAD",
+          "count": 0,
+          "time": 0.0,
+          "memory_mb": 2545
+        },
+        {
+          "name": "EQ_SUDTIME",
+          "count": 0,
+          "time": 0.0,
+          "memory_mb": 2545
+        },
+        {
+          "name": "EQ_SUDPLL",
+          "count": 0,
+          "time": 0.0,
+          "memory_mb": 2545
+        }
+      ],
+      "text_summary": "Total equations: 3,081,380\nEquation types: 108\n\nTop 10 equation types by count:\n  1. EQE_ACTEFF: 547,526 equations (8.438s)\n  2. EQL_CAPACT: 500,958 equations (2.546s)\n  3. EQL_FLOMRK: 381,755 equations (3.360s)\n  4. EQG_INSHR: 277,357 equations (1.969s)\n  5. EQG_COMBAL: 206,010 equations (12.125s)\n  6. EQ_ACTFLO: 202,507 equations (1.672s)\n  7. EQE_COMPRD: 162,218 equations (4.593s)\n  8. EQE_CAPACT: 149,048 equations (1.375s)\n  9. EQ_CUMRET: 145,018 equations (0.438s)\n  10. EQE_UCRT: 103,039 equations (7.750s)"
+    },
+    "Range Statistics SOLVE TIMES Using LP From line 2073416": {
+      "section": "Range Statistics SOLVE TIMES Using LP From line 2073416",
+      "page": 8,
+      "content": "\n\nRANGE STATISTICS (ABSOLUTE NON-ZERO FINITE VALUES)\n\nRHS       [min, max] : [ 1.421E-14, 4.594E+05] - Zero values observed as well\nBound     [min, max] : [ 8.000E-06, 5.000E+05] - Zero values observed as well\nMatrix    [min, max] : [ 5.164E-07, 1.341E+05] - Zero values observed as well\n\n",
+      "truncated": false
+    },
+    "Model Statistics SOLVE TIMES Using LP From line 2073416": {
+      "section": "Model Statistics SOLVE TIMES Using LP From line 2073416",
+      "page": 9,
+      "content": "\n\nMODEL STATISTICS\n\nBLOCKS OF EQUATIONS         108     SINGLE EQUATIONS    3,081,380\nBLOCKS OF VARIABLES          28     SINGLE VARIABLES    4,125,186  153 projected\nNON ZERO ELEMENTS    17,346,948\n\n\n----2073416 Solve Fini TIMES        20.062   127.750 SECS  2,553 MB  17346948\nGENERATION TIME      =       94.750 SECONDS  2,553 MB  49.6.1 55d34574 WEX-WEI\n\n\nEXECUTION TIME       =      127.750 SECONDS  2,553 MB  49.6.1 55d34574 WEX-WEI\n----2073416 GAMS Fini                5.094     5.094 SECS  2,553 MB \n----      1 InitE                    0.125     0.125 SECS  1,221 MB \n----      1 ExecInit                 0.000     0.125 SECS  1,221 MB \n----2073416 Solver     TIMES        50.568     0.125 SECS  1,221 MB \n",
+      "truncated": false
+    },
+    "Solution Report SOLVE TIMES Using LP From line 2073416": {
+      "section": "Solution Report SOLVE TIMES Using LP From line 2073416",
+      "page": 10,
+      "content": "\n\n               S O L V E      S U M M A R Y\n\n     MODEL   TIMES               OBJECTIVE  OBJZ\n     TYPE    LP                  DIRECTION  MINIMIZE\n     SOLVER  CPLEX               FROM LINE  2073416\n\n**** SOLVER STATUS     1 Normal Completion\n**** MODEL STATUS      19 Infeasible - No Solution\n**** OBJECTIVE VALUE               NA\n\n RESOURCE USAGE, LIMIT         28.968     50000.000\n ITERATION COUNT, LIMIT         0        999999\n\n**** Reading with SOLVEOPT=REPLACE (0) ****\n--- GAMS/CPLEX Link licensed for continuous and discrete problems.\n\nReading parameter(s) from \"D:\\Veda\\Veda2.0_localhost_4.0.6.0\\Veda\\Gams_Wrk-mur421\\17Nov25-refcase\\ref-case\\ref-case~0017\\cplex.opt\"\n>>  * Moderately tight tolerances aimed at faster termination while still robust.\n>>  *\n>>  * Use barrier algorithm\n>>  lpmethod 4\n>>  * Barrier without crossover\n>>  solutiontype 2\n>>  * Moderate tightening from 1e-3.\n>>  epopt 1e-7\n>>  * Moderate tightening.\n>>  eprhs 1e-7\n>>  * Looser KKT for speed/robustness trade-off.\n>>  barepcomp 1e-6\n>>  * Better scaling.\n>>  scaind 2\n*** Value Error line 14: Unknown value for option \"scaind\" saw \"2\"\n*** Value Error line 14:    Possible values are  -1 0 1\n*** Value Error line 14:    Option ignored\n>>  * Moderate aggregation.\n>>  aggind 2\n>>  * Stable ordering.\n>>  barorder 2\n>>  * Balanced parallelism.\n>>  threads 4\n>>  * Stability.\n>>  numericalemphasis 1\nFinished reading from \"D:\\Veda\\Veda2.0_localhost_4.0.6.0\\Veda\\Gams_Wrk-mur421\\17Nov25-refcase\\ref-case\\ref-case~0017\\cplex.opt\"\n\n--- GMO setup time: 0.00s\n--- Space for names approximately 413.68 Mb\n--- Use option 'names no' to turn use of names off\n--- GMO memory 1623.21 Mb (peak 1654.68 Mb)\n--- Dictionary memory 0.00 Mb\n--- Cplex 22.1.2.0 link memory 113.95 Mb (peak 807.77 Mb)\n--- Starting Cplex\n\n\n--- LP status (3): infeasible.\n--- Cplex Time: 28.97sec (det. 33611.54 ticks)\n\n--- Model has been proven infeasible\n\nNo solution returned\n----2073416 Solve Read TIMES         0.047     0.172 SECS  1,221 MB \n",
+      "truncated": false
+    }
+  }
+}
