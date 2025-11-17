@@ -217,7 +217,6 @@ def _call_openai_responses_api(
     reasoning_effort: str = "medium",
     stream_callback: Callable[[str], None] | None = None,
     log_dir: Path | None = None,
-    use_cache: bool = True,
     instructions: str | None = None,
     text_format: type[Any] | None = None,
 ) -> tuple[str, dict[str, Any]] | tuple[Any, dict[str, Any]]:
@@ -229,7 +228,6 @@ def _call_openai_responses_api(
         reasoning_effort: Reasoning effort level
         stream_callback: Optional callback for streaming responses
         log_dir: Directory for logging
-        use_cache: Whether to use cached responses (default: True)
         instructions: System-level instructions (goes to 'instructions' field)
         text_format: Optional Pydantic model for structured output
 
@@ -241,27 +239,6 @@ def _call_openai_responses_api(
     key = config.openai_api_key
     if not key:
         return "", {}
-
-    # Check cache first (skip if streaming or cache disabled)
-    if use_cache and not stream_callback:
-        from .llm_cache import read_cache
-
-        cache_dir = (log_dir or Path.cwd() / "_llm_calls") / "cache"
-        cached = read_cache(
-            prompt=prompt,
-            model=model,
-            cache_dir=cache_dir,
-            reasoning_effort=reasoning_effort,
-        )
-        if cached:
-            text, meta = cached
-            # Add cache hit indicator to metadata
-            meta["cached"] = True
-            meta["cache_hit"] = True
-            print(
-                f"[dim]LLM: {model} (cached) | {meta.get('input_tokens', 0):,}→{meta.get('output_tokens', 0):,} tok | $0.0000 (cache hit)[/dim]"
-            )
-            return text, meta
 
     # Use OpenAI SDK for structured output with Pydantic models
     # Only supports gpt-5 models
@@ -537,20 +514,6 @@ def _call_openai_responses_api(
                 f"[dim]LLM: {model}{effort_str} | {in_tok_stream:,}→{out_tok_stream:,} tok ({window_pct_stream:.1f}% window) | {dur_stream:.1f}s | ${cost_stream:.4f}[/dim]"
             )
 
-            # Write to cache (streaming mode)
-            if use_cache:
-                from .llm_cache import write_cache
-
-                cache_dir = (log_dir or Path.cwd() / "_llm_calls") / "cache"
-                write_cache(
-                    prompt=prompt,
-                    model=model,
-                    response=full_text.strip(),
-                    metadata=metadata,
-                    cache_dir=cache_dir,
-                    reasoning_effort=reasoning_effort,
-                )
-
             return full_text.strip(), metadata
 
         # Non-streaming mode (original behavior)
@@ -630,12 +593,6 @@ def _call_openai_responses_api(
                 f"[dim]LLM: {model}{effort_str} | {in_tok_nonstream:,}→{out_tok_nonstream:,} tok ({window_pct_nonstream:.1f}% window) | {dur_nonstream:.1f}s | ${cost_nonstream:.4f}[/dim]"
             )
 
-            # Write to cache (non-streaming mode)
-            if use_cache:
-                from .llm_cache import write_cache
-
-                cache_dir = (log_dir or Path.cwd() / "_llm_calls") / "cache"
-
             # Extract text from response - GPT-5 Responses API uses 'output' field
             output = data.get("output", [])
             print(
@@ -677,17 +634,6 @@ def _call_openai_responses_api(
                         break
 
             print(f"[dim]DEBUG: text_content length={len(text_content)}[/dim]")
-
-            # Write to cache before returning
-            if use_cache:
-                write_cache(
-                    prompt=prompt,
-                    model=model,
-                    response=text_content,
-                    metadata=metadata,
-                    cache_dir=cache_dir,
-                    reasoning_effort=reasoning_effort,
-                )
 
             return text_content, metadata
         else:
@@ -986,7 +932,6 @@ def _call_anthropic_api(
     model: str = "",
     stream_callback: Callable[[str], None] | None = None,
     log_dir: Path | None = None,
-    use_cache: bool = True,
 ) -> tuple[str, dict[str, Any]]:
     """Call Anthropic API directly with optional streaming support.
 
@@ -995,7 +940,6 @@ def _call_anthropic_api(
         model: Model name to use
         stream_callback: Optional callback for streaming responses
         log_dir: Directory for logging
-        use_cache: Whether to use cached responses (default: True)
 
     Returns:
         Tuple of (response_text, metadata)
@@ -1005,28 +949,6 @@ def _call_anthropic_api(
     key = config.anthropic_api_key
     if not key:
         return "", {}
-
-    # Check cache first (skip if streaming or cache disabled)
-    if use_cache and not stream_callback:
-        from .llm_cache import read_cache
-
-        cache_dir = (log_dir or Path.cwd() / "_llm_calls") / "cache"
-        model_to_use = model or "claude-3-5-sonnet-20241022"
-        cached = read_cache(
-            prompt=prompt,
-            model=model_to_use,
-            cache_dir=cache_dir,
-            temperature=config.anthropic_temperature,
-        )
-        if cached:
-            text, meta = cached
-            # Add cache hit indicator to metadata
-            meta["cached"] = True
-            meta["cache_hit"] = True
-            print(
-                f"[dim]LLM: {model_to_use} (cached) | {meta.get('input_tokens', 0):,}→{meta.get('output_tokens', 0):,} tok | $0.0000 (cache hit)[/dim]"
-            )
-            return text, meta
 
     try:
         import json as json_module
@@ -1133,20 +1055,6 @@ def _call_anthropic_api(
                 "duration_seconds": round(time.time() - start_time, 2),
             }
 
-            # Write to cache (streaming mode)
-            if use_cache:
-                from .llm_cache import write_cache
-
-                cache_dir = (log_dir or Path.cwd() / "_llm_calls") / "cache"
-                write_cache(
-                    prompt=prompt,
-                    model=model,
-                    response=full_text.strip(),
-                    metadata=metadata,
-                    cache_dir=cache_dir,
-                    temperature=temperature,
-                )
-
             return full_text.strip(), metadata
 
         else:
@@ -1193,21 +1101,6 @@ def _call_anthropic_api(
                 content = data.get("content", [])
                 if content and len(content) > 0:
                     response_text = content[0].get("text", "")
-
-                    # Write to cache (non-streaming mode)
-                    if use_cache:
-                        from .llm_cache import write_cache
-
-                        cache_dir = (log_dir or Path.cwd() / "_llm_calls") / "cache"
-                        write_cache(
-                            prompt=prompt,
-                            model=model,
-                            response=response_text,
-                            metadata=metadata,
-                            cache_dir=cache_dir,
-                            temperature=temperature,
-                        )
-
                     return response_text, metadata
             return "", {}
     except Exception as e:
@@ -1812,11 +1705,10 @@ def extract_condensed_sections(
                     model="gpt-5-nano",
                     reasoning_effort="minimal",
                     log_dir=log_dir,
-                    use_cache=True,
                 )
             elif api_keys["anthropic"]:
                 text, meta = _call_anthropic_api(
-                    prompt, model="claude-3-5-haiku-20241022", log_dir=log_dir, use_cache=True
+                    prompt, model="claude-3-5-haiku-20241022", log_dir=log_dir
                 )
             else:
                 error_msg = "No OpenAI or Anthropic API key found. Extraction requires OPENAI_API_KEY or ANTHROPIC_API_KEY in .env file"
@@ -1866,11 +1758,10 @@ def extract_condensed_sections(
                 model="gpt-5-nano",
                 reasoning_effort="minimal",
                 log_dir=log_dir,
-                use_cache=True,
             )
         elif api_keys["anthropic"]:
             text, meta = _call_anthropic_api(
-                prompt, model="claude-3-5-haiku-20241022", log_dir=log_dir, use_cache=True
+                prompt, model="claude-3-5-haiku-20241022", log_dir=log_dir
             )
         else:
             error_msg = "No OpenAI or Anthropic API key found. Extraction requires OPENAI_API_KEY or ANTHROPIC_API_KEY in .env file"
@@ -1989,7 +1880,6 @@ def review_files(
     reasoning_effort: str = "high",
     stream_callback: Callable[[str], None] | None = None,
     log_dir: Path | None = None,
-    use_cache: bool = True,
 ) -> LLMResult:
     from .prompts import build_review_prompt
 
@@ -2025,7 +1915,6 @@ def review_files(
             reasoning_effort=reasoning_effort,
             stream_callback=stream_callback,
             log_dir=log_dir,
-            use_cache=use_cache,
         )
         if t:
             return done("openai", t, meta)
@@ -2039,7 +1928,6 @@ def review_files(
             model=model,
             stream_callback=stream_callback,
             log_dir=log_dir,
-            use_cache=use_cache,
         )
         if t:
             return done("anthropic", t, meta)
@@ -2067,7 +1955,6 @@ def review_solver_options(
     reasoning_effort: str = "high",
     stream_callback: Callable[[str], None] | None = None,
     log_dir: Path | None = None,
-    use_cache: bool = True,
 ) -> LLMResult:
     from .prompts import build_solver_options_review_prompt
     from .solver_models import SolverDiagnosis
@@ -2112,7 +1999,6 @@ def review_solver_options(
         reasoning_effort=reasoning_effort,
         stream_callback=stream_callback,
         log_dir=log_dir,
-        use_cache=use_cache,
         instructions=instructions,
         text_format=SolverDiagnosis,
     )
@@ -2136,7 +2022,6 @@ def review_qa_check_fixes(
     reasoning_effort: str = "medium",
     stream_callback: Callable[[str], None] | None = None,
     log_dir: Path | None = None,
-    use_cache: bool = True,
 ) -> LLMResult:
     """Review QA_CHECK.LOG and provide actionable fix recommendations using oracle.
 
@@ -2147,7 +2032,6 @@ def review_qa_check_fixes(
         reasoning_effort: Reasoning effort level (minimal|low|medium|high, default: medium)
         stream_callback: Optional callback for streaming output
         log_dir: Directory for LLM call logs
-        use_cache: Whether to use LLM response cache
 
     Returns:
         LLMResult with fix recommendations text and metadata
@@ -2186,8 +2070,80 @@ def review_qa_check_fixes(
         reasoning_effort=reasoning_effort,
         stream_callback=stream_callback,
         log_dir=log_dir,
-        use_cache=use_cache,
         instructions="You are the Oracle, a TIMES/Veda QA expert. Return only actionable remediation steps per QA issue with file references and fix instructions.",
+    )
+
+    if not result:
+        return done("none", "")
+
+    return done("openai", result, meta)
+
+
+def explain_infeasibility(
+    qa_check: str,
+    run_log_excerpts: str,
+    lst_excerpts: str,
+    provider: str = "auto",
+    model: str = "",
+    reasoning_effort: str = "medium",
+    stream_callback: Callable[[str], None] | None = None,
+    log_dir: Path | None = None,
+) -> LLMResult:
+    """Explain why a TIMES model is infeasible and provide exact fix instructions.
+
+    Args:
+        qa_check: Condensed QA_CHECK.LOG content
+        run_log_excerpts: Condensed run log excerpts with line numbers
+        lst_excerpts: Condensed LST file excerpts with line numbers
+        provider: LLM provider (only 'openai' or 'auto' supported for reasoning)
+        model: Specific model override (default: gpt-5)
+        reasoning_effort: Reasoning effort level (minimal|low|medium|high, default: medium)
+        stream_callback: Optional callback for streaming output
+        log_dir: Directory for LLM call logs
+
+    Returns:
+        LLMResult with infeasibility diagnosis and remediation plan
+    """
+    from .prompts import build_explain_infeasibility_prompt
+
+    instructions, input_data = build_explain_infeasibility_prompt(
+        qa_check, run_log_excerpts, lst_excerpts
+    )
+
+    def done(name: str, text: str, meta: dict[str, Any] | None = None) -> LLMResult:
+        # Log the call
+        log_meta: dict[str, Any] = meta if meta else {"provider": name}
+        log_llm_call("explain_infeasibility", input_data, text, log_meta, log_dir)
+
+        if meta:
+            return LLMResult(
+                text=text,
+                provider=name,
+                used=bool(text),
+                model=meta.get("model", ""),
+                input_tokens=meta.get("input_tokens", 0),
+                output_tokens=meta.get("output_tokens", 0),
+                cost_usd=meta.get("cost_usd", 0.0),
+            )
+        return LLMResult(text=text, provider=name, used=bool(text))
+
+    # Only OpenAI supported for reasoning
+    prov = (provider or "auto").lower()
+
+    if prov not in ("auto", "openai"):
+        raise ValueError(
+            "explain-infeasibility only supports OpenAI provider with reasoning. "
+            "Please set OPENAI_API_KEY and use --llm openai or auto (default)"
+        )
+
+    # Use GPT-5 with configurable reasoning effort for infeasibility diagnosis
+    result, meta = _call_openai_responses_api(
+        input_data,
+        model=model or "gpt-5",
+        reasoning_effort=reasoning_effort,
+        stream_callback=stream_callback,
+        log_dir=log_dir,
+        instructions=instructions,
     )
 
     if not result:

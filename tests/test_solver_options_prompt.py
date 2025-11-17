@@ -276,7 +276,6 @@ class TestSolverOptionsLLMIntegration:
             reasoning_effort="low",
             instructions=instructions,
             text_format=SolverDiagnosis,
-            use_cache=True,
         )
 
         assert result, "LLM should return result"

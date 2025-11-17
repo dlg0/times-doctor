@@ -46,5 +46,13 @@
         "sha256": "be39fe6181fc240407f5390f82479094a826f1c61c87a90a074eea66ba333601"
       }
     }
+  },
+  "explain_infeasibility": {
+    "current": "v1",
+    "versions": {
+      "v1": {
+        "sha256": "371295f8d8284a49a82add2c3cca6a16d57bda59f09c9ba332e478bfe27eb847"
+      }
+    }
   }
 }

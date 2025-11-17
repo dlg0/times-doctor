@@ -1789,37 +1789,6 @@ def find_run_directories(base_dir: Path) -> list[tuple[Path, str, float]]:
 
 
 @app.command()
-def clear_cache(
-    run_dir: str = typer.Argument(".", help="Run directory containing _llm_calls/cache"),
-) -> None:
-    """
-    Clear cached LLM responses to force fresh API calls.
-
-    Removes all cached responses from the _llm_calls/cache directory.
-    Use this when you want to regenerate responses with different models
-    or when cached responses may be stale.
-
-    \b
-    Example:
-      times-doctor clear-cache data/065Nov25-annualupto2045/parscen
-      times-doctor clear-cache .  # Clear cache in current directory
-    """
-    from pathlib import Path
-
-    from .core import llm_cache
-
-    rd = Path(run_dir).resolve()
-    cache_dir = rd / "_llm_calls" / "cache"
-
-    if not cache_dir.exists():
-        print(f"[yellow]No cache directory found at {cache_dir}[/yellow]")
-        return
-
-    count = llm_cache.clear_cache(cache_dir)
-    print(f"[green]Cleared {count} cached LLM response(s) from {cache_dir}[/green]")
-
-
-@app.command()
 def review(
     run_dir: str,
     llm: str = typer.Option("auto", help="LLM provider: auto|openai|anthropic|amp|none"),
@@ -1833,7 +1802,6 @@ def review(
         False, "--dry-run", help="Show cost estimate without making API calls"
     ),
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation prompts"),
-    no_cache: bool = typer.Option(False, "--no-cache", help="Bypass LLM response cache"),
 ) -> None:
     """
     Review TIMES run files using LLM for human-readable diagnostics.
@@ -2100,7 +2068,6 @@ def review(
         reasoning_effort=reasoning_level,
         stream_callback=stream_output,
         log_dir=llm_log_dir,
-        use_cache=not no_cache,
     )
 
     if not result.used:
@@ -2131,6 +2098,290 @@ def review(
 
 
 @app.command()
+def explain_infeasibility(
+    run_dir: str,
+    llm: str = typer.Option("auto", help="LLM provider: auto|openai|anthropic|amp|none"),
+    model: str = typer.Option("", help="Specific model to use (default: gpt-5)"),
+    reasoning_level: str = typer.Option(
+        "medium",
+        "--reasoning-level",
+        help="Reasoning effort: minimal|low|medium|high (default: medium)",
+    ),
+    dry_run: bool = typer.Option(
+        False, "--dry-run", help="Show cost estimate without making API calls"
+    ),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation prompts"),
+) -> None:
+    """
+    Diagnose WHY a TIMES model is infeasible and EXACTLY how to fix it.
+
+    ⭐ Use this when your TIMES run returns INFEASIBLE status.
+
+    Analyzes QA_CHECK.LOG, run log, and .lst files to identify:
+    - The specific constraints/variables causing infeasibility
+    - The mechanism of the contradiction
+    - Minimal conflicting set (MCS) of equations
+    - Step-by-step remediation plan with exact Veda table edits
+
+    Provides concrete fix instructions referencing specific processes,
+    commodities, regions, years, and timeslices.
+
+    \b
+    Example:
+      times-doctor explain-infeasibility data/065Nov25-annualupto2045/parscen
+      times-doctor explain-infeasibility data/... --dry-run  # Cost estimate
+      times-doctor explain-infeasibility data/... --yes      # Skip prompts
+
+    \b
+    Output:
+      <run_dir>/times_doctor_out/infeasibility_diagnosis.md  ← Read this!
+      <run_dir>/_llm_calls/                                  ← API call logs
+    """
+    rd = Path(run_dir).resolve()
+
+    # Check for multiple run directories
+    run_dirs = find_run_directories(rd)
+
+    if len(run_dirs) > 1:
+        print(f"\n[bold]Found {len(run_dirs)} run directories:[/bold]")
+        for i, (_path, label, _mtime) in enumerate(run_dirs, 1):
+            print(f"  {i}. {label}")
+
+        choice = typer.prompt(f"\nSelect run to analyze (1-{len(run_dirs)})", type=int, default=1)
+        if 1 <= choice <= len(run_dirs):
+            rd = run_dirs[choice - 1][0]
+            print(f"[green]Selected: {rd}[/green]")
+        else:
+            print(f"[yellow]Invalid choice, using: {run_dirs[0][0]}[/yellow]")
+            rd = run_dirs[0][0]
+
+    api_keys = llm_mod.check_api_keys()
+    has_any_key = any(api_keys.values())
+
+    if llm.lower() != "none" and not has_any_key:
+        print("[yellow]No API keys found. Please configure OPENAI_API_KEY in a .env file:[/yellow]")
+        print("  OPENAI_API_KEY=sk-...")
+        print("")
+        print("[dim]explain-infeasibility requires OpenAI API for reasoning[/dim]")
+        raise typer.Exit(1)
+
+    if llm.lower() not in ("auto", "openai", "none"):
+        print("[yellow]explain-infeasibility only supports OpenAI provider with reasoning[/yellow]")
+        print("  Use --llm openai or --llm auto (default)")
+        raise typer.Exit(1)
+
+    qa_check_path = rd / "QA_CHECK.LOG"
+    qa_check = read_text(qa_check_path) if qa_check_path.exists() else ""
+
+    run_log_path = None
+    for f in rd.glob("*_run_log.txt"):
+        run_log_path = f
+        break
+    run_log = read_text(run_log_path) if run_log_path else ""
+
+    lst = latest_lst(rd)
+    lst_text = read_text(lst) if lst else ""
+
+    if not qa_check and not run_log and not lst_text:
+        print(f"[red]No QA_CHECK.LOG, *_run_log.txt, or .lst files found in {rd}[/red]")
+        raise typer.Exit(1)
+
+    print("[yellow]Found files:[/yellow]")
+    if qa_check:
+        print(f"  ✓ QA_CHECK.LOG ({len(qa_check)} chars)")
+    if run_log and run_log_path:
+        print(f"  ✓ {run_log_path.name} ({len(run_log)} chars)")
+    if lst_text and lst:
+        print(f"  ✓ {lst.name} ({len(lst_text)} chars)")
+
+    # Extract useful sections first
+    llm_log_dir = rd / "_llm_calls"
+
+    # Determine which fast model will be used
+    api_keys = llm_mod.check_api_keys()
+    fast_model = (
+        "gpt-5-nano"
+        if api_keys["openai"]
+        else ("claude-3-5-haiku-20241022" if api_keys["anthropic"] else "unknown")
+    )
+
+    # DRY RUN: Show cost estimate and exit
+    if dry_run:
+        print("\n[bold yellow]DRY RUN - Cost Estimation[/bold yellow]")
+        print("\n[cyan]Files to analyze:[/cyan]")
+
+        total_chars = 0
+        if qa_check:
+            chars = len(qa_check)
+            tokens = estimate_tokens(qa_check)
+            total_chars += chars
+            print(f"  • QA_CHECK.LOG: {chars:,} chars (~{tokens:,} tokens)")
+
+        if run_log and run_log_path:
+            chars = len(run_log)
+            tokens = estimate_tokens(run_log)
+            total_chars += chars
+            print(f"  • {run_log_path.name}: {chars:,} chars (~{tokens:,} tokens)")
+
+        if lst_text and lst:
+            chars = len(lst_text)
+            tokens = estimate_tokens(lst_text)
+            total_chars += chars
+            print(f"  • {lst.name}: {chars:,} chars (~{tokens:,} tokens)")
+
+        print(f"\n[cyan]Total input size:[/cyan] {total_chars:,} chars")
+
+        # Estimate condensing costs
+        print(f"\n[cyan]Step 1: Condensing with fast model ({fast_model})[/cyan]")
+        condense_input_tokens = estimate_tokens(qa_check + run_log + lst_text)
+        condense_output_tokens = int(condense_input_tokens * 0.3)
+        _, _, condense_cost = estimate_cost(
+            qa_check + run_log + lst_text, " " * (condense_output_tokens * 4), fast_model
+        )
+        print(f"  Input tokens: ~{condense_input_tokens:,}")
+        print(f"  Output tokens: ~{condense_output_tokens:,} (estimated)")
+        print(f"  Cost: ${condense_cost:.4f}")
+
+        # Estimate reasoning cost
+        reasoning_model_name = "gpt-5"
+        print(
+            f"\n[cyan]Step 2: Infeasibility diagnosis with reasoning model (gpt-5 {reasoning_level})[/cyan]"
+        )
+        review_input_tokens = condense_output_tokens
+        review_output_tokens = 3000  # Infeasibility diagnosis typically longer
+        _, _, review_cost = estimate_cost(
+            " " * (review_input_tokens * 4),
+            " " * (review_output_tokens * 4),
+            reasoning_model_name,
+        )
+        print(f"  Input tokens: ~{review_input_tokens:,}")
+        print(f"  Output tokens: ~{review_output_tokens:,} (estimated)")
+        print(f"  Cost: ${review_cost:.4f}")
+
+        total_cost = condense_cost + review_cost
+        print(f"\n[bold green]Estimated total cost: ${total_cost:.4f} USD[/bold green]")
+        print("[dim]Note: Actual costs may vary based on content complexity[/dim]")
+        print("\n[yellow]To proceed with actual analysis, run without --dry-run flag[/yellow]")
+
+        return
+
+    print("\n[bold yellow]Condensing files...[/bold yellow]")
+    print(f"[dim](LLM calls logged to {llm_log_dir})[/dim]")
+
+    condensed_qa_check = ""
+    condensed_run_log = ""
+    condensed_lst = ""
+
+    try:
+        if qa_check:
+            print("[dim]  Condensing QA_CHECK.LOG...[/dim]")
+
+            def qa_progress(current: int, total: int, message: str) -> None:
+                print(f"[dim]    {message}[/dim]")
+
+            condensed_qa_check = llm_mod.condense_qa_check(qa_check, progress_callback=qa_progress)
+            condensed_qa_check_path = rd / "QA_CHECK.condensed.LOG"
+            condensed_qa_check_path.write_text(condensed_qa_check, encoding="utf-8")
+            print(f"[green]  ✓ Saved {condensed_qa_check_path}[/green]")
+
+        if run_log and run_log_path:
+            print(f"[dim]  Condensing {run_log_path.name}...[/dim]")
+
+            def runlog_progress(current: int, total: int, message: str) -> None:
+                print(f"[dim]    {message}[/dim]")
+
+            sections = llm_mod.extract_condensed_sections(
+                run_log, "run_log", log_dir=llm_log_dir, progress_callback=runlog_progress
+            )
+
+            if "filtered_content" in sections and sections["filtered_content"]:
+                condensed_run_log = (
+                    f"# Run Log - Filtered\n\n```\n{sections['filtered_content']}\n```\n"
+                )
+            else:
+                condensed_run_log = llm_mod.create_condensed_markdown(
+                    run_log.split("\n"), sections["sections"], "run_log"
+                )
+
+            condensed_run_log_path = rd / f"{run_log_path.stem}.condensed.txt"
+            condensed_run_log_path.write_text(condensed_run_log, encoding="utf-8")
+            print(f"[green]  ✓ Saved {condensed_run_log_path}[/green]")
+
+        if lst_text and lst:
+            print(f"[dim]  Condensing {lst.name}...[/dim]")
+
+            def lst_progress(current: int, total: int, message: str) -> None:
+                print(f"[dim]    {message}[/dim]")
+
+            sections = llm_mod.extract_condensed_sections(
+                lst_text, "lst", log_dir=llm_log_dir, progress_callback=lst_progress
+            )
+            condensed_lst = llm_mod.create_condensed_markdown(
+                lst_text.split("\n"), sections["sections"], "lst"
+            )
+            condensed_lst_path = rd / f"{lst.stem}.condensed.lst"
+            condensed_lst_path.write_text(condensed_lst, encoding="utf-8")
+            print(f"[green]  ✓ Saved {condensed_lst_path}[/green]")
+    except Exception as e:
+        print(f"[red]Error during extraction: {e}[/red]")
+        print(f"[yellow]Check {llm_log_dir} for detailed logs[/yellow]")
+        raise typer.Exit(1)
+
+    print(
+        f"\n[bold cyan]Analyzing infeasibility with reasoning LLM (gpt-5 {reasoning_level}):[/bold cyan]"
+    )
+    if condensed_qa_check:
+        print("  • QA_CHECK.condensed.LOG")
+    if condensed_run_log and run_log_path:
+        print(f"  • {run_log_path.stem}.condensed.txt")
+    if condensed_lst and lst:
+        print(f"  • {lst.stem}.condensed.lst")
+
+    print("\n[bold green]Diagnosing infeasibility...[/bold green]\n")
+
+    # Create streaming callback to display output as it comes
+    def stream_output(chunk: str) -> None:
+        print(chunk, end="", flush=True)
+
+    result = llm_mod.explain_infeasibility(
+        condensed_qa_check,
+        condensed_run_log,
+        condensed_lst,
+        provider=llm,
+        model=model,
+        reasoning_effort=reasoning_level,
+        stream_callback=stream_output,
+        log_dir=llm_log_dir,
+    )
+
+    if not result.used:
+        print("[red]Failed to get LLM response. Check API keys and connectivity.[/red]")
+        raise typer.Exit(1)
+
+    # If streaming wasn't used, print the result
+    if not result.text or "\n" not in result.text:
+        print(result.text)
+
+    print("\n")  # New line after output
+
+    print(f"\n[bold cyan]LLM Provider:[/bold cyan] {result.provider}")
+    if result.model:
+        print(f"[bold cyan]Model:[/bold cyan] {result.model}")
+    if result.input_tokens > 0:
+        print(
+            f"[bold cyan]Tokens:[/bold cyan] {result.input_tokens:,} in + {result.output_tokens:,} out = {result.input_tokens + result.output_tokens:,} total"
+        )
+    if result.cost_usd > 0:
+        print(f"[bold cyan]Cost:[/bold cyan] ${result.cost_usd:.4f} USD")
+
+    out = ensure_out(rd)
+    diagnosis_path = out / "infeasibility_diagnosis.md"
+    diagnosis_path.write_text(result.text, encoding="utf-8")
+
+    print(f"\n[green]Saved to {diagnosis_path}[/green]")
+
+
+@app.command()
 def review_qa_check(
     run_dir: str,
     llm: str = typer.Option("auto", help="LLM provider: auto|openai|anthropic|amp|none"),
@@ -2144,7 +2395,6 @@ def review_qa_check(
         False, "--dry-run", help="Show cost estimate without making API calls"
     ),
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation prompts"),
-    no_cache: bool = typer.Option(False, "--no-cache", help="Bypass LLM response cache"),
 ) -> None:
     """
     Get actionable fix recommendations for QA_CHECK.LOG issues using Oracle.
@@ -2393,7 +2643,6 @@ def review_qa_check(
         reasoning_effort=reasoning_level,
         stream_callback=stream_output,
         log_dir=llm_log_dir,
-        use_cache=not no_cache,
     )
 
     if not result.used:
@@ -2440,7 +2689,6 @@ def review_solver_options(
         False, "--dry-run", help="Show cost estimate without making API calls"
     ),
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation prompts"),
-    no_cache: bool = typer.Option(False, "--no-cache", help="Bypass LLM response cache"),
 ) -> None:
     """
     Review solver options for feasible-but-not-optimal solutions.
@@ -2756,7 +3004,6 @@ def review_solver_options(
             reasoning_effort=reasoning_level,
             stream_callback=None,  # No streaming for structured output
             log_dir=llm_log_dir,
-            use_cache=not no_cache,
         )
 
     if not result.used:

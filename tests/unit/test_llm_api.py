@@ -45,9 +45,7 @@ class TestOpenAIResponsesAPI:
         mock_post.return_value = mock_response
 
         # Make API call (disable cache to avoid interference from other tests)
-        text, metadata = _call_openai_responses_api(
-            "test prompt", model="gpt-5-nano", use_cache=False
-        )
+        text, metadata = _call_openai_responses_api("test prompt", model="gpt-5-nano")
 
         # Verify text extraction
         assert text == "This is the compressed output from GPT-5.", f"Got: {repr(text)}"
@@ -75,7 +73,7 @@ class TestOpenAIResponsesAPI:
         mock_response.headers = {}
         mock_post.return_value = mock_response
 
-        text, metadata = _call_openai_responses_api("test prompt", use_cache=False)
+        text, metadata = _call_openai_responses_api("test prompt")
 
         assert text == ""
         assert metadata["output_tokens"] == 0
@@ -115,9 +113,7 @@ class TestOpenAIResponsesAPI:
         mock_response.headers = {}
         mock_post.return_value = mock_response
 
-        text, metadata = _call_openai_responses_api(
-            "test prompt", model="gpt-5-nano", use_cache=False
-        )
+        text, metadata = _call_openai_responses_api("test prompt", model="gpt-5-nano")
 
         # Should fall back to summary when content is empty
         assert (
@@ -140,9 +136,7 @@ class TestOpenAIResponsesAPI:
         mock_response.headers = {}
         mock_post.return_value = mock_response
 
-        text, metadata = _call_openai_responses_api(
-            "test prompt", model="gpt-5-nano", use_cache=False
-        )
+        text, metadata = _call_openai_responses_api("test prompt", model="gpt-5-nano")
 
         # gpt-5-nano: $0.0001/1k input, $0.0004/1k output
         expected_cost = (1000 / 1000 * 0.0001) + (50 / 1000 * 0.0004)
