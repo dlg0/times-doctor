@@ -64,9 +64,9 @@ class TestRunLogFiltering:
             early_line = (
                 original_lines[exec_start_line - 10] if exec_start_line > 10 else original_lines[0]
             )
-            assert (
-                early_line not in filtered_content
-            ), "Content before execution start should be filtered out"
+            assert early_line not in filtered_content, (
+                "Content before execution start should be filtered out"
+            )
 
     def test_filter_run_log_removes_noise(self):
         """Test that DMoves, PMoves, Iteration, and Elapsed time lines are removed."""

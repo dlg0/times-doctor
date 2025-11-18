@@ -59,9 +59,9 @@ class TestSolverOptionsPrompt:
         # Check for explicit lpmethod requirement
         assert "lpmethod 4" in template, "Prompt should explicitly require lpmethod 4"
         assert "solutiontype 2" in template, "Prompt should explicitly require solutiontype 2"
-        assert (
-            "EVERY .opt file MUST include" in template or "must include" in template.lower()
-        ), "Prompt should strongly emphasize lpmethod requirement"
+        assert "EVERY .opt file MUST include" in template or "must include" in template.lower(), (
+            "Prompt should strongly emphasize lpmethod requirement"
+        )
 
     def test_prompt_examples_include_lpmethod(self):
         """Verify the prompt examples show lpmethod in opt files."""
@@ -78,9 +78,9 @@ class TestSolverOptionsPrompt:
         for example in opt_examples:
             param_names = [p["name"] for p in example["parameters"]]
             assert "lpmethod" in param_names, f"Example {example['filename']} missing lpmethod"
-            assert (
-                "solutiontype" in param_names
-            ), f"Example {example['filename']} missing solutiontype"
+            assert "solutiontype" in param_names, (
+                f"Example {example['filename']} missing solutiontype"
+            )
 
 
 class TestSolverDiagnosisValidation:

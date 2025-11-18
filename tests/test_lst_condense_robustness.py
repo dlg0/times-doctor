@@ -91,26 +91,26 @@ class TestLSTCondensationRobustness:
 
             # Summary should mention Error 170
             summary = section.get("summary", "")
-            assert (
-                "Error 170" in summary or "170" in summary
-            ), f"Section summary should mention Error 170: {summary}"
+            assert "Error 170" in summary or "170" in summary, (
+                f"Section summary should mention Error 170: {summary}"
+            )
 
         # Verify useful information was extracted
-        assert (
-            total_170_count > 20
-        ), f"Expected many error 170 occurrences (file has thousands), got {total_170_count}"
+        assert total_170_count > 20, (
+            f"Expected many error 170 occurrences (file has thousands), got {total_170_count}"
+        )
 
-        assert (
-            element_patterns_with_aud25 > 0
-        ), "Expected aggregated element patterns to include 'AUD25' (the actual problematic element)"
+        assert element_patterns_with_aud25 > 0, (
+            "Expected aggregated element patterns to include 'AUD25' (the actual problematic element)"
+        )
 
-        assert (
-            has_year_generalization
-        ), "Expected element patterns to generalize years (e.g., 2021, 2022 -> YEAR)"
+        assert has_year_generalization, (
+            "Expected element patterns to generalize years (e.g., 2021, 2022 -> YEAR)"
+        )
 
-        assert (
-            has_source_context
-        ), "Expected error samples to include context or element information for debugging"
+        assert has_source_context, (
+            "Expected error samples to include context or element information for debugging"
+        )
 
     def test_element_extraction_direction(self, test_lst_path):
         """
@@ -154,9 +154,9 @@ class TestLSTCondensationRobustness:
                         found_full_descriptor = True
                         break
 
-                assert (
-                    found_full_descriptor
-                ), "Sample contexts should include the element line with 'AUD25'"
+                assert found_full_descriptor, (
+                    "Sample contexts should include the element line with 'AUD25'"
+                )
                 break
 
         assert error_170_found, "Should find error 170 in compilation sections"
@@ -203,9 +203,9 @@ class TestLSTCondensationRobustness:
                         has_multi_token_pattern = True
 
                 # At minimum, patterns should capture multiple components
-                assert (
-                    has_tech_pattern or has_multi_token_pattern
-                ), f"Element patterns should capture full descriptor structure, got: {list(elements.keys())}"
+                assert has_tech_pattern or has_multi_token_pattern, (
+                    f"Element patterns should capture full descriptor structure, got: {list(elements.keys())}"
+                )
                 break
 
     def test_solver_status_extraction(self, test_lst_path):
@@ -235,14 +235,14 @@ class TestLSTCondensationRobustness:
         solution = solution_sections[0]
 
         # Should extract solver type
-        assert (
-            solution.get("solver_type") == "LP"
-        ), f"Should extract solver type as LP, got {solution.get('solver_type')}"
+        assert solution.get("solver_type") == "LP", (
+            f"Should extract solver type as LP, got {solution.get('solver_type')}"
+        )
 
         # Should extract status code 3 (infeasible)
-        assert (
-            solution.get("status_code") == 3
-        ), f"Should extract status code 3 (infeasible), got {solution.get('status_code')}"
+        assert solution.get("status_code") == 3, (
+            f"Should extract status code 3 (infeasible), got {solution.get('status_code')}"
+        )
 
         # Should detect infeasibility
         assert solution.get("infeasible") is True, "Should detect that model is infeasible"
@@ -255,9 +255,9 @@ class TestLSTCondensationRobustness:
         assert solution.get("resource_limit") is not None, "Should extract resource limit"
 
         # Should extract iteration count
-        assert (
-            solution.get("iteration_count") == 0
-        ), "Should extract iteration count (0 for infeasible)"
+        assert solution.get("iteration_count") == 0, (
+            "Should extract iteration count (0 for infeasible)"
+        )
 
         # Summary should highlight infeasibility
         summary = solution.get("summary", "")

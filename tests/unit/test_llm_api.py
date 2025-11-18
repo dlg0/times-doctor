@@ -116,9 +116,9 @@ class TestOpenAIResponsesAPI:
         text, metadata = _call_openai_responses_api("test prompt", model="gpt-5-nano")
 
         # Should fall back to summary when content is empty
-        assert (
-            text == "Some summary text here"
-        ), f"Got empty text when summary was available: {repr(text)}"
+        assert text == "Some summary text here", (
+            f"Got empty text when summary was available: {repr(text)}"
+        )
         assert metadata["input_tokens"] == 115096
         assert metadata["output_tokens"] == 420
 
@@ -140,6 +140,6 @@ class TestOpenAIResponsesAPI:
 
         # gpt-5-nano: $0.0001/1k input, $0.0004/1k output
         expected_cost = (1000 / 1000 * 0.0001) + (50 / 1000 * 0.0004)
-        assert (
-            abs(metadata["cost_usd"] - expected_cost) < 0.0001
-        ), f"Expected {expected_cost}, got {metadata['cost_usd']}"
+        assert abs(metadata["cost_usd"] - expected_cost) < 0.0001, (
+            f"Expected {expected_cost}, got {metadata['cost_usd']}"
+        )

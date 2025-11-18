@@ -90,9 +90,9 @@ class TestLstPageExtraction:
 
         # First call should mention parsing or sections
         first_call = calls[0]
-        assert (
-            "parsing" in first_call[2].lower() or "section" in first_call[2].lower()
-        ), f"Expected parsing/section message, got: {first_call[2]}"
+        assert "parsing" in first_call[2].lower() or "section" in first_call[2].lower(), (
+            f"Expected parsing/section message, got: {first_call[2]}"
+        )
 
     def test_extract_condensed_sections_uses_page_extraction(self, sample_lst_file):
         """Test that extract_condensed_sections correctly handles LST files."""
@@ -149,6 +149,6 @@ class TestLstContentExtraction:
         has_execution = "execution" in extracted_lower or "time" in extracted_lower
         has_model = "model" in extracted_lower or "equation" in extracted_lower
 
-        assert (
-            has_compilation or has_execution or has_model
-        ), "Extracted text should contain compilation, execution, or model information"
+        assert has_compilation or has_execution or has_model, (
+            "Extracted text should contain compilation, execution, or model information"
+        )
