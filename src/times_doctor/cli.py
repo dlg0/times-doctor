@@ -1298,7 +1298,9 @@ def rerun(
         remove_tree_robust(tmp)
 
     console.print(f"[yellow]Creating rerun directory: {tmp}[/yellow]")
-    shutil.copytree(rd, tmp)
+    shutil.copytree(
+        rd, tmp, ignore=shutil.ignore_patterns("_td_rerun", "_llm_calls", "times_doctor_out")
+    )
 
     # Resolve and prepare .opt file
     opt_dst = tmp / f"{solver}.opt"
