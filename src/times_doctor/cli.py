@@ -337,6 +337,113 @@ def resolve_opt_file(run_dir: Path, solver: str, opt_file: str | None) -> Path |
     return None
 
 
+def ensure_solver_option(opt_path: Path, name: str, value: str) -> None:
+    """
+    Ensure solver .opt file has 'name value' (case-insensitive name).
+    Updates existing entry or appends if missing. Preserves comments/format.
+
+    Args:
+        opt_path: Path to solver .opt file
+        name: Option name to set
+        value: Option value to set
+    """
+    import re
+
+    def try_write(p: Path, content: str) -> bool:
+        try:
+            p.write_text(content, encoding="utf-8")
+            return True
+        except (PermissionError, OSError):
+            return False
+
+    try:
+        txt = opt_path.read_text(encoding="utf-8", errors="ignore")
+    except FileNotFoundError:
+        line = f"{name} {value}\n"
+        if not try_write(opt_path, line):
+            console.print(f"[yellow]Warning: Cannot write to {opt_path.name}[/yellow]")
+        return
+
+    lines_out = []
+    updated = False
+    target = name.lower()
+
+    for orig in txt.splitlines():
+        s = orig.lstrip()
+        if not s or s[0] in ("*", "#", "$"):
+            lines_out.append(orig)
+            continue
+        idx_hash = orig.find("#")
+        idx_dlr = orig.find("$")
+        split_idxs = [i for i in (idx_hash, idx_dlr) if i != -1]
+        cpos = min(split_idxs) if split_idxs else -1
+        code = orig if cpos == -1 else orig[:cpos]
+        inline_comment = "" if cpos == -1 else orig[cpos:]
+
+        m = re.match(r"^(\s*)([A-Za-z][\w\-]*)(\s*(?:=|\s)\s*)(.*\S)?\s*$", code)
+        if m and m.group(2).lower() == target:
+            prefix, name_tok, sep, _ = m.groups()
+            new_code = f"{prefix}{name_tok}{sep}{value}"
+            new_line = new_code + ("" if not inline_comment else (" " + inline_comment.lstrip()))
+            lines_out.append(new_line)
+            updated = True
+        else:
+            lines_out.append(orig)
+
+    if not updated:
+        if lines_out and lines_out[-1] != "":
+            lines_out.append("")
+        lines_out.append(f"{name} {value}")
+
+    new_content = "\n".join(lines_out) + "\n"
+    if not try_write(opt_path, new_content):
+        console.print(f"[yellow]Warning: Cannot write to {opt_path.name}[/yellow]")
+
+
+def detect_solver_from_files(run_log: str, lst_text: str) -> str | None:
+    """
+    Detect which solver was used from log files.
+
+    Args:
+        run_log: Run log content
+        lst_text: LST file content
+
+    Returns:
+        'cplex', 'gurobi', or None if not detected
+    """
+    s = (run_log or "") + "\n" + (lst_text or "")
+    if re.search(r"(?i)GAMS/\s*GUROBI|\bGurobi\b|LP\s*=\s*GUROBI", s):
+        return "gurobi"
+    if re.search(r"(?i)GAMS/\s*CPLEX|\bCPLEX\b|LP\s*=\s*CPLEX", s):
+        return "cplex"
+    return None
+
+
+def detect_iis_present(solver: str | None, run_log: str, lst_text: str) -> tuple[bool, str | None]:
+    """
+    Check if IIS/Conflict Refiner output is present in log files.
+
+    Args:
+        solver: Solver type ('cplex', 'gurobi', or None to check both)
+        run_log: Run log content
+        lst_text: LST file content
+
+    Returns:
+        Tuple of (iis_found, reason_string)
+    """
+    t = (run_log or "") + "\n" + (lst_text or "")
+    if (solver == "gurobi" or solver is None) and re.search(
+        r"(?i)Computing Irreducible Inconsistent Subsystem|IIS computed|Non-minimal IIS computed",
+        t,
+    ):
+        return True, "Gurobi IIS markers found"
+    if (solver == "cplex" or solver is None) and re.search(
+        r"(?i)IIS found|Irreducible Inconsistent Subsystem|Conflict Refiner", t
+    ):
+        return True, "CPLEX IIS/conflict markers found"
+    return False, None
+
+
 def detect_times_version(lst_path: Path | None) -> str | None:
     """Detect TIMES version from existing .lst file."""
     if not lst_path or not lst_path.exists():
@@ -1131,6 +1238,11 @@ def rerun(
         None, "--gams-path", help="Path to gams.exe (defaults to 'gams' in PATH)"
     ),
     label: str | None = typer.Option(None, "--label", help="Optional label for rerun directory"),
+    with_iis: bool = typer.Option(
+        False,
+        "--with-iis",
+        help="Enable IIS/Conflict Refiner after solve (adds 'iis 1' to solver .opt)",
+    ),
 ) -> None:
     """
     Rerun model with chosen solver and options.
@@ -1148,6 +1260,7 @@ def rerun(
     Example:
       times-doctor rerun data/065Nov25-annualupto2045/parscen --solver gurobi
       times-doctor rerun data/065Nov25-annualupto2045/parscen --solver cplex --opt-file tight_tolerances
+      times-doctor rerun data/065Nov25-annualupto2045/parscen --solver cplex --with-iis
 
     \b
     Created directories:
@@ -1197,6 +1310,13 @@ def rerun(
     else:
         console.print(f"[yellow]Writing default {solver}.opt with {threads} threads[/yellow]")
         write_default_opt(solver, opt_dst, threads)
+
+    # Enable IIS if requested
+    if with_iis:
+        ensure_solver_option(opt_dst, "iis", "1")
+        if solver == "cplex":
+            ensure_solver_option(opt_dst, "names", "yes")
+        console.print("[green]✓ Enabled IIS/Conflict Refiner (iis 1)[/green]")
 
     tmp_driver = pick_driver_gms(tmp)
     dd_dir = rd.parent
@@ -2193,6 +2313,28 @@ def explain_infeasibility(
         print(f"  ✓ {run_log_path.name} ({len(run_log)} chars)")
     if lst_text and lst:
         print(f"  ✓ {lst.name} ({len(lst_text)} chars)")
+
+    # Check for IIS/Conflict Refiner output
+    solver_used = detect_solver_from_files(run_log, lst_text)
+    iis_found, iis_reason = detect_iis_present(solver_used, run_log, lst_text)
+
+    if not iis_found:
+        print("\n[yellow]⚠ No IIS/Conflict Refiner output detected in this run.[/yellow]")
+        print("[dim]IIS analysis helps identify the minimal conflicting set of constraints.[/dim]")
+        if solver_used:
+            print("\n[cyan]To enable IIS, rerun with:[/cyan]")
+            print(f"  times-doctor rerun {rd} --solver {solver_used} --with-iis")
+        else:
+            print("\n[cyan]To enable IIS, rerun with one of:[/cyan]")
+            print(f"  times-doctor rerun {rd} --solver cplex --with-iis")
+            print(f"  times-doctor rerun {rd} --solver gurobi --with-iis")
+
+        if not yes and not typer.confirm("\nProceed with analysis without IIS?", default=True):
+            print("[dim]Exiting. Please rerun with IIS enabled for better analysis.[/dim]")
+            raise typer.Exit(0)
+        print("")
+    else:
+        print(f"[green]✓ IIS output detected ({iis_reason})[/green]")
 
     # Extract useful sections first
     llm_log_dir = rd / "_llm_calls"
