@@ -29,4 +29,14 @@
    git push origin vX.Y.Z
    ```
 
-The tag push will trigger the GitHub Actions workflow to build and publish to PyPI.
+The tag push will trigger the GitHub Actions workflow to build the package and create a GitHub Release with distribution files attached.
+
+Users can install directly from GitHub releases using:
+```bash
+pip install https://github.com/dlg0/times-doctor/releases/download/vX.Y.Z/times_doctor-X.Y.Z-py3-none-any.whl
+```
+
+Or install from the repository:
+```bash
+pip install git+https://github.com/dlg0/times-doctor.git@vX.Y.Z
+```
