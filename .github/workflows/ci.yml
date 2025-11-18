@@ -80,7 +80,7 @@ jobs:
         run: uv sync --all-extras
 
       - name: Run unit tests with coverage
-        run: uv run pytest -v --cov-report=xml -m "not integration"
+        run: uv run pytest -v --cov-report=xml -m "not integration and not llm"
 
       - name: Upload coverage to Codecov
         if: matrix.python-version == '3.12' && matrix.os == 'ubuntu-latest'

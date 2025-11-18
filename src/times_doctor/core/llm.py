@@ -277,7 +277,7 @@ def _call_openai_responses_api(
         try:
             if stream_callback:
                 # Streaming with structured output using SDK event API
-                with client.responses.stream(**kwargs) as stream:
+                with client.responses.stream(**kwargs) as stream:  # type: ignore[call-overload]
                     # Use SDK's event handler for text deltas
                     for event in stream:
                         if hasattr(event, "type") and event.type == "response.output_text.delta":
@@ -288,7 +288,7 @@ def _call_openai_responses_api(
                     response = stream.get_final_response()
             else:
                 # Non-streaming
-                response = client.responses.parse(**kwargs)
+                response = client.responses.parse(**kwargs)  # type: ignore[arg-type]
 
             # Extract parsed output
             parsed_output = response.output_parsed
